@@ -1,7 +1,11 @@
-import requests
-import pandas as pd
 import pytz
+import requests
 from bs4 import BeautifulSoup
+
+__title__ = "entsoe-py"
+__version__ = "0.1.0"
+__author__ = "EnergieID.be"
+__license__ = "MIT"
 
 URL = 'https://transparency.entsoe.eu/api'
 
@@ -155,6 +159,6 @@ class Entsoe:
         if not as_series:
             return response.text
         else:
-            from parsers import parse_prices
+            from entsoe.parsers import parse_prices
             series = parse_prices(response.text)
             return series

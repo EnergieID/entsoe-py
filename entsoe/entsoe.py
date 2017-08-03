@@ -3,7 +3,7 @@ import requests
 from bs4 import BeautifulSoup
 
 __title__ = "entsoe-py"
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 __author__ = "EnergieID.be"
 __license__ = "MIT"
 
@@ -66,6 +66,8 @@ class Entsoe:
         api_key : str
         session : requests.Session
         """
+        if api_key is None:
+            raise TypeError("API key cannot be None")
         self.api_key = api_key
         if session is None:
             session = requests.Session()

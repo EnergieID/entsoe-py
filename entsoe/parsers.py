@@ -32,7 +32,7 @@ def parse_prices(xml_text):
     series = pd.Series()
     for soup in _extract_timeseries(xml_text):
         series = series.append(_parse_price_timeseries(soup))
-    series.sort_index(inplace=True)
+    series = series.sort_index()
     return series
 
 

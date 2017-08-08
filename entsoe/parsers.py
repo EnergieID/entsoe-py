@@ -93,7 +93,7 @@ def _resolution_to_timedelta(res_text):
     pd.Timedelta
     """
     if res_text == 'PT60M':
-        delta = pd.to_timedelta('60min')
+        delta = pd.to_timedelta(60, unit='m')
     else:
         raise NotImplementedError("Sorry, I don't know what to do with the "
                                   "resolution '{}', because there was no "

@@ -53,7 +53,7 @@ def _parse_price_timeseries(soup):
         prices.append(float(point.find('price.amount').text))
 
     series = pd.Series(index=positions, data=prices)
-    series.sort_index(inplace=True)
+    series = series.sort_index()
     series.index = _parse_datetimeindex(soup)
 
     return series

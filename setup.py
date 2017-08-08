@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-A setuptools based setup module for smappy.
+A setuptools based setup module for Entsoe-py.
 
 Adapted from
 https://packaging.python.org/en/latest/distributing.html

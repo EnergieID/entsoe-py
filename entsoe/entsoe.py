@@ -3,7 +3,7 @@ import requests
 from bs4 import BeautifulSoup
 
 __title__ = "entsoe-py"
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 __author__ = "EnergieID.be"
 __license__ = "MIT"
 
@@ -102,7 +102,7 @@ class Entsoe:
             soup = BeautifulSoup(response.text, 'html.parser')
             text = soup.find_all('text')
             if len(text):
-                error_text = soup.find('text').prettyfy()
+                error_text = soup.find('text').text
                 if 'No matching data found' in error_text:
                     return None
                 else:
@@ -158,6 +158,8 @@ class Entsoe:
             'out_Domain': domain
         }
         response = self.base_request(params=params, start=start, end=end)
+        if response is None:
+            return None
         if not as_series:
             return response.text
         else:

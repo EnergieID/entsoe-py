@@ -1,9 +1,10 @@
 import pytz
 import requests
 from bs4 import BeautifulSoup
+from time import sleep
 
 __title__ = "entsoe-py"
-__version__ = "0.1.6"
+__version__ = "0.1.7"
 __author__ = "EnergieID.be"
 __license__ = "MIT"
 
@@ -59,7 +60,7 @@ class Entsoe:
     Attributions: Parts of the code for parsing Entsoe responses were copied
     from https://github.com/tmrowco/electricitymap
     """
-    def __init__(self, api_key, session=None):
+    def __init__(self, api_key, session=None, retry_count=0, retry_delay=0):
         """
         Parameters
         ----------
@@ -72,6 +73,8 @@ class Entsoe:
         if session is None:
             session = requests.Session()
         self.session = session
+        self.retry_count = retry_count
+        self.retry_delay = retry_delay
 
     def base_request(self, params, start, end):
         """
@@ -95,23 +98,25 @@ class Entsoe:
         }
         params.update(base_params)
 
-        response = self.session.get(url=URL, params=params)
-        try:
-            response.raise_for_status()
-        except requests.HTTPError as e:
-            soup = BeautifulSoup(response.text, 'html.parser')
-            text = soup.find_all('text')
-            if len(text):
-                error_text = soup.find('text').text
-                if 'No matching data found' in error_text:
-                    return None
-                else:
-                    raise Exception('Failed to get data. Reason: %s' %
-                                    error_text)
+        error = None
+        for _ in range(self.retry_count):
+            response = self.session.get(url=URL, params=params)
+            try:
+                response.raise_for_status()
+            except requests.HTTPError as e:
+                error = e
+                soup = BeautifulSoup(response.text, 'html.parser')
+                text = soup.find_all('text')
+                if len(text):
+                    error_text = soup.find('text').text
+                    if 'No matching data found' in error_text:
+                        return None
+                print("HTTP Error, retrying in {} seconds".format(self.retry_delay))
+                sleep(self.retry_delay)
             else:
-                raise e
+                return response
         else:
-            return response
+            raise error
 
     @staticmethod
     def _datetime_to_str(dtm):

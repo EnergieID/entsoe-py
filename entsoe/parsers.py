@@ -75,8 +75,7 @@ def _parse_datetimeindex(soup):
     start = pd.Timestamp(soup.find('start').text)
     end = pd.Timestamp(soup.find('end').text)
     delta = _resolution_to_timedelta(res_text=soup.find('resolution').text)
-    index = pd.date_range(start=start, end=end, freq=delta)
-    index = index[:-1]  # because 'end' is actually the start of the next series
+    index = pd.date_range(start=start, end=end, freq=delta, closed='left')
     return index
 
 
@@ -90,10 +89,10 @@ def _resolution_to_timedelta(res_text):
 
     Returns
     -------
-    pd.Timedelta
+    str
     """
     if res_text == 'PT60M':
-        delta = pd.to_timedelta(60, unit='m')
+        delta = '60min'
     else:
         raise NotImplementedError("Sorry, I don't know what to do with the "
                                   "resolution '{}', because there was no "

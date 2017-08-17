@@ -1,6 +1,8 @@
 import bs4
 import pandas as pd
 
+from .entsoe import PSRTYPE_MAPPINGS
+
 
 def _extract_timeseries(xml_text):
     """
@@ -36,6 +38,31 @@ def parse_prices(xml_text):
     return series
 
 
+def parse_generation(xml_text):
+    """
+    Parameters
+    ----------
+    xml_text : str
+
+    Returns
+    -------
+    pd.DataFrame
+    """
+    all_series = {}
+    for soup in _extract_timeseries(xml_text):
+        ts = _parse_generation_forecast_timeseries(soup)
+        series = all_series.get(ts.name)
+        if series is None:
+            all_series[ts.name] = ts
+        else:
+            series = series.append(ts)
+            series.sort_index()
+            all_series[series.name] = series
+
+    df = pd.DataFrame.from_dict(all_series)
+    return df
+
+
 def _parse_price_timeseries(soup):
     """
     Parameters
@@ -57,6 +84,32 @@ def _parse_price_timeseries(soup):
     series.index = _parse_datetimeindex(soup)
 
     return series
+
+
+def _parse_generation_forecast_timeseries(soup):
+    """
+    Parameters
+    ----------
+    soup : bs4.element.tag
+
+    Returns
+    -------
+    pd.Series
+    """
+    psrtype = soup.find('psrtype').text
+    positions = []
+    quantities = []
+    for point in soup.find_all('point'):
+        positions.append(int(point.find('position').text))
+        quantities.append(float(point.find('quantity').text))
+
+    series = pd.Series(index=positions, data=quantities)
+    series = series.sort_index()
+    series.index = _parse_datetimeindex(soup)
+
+    series.name = PSRTYPE_MAPPINGS[psrtype]
+    return series
+
 
 def _parse_datetimeindex(soup):
     """

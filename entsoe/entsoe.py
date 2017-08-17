@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup
 from time import sleep
 
 __title__ = "entsoe-py"
-__version__ = "0.1.7"
+__version__ = "0.1.8"
 __author__ = "EnergieID.be"
 __license__ = "MIT"
 
@@ -54,13 +54,42 @@ DOMAIN_MAPPINGS = {
     'UA': '10YUA-WEPS-----0'
 }
 
+PSRTYPE_MAPPINGS = {
+    'A03': 'Mixed',
+    'A04': 'Generation',
+    'A05': 'Load',
+    'B01': 'Biomass',
+    'B02': 'Fossil Brown coal/Lignite',
+    'B03': 'Fossil Coal-derived gas',
+    'B04': 'Fossil Gas',
+    'B05': 'Fossil Hard coal',
+    'B06': 'Fossil Oil',
+    'B07': 'Fossil Oil shale',
+    'B08': 'Fossil Peat',
+    'B09': 'Geothermal',
+    'B10': 'Hydro Pumped Storage',
+    'B11': 'Hydro Run-of-river and poundage',
+    'B12': 'Hydro Water Reservoir',
+    'B13': 'Marine',
+    'B14': 'Nuclear',
+    'B15': 'Other renewable',
+    'B16': 'Solar',
+    'B17': 'Waste',
+    'B18': 'Wind Offshore',
+    'B19': 'Wind Onshore',
+    'B20': 'Other',
+    'B21': 'AC Link',
+    'B22': 'DC Link',
+    'B23': 'Substation',
+    'B24': 'Transformer'}
+
 
 class Entsoe:
     """
     Attributions: Parts of the code for parsing Entsoe responses were copied
     from https://github.com/tmrowco/electricitymap
     """
-    def __init__(self, api_key, session=None, retry_count=0, retry_delay=0):
+    def __init__(self, api_key, session=None, retry_count=1, retry_delay=0):
         """
         Parameters
         ----------
@@ -171,3 +200,69 @@ class Entsoe:
             from entsoe.parsers import parse_prices
             series = parse_prices(response.text)
             return series
+
+    def query_generation_forecast(self, country_code, start, end, as_dataframe=False):
+        """
+        Parameters
+        ----------
+        country_code : str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        as_dataframe : bool
+            Default False
+            If True: Return the response as a Pandas DataFrame
+            If False: Return the response as raw XML
+
+        Returns
+        -------
+        str | pd.DataFrame
+        """
+
+        domain = DOMAIN_MAPPINGS[country_code]
+        params = {
+            'documentType': 'A69',
+            'processType': 'A01',
+            'in_Domain': domain,
+        }
+        response = self.base_request(params=params, start=start, end=end)
+        if response is None:
+            return None
+        if not as_dataframe:
+            return response.text
+        else:
+            from entsoe.parsers import parse_generation
+            df = parse_generation(response.text)
+            return df
+
+    def query_generation(self, country_code, start, end, as_dataframe=False):
+        """
+        Parameters
+        ----------
+        country_code : str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        as_dataframe : bool
+            Default False
+            If True: Return the response as a Pandas DataFrame
+            If False: Return the response as raw XML
+
+        Returns
+        -------
+        str | pd.DataFrame
+        """
+
+        domain = DOMAIN_MAPPINGS[country_code]
+        params = {
+            'documentType': 'A75',
+            'processType': 'A16',
+            'in_Domain': domain,
+        }
+        response = self.base_request(params=params, start=start, end=end)
+        if response is None:
+            return None
+        if not as_dataframe:
+            return response.text
+        else:
+            from entsoe.parsers import parse_generation
+            df = parse_generation(response.text)
+            return df

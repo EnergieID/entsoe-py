@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup
 from time import sleep
 
 __title__ = "entsoe-py"
-__version__ = "0.1.8"
+__version__ = "0.1.9"
 __author__ = "EnergieID.be"
 __license__ = "MIT"
 
@@ -255,6 +255,38 @@ class Entsoe:
         params = {
             'documentType': 'A75',
             'processType': 'A16',
+            'in_Domain': domain,
+        }
+        response = self.base_request(params=params, start=start, end=end)
+        if response is None:
+            return None
+        if not as_dataframe:
+            return response.text
+        else:
+            from entsoe.parsers import parse_generation
+            df = parse_generation(response.text)
+            return df
+
+    def query_installed_generation_capacity(self, country_code, start, end, as_dataframe=False):
+        """
+        Parameters
+        ----------
+        country_code : str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        as_dataframe : bool
+            Default False
+            If True: Return the response as a Pandas DataFrame
+            If False: Return the response as raw XML
+
+        Returns
+        -------
+        str | pd.DataFrame
+        """
+        domain = DOMAIN_MAPPINGS[country_code]
+        params = {
+            'documentType': 'A68',
+            'processType': 'A33',
             'in_Domain': domain,
         }
         response = self.base_request(params=params, start=start, end=end)

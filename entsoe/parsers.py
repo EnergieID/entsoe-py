@@ -146,6 +146,8 @@ def _resolution_to_timedelta(res_text):
     """
     if res_text == 'PT60M':
         delta = '60min'
+    elif res_text == 'P1Y':
+        delta = '12M'
     else:
         raise NotImplementedError("Sorry, I don't know what to do with the "
                                   "resolution '{}', because there was no "

@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup
 from time import sleep
 
 __title__ = "entsoe-py"
-__version__ = "0.1.10"
+__version__ = "0.1.11"
 __author__ = "EnergieID.be"
 __license__ = "MIT"
 
@@ -133,12 +133,17 @@ class Entsoe:
     Attributions: Parts of the code for parsing Entsoe responses were copied
     from https://github.com/tmrowco/electricitymap
     """
-    def __init__(self, api_key, session=None, retry_count=1, retry_delay=0):
+
+    def __init__(self, api_key, session=None, retry_count=1, retry_delay=0,
+                 proxies=None):
         """
         Parameters
         ----------
         api_key : str
         session : requests.Session
+        proxies : dict
+            requests proxies
+        
         """
         if api_key is None:
             raise TypeError("API key cannot be None")
@@ -146,6 +151,7 @@ class Entsoe:
         if session is None:
             session = requests.Session()
         self.session = session
+        self.proxies = proxies
         self.retry_count = retry_count
         self.retry_delay = retry_delay
 
@@ -173,7 +179,8 @@ class Entsoe:
 
         error = None
         for _ in range(self.retry_count):
-            response = self.session.get(url=URL, params=params)
+            response = self.session.get(url=URL, params=params,
+                                        proxies=self.proxies)
             try:
                 response.raise_for_status()
             except requests.HTTPError as e:
@@ -241,8 +248,8 @@ class Entsoe:
         if not as_series:
             return response.text
         else:
-            from entsoe.parsers import parse_prices
-            series = parse_prices(response.text)
+            from . import parsers
+            series = parsers.parse_prices(response.text)
             series = series.tz_convert(TIMEZONE_MAPPINGS[country_code])
             return series
 
@@ -275,8 +282,8 @@ class Entsoe:
         if not as_dataframe:
             return response.text
         else:
-            from entsoe.parsers import parse_generation
-            df = parse_generation(response.text)
+            from . import parsers
+            df = parsers.parse_generation(response.text)
             df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
             return df
 
@@ -309,8 +316,8 @@ class Entsoe:
         if not as_dataframe:
             return response.text
         else:
-            from entsoe.parsers import parse_generation
-            df = parse_generation(response.text)
+            from . import parsers
+            df = parsers.parse_generation(response.text)
             df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
             return df
 
@@ -342,7 +349,7 @@ class Entsoe:
         if not as_dataframe:
             return response.text
         else:
-            from entsoe.parsers import parse_generation
-            df = parse_generation(response.text)
+            from . import parsers
+            df = parsers.parse_generation(response.text)
             df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
             return df

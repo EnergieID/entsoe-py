@@ -1,8 +1,7 @@
-from time import sleep
-
-from bs4 import BeautifulSoup
 import pytz
 import requests
+from bs4 import BeautifulSoup
+from time import sleep
 
 __title__ = "entsoe-py"
 __version__ = "0.1.10"
@@ -135,14 +134,15 @@ class Entsoe:
     from https://github.com/tmrowco/electricitymap
     """
 
-    def __init__(self, api_key, session = None, retry_count = 1, retry_delay = 0,
-                 proxies = None):
+    def __init__(self, api_key, session=None, retry_count=1, retry_delay=0,
+                 proxies=None):
         """
         Parameters
         ----------
         api_key : str
         session : requests.Session
-        proxies : requests proxies dict 
+        proxies : dict
+            requests proxies
         
         """
         if api_key is None:
@@ -179,8 +179,8 @@ class Entsoe:
 
         error = None
         for _ in range(self.retry_count):
-            response = self.session.get(url = URL, params = params,
-                                        proxies = self.proxies)
+            response = self.session.get(url=URL, params=params,
+                                        proxies=self.proxies)
             try:
                 response.raise_for_status()
             except requests.HTTPError as e:

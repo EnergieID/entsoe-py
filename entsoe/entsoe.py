@@ -248,8 +248,8 @@ class Entsoe:
         if not as_series:
             return response.text
         else:
-            from entsoe.parsers import parse_prices
-            series = parse_prices(response.text)
+            from . import parsers
+            series = parsers.parse_prices(response.text)
             series = series.tz_convert(TIMEZONE_MAPPINGS[country_code])
             return series
 
@@ -282,8 +282,8 @@ class Entsoe:
         if not as_dataframe:
             return response.text
         else:
-            from entsoe.parsers import parse_generation
-            df = parse_generation(response.text)
+            from . import parsers
+            df = parsers.parse_generation(response.text)
             df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
             return df
 
@@ -316,8 +316,8 @@ class Entsoe:
         if not as_dataframe:
             return response.text
         else:
-            from entsoe.parsers import parse_generation
-            df = parse_generation(response.text)
+            from . import parsers
+            df = parsers.parse_generation(response.text)
             df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
             return df
 
@@ -349,7 +349,7 @@ class Entsoe:
         if not as_dataframe:
             return response.text
         else:
-            from entsoe.parsers import parse_generation
-            df = parse_generation(response.text)
+            from . import parsers
+            df = parsers.parse_generation(response.text)
             df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
             return df

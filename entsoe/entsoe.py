@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup
 from time import sleep
 
 __title__ = "entsoe-py"
-__version__ = "0.1.11"
+__version__ = "0.1.12"
 __author__ = "EnergieID.be"
 __license__ = "MIT"
 
@@ -253,7 +253,7 @@ class Entsoe:
             series = series.tz_convert(TIMEZONE_MAPPINGS[country_code])
             return series
 
-    def query_generation_forecast(self, country_code, start, end, as_dataframe=False):
+    def query_generation_forecast(self, country_code, start, end, as_dataframe=False, psr_type=None, squeeze=False):
         """
         Parameters
         ----------
@@ -264,6 +264,11 @@ class Entsoe:
             Default False
             If True: Return the response as a Pandas DataFrame
             If False: Return the response as raw XML
+        psr_type : str
+            filter on a single psr type
+        squeeze : bool
+            If a single column is requested, return it as a Series instead of a DataFrame
+            If there is just a single value, return it as a float
 
         Returns
         -------
@@ -276,6 +281,8 @@ class Entsoe:
             'processType': 'A01',
             'in_Domain': domain,
         }
+        if psr_type:
+            params.update({'psrType': psr_type})
         response = self.base_request(params=params, start=start, end=end)
         if response is None:
             return None
@@ -285,9 +292,11 @@ class Entsoe:
             from . import parsers
             df = parsers.parse_generation(response.text)
             df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
+            if squeeze:
+                df = df.squeeze()
             return df
 
-    def query_generation(self, country_code, start, end, as_dataframe=False):
+    def query_generation(self, country_code, start, end, as_dataframe=False, psr_type=None, squeeze=False):
         """
         Parameters
         ----------
@@ -298,6 +307,11 @@ class Entsoe:
             Default False
             If True: Return the response as a Pandas DataFrame
             If False: Return the response as raw XML
+        psr_type : str
+            filter on a single psr type
+        squeeze : bool
+            If a single column is requested, return it as a Series instead of a DataFrame
+            If there is just a single value, return it as a float
 
         Returns
         -------
@@ -310,6 +324,8 @@ class Entsoe:
             'processType': 'A16',
             'in_Domain': domain,
         }
+        if psr_type:
+            params.update({'psrType': psr_type})
         response = self.base_request(params=params, start=start, end=end)
         if response is None:
             return None
@@ -319,9 +335,11 @@ class Entsoe:
             from . import parsers
             df = parsers.parse_generation(response.text)
             df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
+            if squeeze:
+                df = df.squeeze()
             return df
 
-    def query_installed_generation_capacity(self, country_code, start, end, as_dataframe=False):
+    def query_installed_generation_capacity(self, country_code, start, end, as_dataframe=False, psr_type=None, squeeze=False):
         """
         Parameters
         ----------
@@ -332,6 +350,11 @@ class Entsoe:
             Default False
             If True: Return the response as a Pandas DataFrame
             If False: Return the response as raw XML
+        psr_type : str
+            filter query for a specific psr type
+        squeeze : bool
+            If a single column is requested, return it as a Series instead of a DataFrame
+            If there is just a single value, return it as a float
 
         Returns
         -------
@@ -343,6 +366,8 @@ class Entsoe:
             'processType': 'A33',
             'in_Domain': domain,
         }
+        if psr_type:
+            params.update({'psrType': psr_type})
         response = self.base_request(params=params, start=start, end=end)
         if response is None:
             return None
@@ -352,4 +377,6 @@ class Entsoe:
             from . import parsers
             df = parsers.parse_generation(response.text)
             df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
+            if squeeze:
+                df = df.squeeze()
             return df

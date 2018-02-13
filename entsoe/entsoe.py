@@ -54,6 +54,12 @@ DOMAIN_MAPPINGS = {
     'UA': '10YUA-WEPS-----0'
 }
 
+BIDDING_ZONES = DOMAIN_MAPPINGS.copy()
+BIDDING_ZONES.update({
+    'DE': '10Y1001A1001A63L',  # DE-AT-LU
+    'LU': '10Y1001A1001A63L'  # DE-AT-LU
+})
+
 TIMEZONE_MAPPINGS = {
     'AL': 'Europe/Tirane',
     'AT': 'Europe/Vienna',
@@ -236,7 +242,7 @@ class Entsoe:
         -------
         str | pd.Series
         """
-        domain = DOMAIN_MAPPINGS[country_code]
+        domain = BIDDING_ZONES[country_code]
         params = {
             'documentType': 'A44',
             'in_Domain': domain,

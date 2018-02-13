@@ -190,7 +190,7 @@ class Entsoe:
                 if len(text):
                     error_text = soup.find('text').text
                     if 'No matching data found' in error_text:
-                        return None
+                        raise e
                 print("HTTP Error, retrying in {} seconds".format(self.retry_delay))
                 sleep(self.retry_delay)
             else:

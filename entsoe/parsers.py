@@ -148,10 +148,12 @@ def _resolution_to_timedelta(res_text):
         delta = '60min'
     elif res_text == 'P1Y':
         delta = '12M'
+    elif res_text == "PT15M":
+        delta = '15min'
     else:
         raise NotImplementedError("Sorry, I don't know what to do with the "
                                   "resolution '{}', because there was no "
-                                  "documentation to be found of this format "
-                                  "everything is hard coded. Please open an "
+                                  "documentation to be found of this format. "
+                                  "Everything is hard coded. Please open an "
                                   "issue.".format(res_text))
     return delta

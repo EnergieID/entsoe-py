@@ -59,6 +59,10 @@ def parse_generation(xml_text):
             series.sort_index()
             all_series[series.name] = series
 
+    for name in all_series:
+        ts = all_series[name]
+        all_series[name] = ts[~ts.index.duplicated(keep='first')]
+
     df = pd.DataFrame.from_dict(all_series)
     return df
 

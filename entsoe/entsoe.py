@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup
 from time import sleep
 
 __title__ = "entsoe-py"
-__version__ = "0.1.13"
+__version__ = "0.1.14"
 __author__ = "EnergieID.be"
 __license__ = "MIT"
 

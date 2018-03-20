@@ -38,6 +38,23 @@ def parse_prices(xml_text):
     return series
 
 
+def parse_loads(xml_text):
+    """
+    Parameters
+    ----------
+    xml_text : str
+
+    Returns
+    -------
+    pd.Series
+    """
+    series = pd.Series()
+    for soup in _extract_timeseries(xml_text):
+        series = series.append(_parse_load_timeseries(soup))
+    series = series.sort_index()
+    return series
+
+
 def parse_generation(xml_text):
     """
     Parameters
@@ -82,6 +99,29 @@ def _parse_price_timeseries(soup):
     for point in soup.find_all('point'):
         positions.append(int(point.find('position').text))
         prices.append(float(point.find('price.amount').text))
+
+    series = pd.Series(index=positions, data=prices)
+    series = series.sort_index()
+    series.index = _parse_datetimeindex(soup)
+
+    return series
+
+
+def _parse_load_timeseries(soup):
+    """
+    Parameters
+    ----------
+    soup : bs4.element.tag
+
+    Returns
+    -------
+    pd.Series
+    """
+    positions = []
+    prices = []
+    for point in soup.find_all('point'):
+        positions.append(int(point.find('position').text))
+        prices.append(float(point.find('quantity').text))
 
     series = pd.Series(index=positions, data=prices)
     series = series.sort_index()

@@ -259,6 +259,40 @@ class Entsoe:
             series = series.tz_convert(TIMEZONE_MAPPINGS[country_code])
             return series
 
+    def query_load(self, country_code, start, end, as_series=False):
+        """
+        Parameters
+        ----------
+        country_code : str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        as_series : bool
+            Default False
+            If True: Return the response as a Pandas Series
+            If False: Return the response as raw XML
+
+        Returns
+        -------
+        str | pd.Series
+        """
+        domain = BIDDING_ZONES[country_code]
+        params = {
+            'documentType': 'A65',
+            'processType': 'A16',
+            'outBiddingZone_Domain': domain,
+            'out_Domain': domain
+        }
+        response = self.base_request(params=params, start=start, end=end)
+        if response is None:
+            return None
+        if not as_series:
+            return response.text
+        else:
+            from . import parsers
+            series = parsers.parse_loads(response.text)
+            series = series.tz_convert(TIMEZONE_MAPPINGS[country_code])
+            return series
+
     def query_generation_forecast(self, country_code, start, end, as_dataframe=False, psr_type=None, squeeze=False):
         """
         Parameters

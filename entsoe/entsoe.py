@@ -59,6 +59,13 @@ BIDDING_ZONES.update({
     'DE': '10Y1001A1001A63L',  # DE-AT-LU
     'LU': '10Y1001A1001A63L',  # DE-AT-LU
     'IT-NORD': '10Y1001A1001A73I',
+    'IT-CNOR': '10Y1001A1001A70O',
+    'IT-CSUD': '10Y1001A1001A71M',
+    'IT-SUD': '10Y1001A1001A788',
+    'IT-FOGN': '10Y1001A1001A72K',
+    'IT-ROSN': '10Y1001A1001A77A',
+    'IT-BRNN': '10Y1001A1001A699',
+    'IT-PRGP': '10Y1001A1001A76C',
     'IT-SARD': '10Y1001A1001A74G',
     'IT-SICI': '10Y1001A1001A75E'
 })
@@ -106,6 +113,14 @@ TIMEZONE_MAPPINGS = {
     'TR': 'Europe/Istanbul',
     'UA': 'Europe/Kiev',
     'IT-NORD': 'Europe/Rome',
+    'IT-CNOR': 'Europe/Rome',
+    'IT-CSUD': 'Europe/Rome',
+    'IT-SUD': 'Europe/Rome',
+    'IT-FOGN': 'Europe/Rome',
+    'IT-ROSN': 'Europe/Rome',
+    'IT-BRNN': 'Europe/Rome',
+    'IT-PRGP': 'Europe/Rome',
+    'IT-SARD': 'Europe/Rome',
     'IT-SICI': 'Europe/Rome'
 }
 

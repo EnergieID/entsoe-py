@@ -313,11 +313,13 @@ class Entsoe:
             series = series.tz_convert(TIMEZONE_MAPPINGS[country_code])
             return series
 
-    def query_generation_forecast(self, country_code, start, end, as_dataframe=False, psr_type=None, squeeze=False):
+    def query_generation_forecast(self, lookup_country, area_code, start, end, as_dataframe=False, psr_type=None, squeeze=False):
         """
         Parameters
         ----------
-        country_code : str
+        lookup_country: bool
+            if True, area_code is expected to be a country_code. Otherwise, a bidding zone code
+        area_code : str
         start : pd.Timestamp
         end : pd.Timestamp
         as_dataframe : bool
@@ -334,8 +336,10 @@ class Entsoe:
         -------
         str | pd.DataFrame
         """
-
-        domain = DOMAIN_MAPPINGS[country_code]
+        if lookup_country:
+            domain = DOMAIN_MAPPINGS[area_code]
+        else:
+            domain = BIDDING_ZONES[area_code]
         params = {
             'documentType': 'A69',
             'processType': 'A01',
@@ -351,7 +355,7 @@ class Entsoe:
         else:
             from . import parsers
             df = parsers.parse_generation(response.text)
-            df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
+            df = df.tz_convert(TIMEZONE_MAPPINGS[area_code])
             if squeeze:
                 df = df.squeeze()
             return df
@@ -404,13 +408,11 @@ class Entsoe:
                 df = df.squeeze()
             return df
 
-    def query_installed_generation_capacity(self, lookup_country, area_code, start, end, as_dataframe=False, psr_type=None, squeeze=False):
+    def query_installed_generation_capacity(self, country_code, start, end, as_dataframe=False, psr_type=None, squeeze=False):
         """
         Parameters
         ----------
-        lookup_country: bool
-            if True, area_code is expected to be a country_code. Otherwise, a bidding zone code
-        area_code : str
+        country_code : str
         start : pd.Timestamp
         end : pd.Timestamp
         as_dataframe : bool
@@ -427,10 +429,8 @@ class Entsoe:
         -------
         str | pd.DataFrame
         """
-        if lookup_country:
-            domain = DOMAIN_MAPPINGS[area_code]
-        else:
-            domain = BIDDING_ZONES[area_code]
+
+        domain = DOMAIN_MAPPINGS[country_code]
         params = {
             'documentType': 'A68',
             'processType': 'A33',
@@ -446,7 +446,7 @@ class Entsoe:
         else:
             from . import parsers
             df = parsers.parse_generation(response.text)
-            df = df.tz_convert(TIMEZONE_MAPPINGS[area_code])
+            df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
             if squeeze:
                 df = df.squeeze()
             return df

@@ -313,15 +313,15 @@ class Entsoe:
             series = series.tz_convert(TIMEZONE_MAPPINGS[country_code])
             return series
 
-    def query_generation_forecast(self, lookup_country, area_code, start, end, as_dataframe=False, psr_type=None, squeeze=False):
+    def query_generation_forecast(self, country_code, start, end, lookup_bzones=False, as_dataframe=False, psr_type=None, squeeze=False):
         """
         Parameters
         ----------
-        lookup_country: bool
-            if True, area_code is expected to be a country_code. Otherwise, a bidding zone code
-        area_code : str
+        country_code : str
         start : pd.Timestamp
         end : pd.Timestamp
+        lookup_bzones: bool
+            if True, country_code is expected to be a bidding zone
         as_dataframe : bool
             Default False
             If True: Return the response as a Pandas DataFrame
@@ -336,10 +336,10 @@ class Entsoe:
         -------
         str | pd.DataFrame
         """
-        if lookup_country:
-            domain = DOMAIN_MAPPINGS[area_code]
+        if not lookup_bzones:
+            domain = DOMAIN_MAPPINGS[country_code]
         else:
-            domain = BIDDING_ZONES[area_code]
+            domain = BIDDING_ZONES[country_code]
         params = {
             'documentType': 'A69',
             'processType': 'A01',
@@ -355,20 +355,20 @@ class Entsoe:
         else:
             from . import parsers
             df = parsers.parse_generation(response.text)
-            df = df.tz_convert(TIMEZONE_MAPPINGS[area_code])
+            df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
             if squeeze:
                 df = df.squeeze()
             return df
 
-    def query_generation(self, lookup_country, area_code, start, end, as_dataframe=False, psr_type=None, squeeze=False):
+    def query_generation(self, country_code, start, end, lookup_bzones=False, as_dataframe=False, psr_type=None, squeeze=False):
         """
         Parameters
         ----------
-        lookup_country: bool
-            if True, area_code is expected to be a country_code. Otherwise, a bidding zone code
-        area_code : str
+        country_code : str
         start : pd.Timestamp
         end : pd.Timestamp
+        lookup_country: bool
+            if True, country_code is expected to be a bidding zone
         as_dataframe : bool
             Default False
             If True: Return the response as a Pandas DataFrame
@@ -383,11 +383,10 @@ class Entsoe:
         -------
         str | pd.DataFrame
         """
-
-        if lookup_country:
-            domain = DOMAIN_MAPPINGS[area_code]
+        if not lookup_bzones:
+            domain = DOMAIN_MAPPINGS[country_code]
         else:
-            domain = BIDDING_ZONES[area_code]
+            domain = BIDDING_ZONES[country_code]
         params = {
             'documentType': 'A75',
             'processType': 'A16',
@@ -403,7 +402,7 @@ class Entsoe:
         else:
             from . import parsers
             df = parsers.parse_generation(response.text)
-            df = df.tz_convert(TIMEZONE_MAPPINGS[area_code])
+            df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
             if squeeze:
                 df = df.squeeze()
             return df

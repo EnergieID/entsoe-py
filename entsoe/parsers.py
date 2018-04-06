@@ -83,6 +83,22 @@ def parse_generation(xml_text):
     df = pd.DataFrame.from_dict(all_series)
     return df
 
+def parse_crossborder_flows(xml_text):
+    """
+    Parameters
+    ----------
+    xml_text : str
+
+    Returns
+    -------
+    pd.Series
+    """
+    series = pd.Series()
+    for soup in _extract_timeseries(xml_text):
+        series = series.append(_parse_crossborder_flows_timeseries(soup))
+    series = series.sort_index()
+    return series
+
 
 def _parse_price_timeseries(soup):
     """
@@ -174,6 +190,29 @@ def _parse_datetimeindex(soup):
     delta = _resolution_to_timedelta(res_text=soup.find('resolution').text)
     index = pd.date_range(start=start, end=end, freq=delta, closed='left')
     return index
+
+
+def _parse_crossborder_flows_timeseries(soup):
+    """
+    Parameters
+    ----------
+    soup : bs4.element.tag
+
+    Returns
+    -------
+    pd.Series
+    """
+    positions = []
+    flows = []
+    for point in soup.find_all('point'):
+        positions.append(int(point.find('position').text))
+        flows.append(float(point.find('quantity').text))
+
+    series = pd.Series(index=positions, data=flows)
+    series = series.sort_index()
+    series.index = _parse_datetimeindex(soup)
+
+    return series
 
 
 def _resolution_to_timedelta(res_text):

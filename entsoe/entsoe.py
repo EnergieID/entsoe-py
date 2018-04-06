@@ -313,15 +313,13 @@ class Entsoe:
             series = series.tz_convert(TIMEZONE_MAPPINGS[country_code])
             return series
 
-    def query_generation_forecast(self, country_code, start, end, lookup_bzones=False, as_dataframe=False, psr_type=None, squeeze=False):
+    def query_generation_forecast(self, country_code, start, end, as_dataframe=False, psr_type=None, squeeze=False, lookup_bzones=False):
         """
         Parameters
         ----------
         country_code : str
         start : pd.Timestamp
         end : pd.Timestamp
-        lookup_bzones: bool
-            if True, country_code is expected to be a bidding zone
         as_dataframe : bool
             Default False
             If True: Return the response as a Pandas DataFrame
@@ -331,6 +329,8 @@ class Entsoe:
         squeeze : bool
             If a single column is requested, return it as a Series instead of a DataFrame
             If there is just a single value, return it as a float
+        lookup_bzones : bool
+            if True, country_code is expected to be a bidding zone
 
         Returns
         -------
@@ -360,15 +360,13 @@ class Entsoe:
                 df = df.squeeze()
             return df
 
-    def query_generation(self, country_code, start, end, lookup_bzones=False, as_dataframe=False, psr_type=None, squeeze=False):
+    def query_generation(self, country_code, start, end, as_dataframe=False, psr_type=None, squeeze=False, lookup_bzones=False):
         """
         Parameters
         ----------
         country_code : str
         start : pd.Timestamp
         end : pd.Timestamp
-        lookup_country: bool
-            if True, country_code is expected to be a bidding zone
         as_dataframe : bool
             Default False
             If True: Return the response as a Pandas DataFrame
@@ -378,6 +376,8 @@ class Entsoe:
         squeeze : bool
             If a single column is requested, return it as a Series instead of a DataFrame
             If there is just a single value, return it as a float
+        lookup_bzones : bool
+            if True, country_code is expected to be a bidding zone
 
         Returns
         -------
@@ -428,7 +428,6 @@ class Entsoe:
         -------
         str | pd.DataFrame
         """
-
         domain = DOMAIN_MAPPINGS[country_code]
         params = {
             'documentType': 'A68',

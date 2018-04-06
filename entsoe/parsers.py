@@ -83,6 +83,7 @@ def parse_generation(xml_text):
     df = pd.DataFrame.from_dict(all_series)
     return df
 
+
 def parse_crossborder_flows(xml_text):
     """
     Parameters

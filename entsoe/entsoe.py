@@ -449,23 +449,20 @@ class Entsoe:
                 df = df.squeeze()
             return df
         
-    def query_crossborder_flows(self, country_code_from, country_code_to, start, end, as_dataframe=False, psr_type=None, squeeze=False):
+    def query_crossborder_flows(self, country_code_from, country_code_to, start, end, as_series=False):
         """
+        Note: Result will be in the timezone of the origin country
+
         Parameters
         ----------
-        country_code_IN : str
-        country_code_OUT : str
+        country_code_from : str
+        country_code_to : str
         start : pd.Timestamp
         end : pd.Timestamp
-        as_dataframe : bool
+        as_series : bool
             Default False
-            If True: Return the response as a Pandas DataFrame
+            If True: Return the response as a Pandas Series
             If False: Return the response as raw XML
-        psr_type : str
-            filter query for a specific psr type
-        squeeze : bool
-            If a single column is requested, return it as a Series instead of a DataFrame
-            If there is just a single value, return it as a float
 
         Returns
         -------
@@ -478,17 +475,13 @@ class Entsoe:
             'in_Domain': domain_in,
             'out_Domain': domain_out
         }
-        if psr_type:
-            params.update({'psrType': psr_type})
         response = self.base_request(params=params, start=start, end=end)
         if response is None:
             return None
-        if not as_dataframe:
+        if not as_series:
             return response.text
         else:
             from . import parsers
-            df = parsers.parse_crossborder_flows(response.text)
-            df = df.tz_convert(TIMEZONE_MAPPINGS[country_code_from])
-            if squeeze:
-                df = df.squeeze()
-            return df
+            ts = parsers.parse_crossborder_flows(response.text)
+            ts = ts.tz_convert(TIMEZONE_MAPPINGS[country_code_from])
+            return ts

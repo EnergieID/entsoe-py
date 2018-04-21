@@ -101,6 +101,53 @@ def parse_crossborder_flows(xml_text):
     return series
 
 
+def parse_imbalance_prices(xml_text):
+    """
+    Parameters
+    ----------
+    xml_text : str
+
+    Returns
+    -------
+    pd.DataFrame
+    """
+    timeseries_blocks = _extract_timeseries(xml_text)
+    frames = (_parse_imbalance_prices_timeseries(soup) for soup in timeseries_blocks)
+    df = pd.concat(frames, axis=1)
+    df.sort_index(inplace=True)
+    return df
+
+
+def _parse_imbalance_prices_timeseries(soup):
+    """
+    Parameters
+    ----------
+    soup : bs4.element.tag
+
+    Returns
+    -------
+    pd.Series
+    """
+    positions = []
+    amounts = []
+    categories = []
+    for point in soup.find_all('point'):
+        positions.append(int(point.find('position').text))
+        amounts.append(float(point.find('imbalance_price.amount').text))
+        categories.append(point.find('imbalance_price.category').text)
+
+    df = pd.DataFrame(data={'position': positions, 'amount': amounts, 'category': categories})
+    df = df.set_index(['position', 'category']).unstack()
+    df.sort_index(inplace=True)
+    df.index = _parse_datetimeindex(soup)
+    df = df.xs('amount', axis=1)
+    df.index.name = None
+    df.columns.name = None
+    df.rename(columns={'A04': 'Generation', 'A05': 'Load'}, inplace=True)
+
+    return df
+
+
 def _parse_price_timeseries(soup):
     """
     Parameters

@@ -2,9 +2,10 @@ import pytz
 import requests
 from bs4 import BeautifulSoup
 from time import sleep
+from socket import gaierror
 
 __title__ = "entsoe-py"
-__version__ = "0.1.15"
+__version__ = "0.1.16"
 __author__ = "EnergieID.be"
 __license__ = "MIT"
 
@@ -205,18 +206,23 @@ class Entsoe:
 
         error = None
         for _ in range(self.retry_count):
-            response = self.session.get(url=URL, params=params,
-                                        proxies=self.proxies)
+            try:
+                response = self.session.get(url=URL, params=params,
+                                            proxies=self.proxies)
+            except (requests.ConnectionError, gaierror) as error:
+                print("Connection Error, retrying in {} seconds".format(self.retry_delay))
+                sleep(self.retry_delay)
+                continue
+
             try:
                 response.raise_for_status()
-            except requests.HTTPError as e:
-                error = e
+            except requests.HTTPError as error:
                 soup = BeautifulSoup(response.text, 'html.parser')
                 text = soup.find_all('text')
                 if len(text):
                     error_text = soup.find('text').text
                     if 'No matching data found' in error_text:
-                        raise e
+                        raise error
                 print("HTTP Error, retrying in {} seconds".format(self.retry_delay))
                 sleep(self.retry_delay)
             else:
@@ -485,3 +491,35 @@ class Entsoe:
             ts = parsers.parse_crossborder_flows(response.text)
             ts = ts.tz_convert(TIMEZONE_MAPPINGS[country_code_from])
             return ts
+
+    def query_imbalance_prices(self, country_code, start, end, as_dataframe=False, psr_type=None):
+        """
+
+        Parameters
+        ----------
+        country_code : str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        as_dataframe : bool
+
+        Returns
+        -------
+        str \
+        """
+        domain = DOMAIN_MAPPINGS[country_code]
+        params = {
+            'documentType': 'A85',
+            'controlArea_Domain': domain,
+        }
+        if psr_type:
+            params.update({'psrType': psr_type})
+        response = self.base_request(params=params, start=start, end=end)
+        if response is None:
+            return None
+        if not as_dataframe:
+            return response.text
+        else:
+            from . import parsers
+            df = parsers.parse_imbalance_prices(response.text)
+            df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
+            return df

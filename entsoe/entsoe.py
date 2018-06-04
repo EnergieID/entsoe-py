@@ -209,14 +209,16 @@ class Entsoe:
             try:
                 response = self.session.get(url=URL, params=params,
                                             proxies=self.proxies)
-            except (requests.ConnectionError, gaierror) as error:
+            except (requests.ConnectionError, gaierror) as e:
+                error = e
                 print("Connection Error, retrying in {} seconds".format(self.retry_delay))
                 sleep(self.retry_delay)
                 continue
 
             try:
                 response.raise_for_status()
-            except requests.HTTPError as error:
+            except requests.HTTPError as e:
+                error = e
                 soup = BeautifulSoup(response.text, 'html.parser')
                 text = soup.find_all('text')
                 if len(text):

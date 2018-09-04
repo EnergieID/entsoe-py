@@ -82,7 +82,7 @@ TIMEZONE_MAPPINGS = {
     'CZ': 'Europe/Prague',
     'DE': 'Europe/Berlin',
     'DK': 'Europe/Copenhagen',
-    'EE': 'Europe/Talinn',
+    'EE': 'Europe/Tallinn',
     'ES': 'Europe/Madrid',
     'FI': 'Europe/Helsinki',
     'FR': 'Europe/Paris',

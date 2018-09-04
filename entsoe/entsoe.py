@@ -53,6 +53,7 @@ DOMAIN_MAPPINGS = {
     'SK': '10YSK-SEPS-----K',
     'TR': '10YTR-TEIAS----W',
     'UA': '10YUA-WEPS-----0',
+    'DE-AT-LU': '10Y1001A1001A63L',
 }
 
 BIDDING_ZONES = DOMAIN_MAPPINGS.copy()
@@ -122,7 +123,8 @@ TIMEZONE_MAPPINGS = {
     'IT-BRNN': 'Europe/Rome',
     'IT-PRGP': 'Europe/Rome',
     'IT-SARD': 'Europe/Rome',
-    'IT-SICI': 'Europe/Rome'
+    'IT-SICI': 'Europe/Rome',
+    'DE-AT-LU': 'Europe/Berlin'
 }
 
 PSRTYPE_MAPPINGS = {

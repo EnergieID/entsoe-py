@@ -275,13 +275,14 @@ def _resolution_to_timedelta(res_text):
     -------
     str
     """
-    if res_text == 'PT60M':
-        delta = '60min'
-    elif res_text == 'P1Y':
-        delta = '12M'
-    elif res_text == "PT15M":
-        delta = '15min'
-    else:
+    resolutions = {
+        'PT60M': '60min',
+        'P1Y': '12M',
+        'PT15M': '15min',
+        'PT30M': '30min'
+    }
+    delta = resolutions.get(res_text)
+    if delta is None:
         raise NotImplementedError("Sorry, I don't know what to do with the "
                                   "resolution '{}', because there was no "
                                   "documentation to be found of this format. "

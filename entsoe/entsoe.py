@@ -478,8 +478,8 @@ class Entsoe:
         -------
         str | pd.DataFrame
         """
-        domain_in = DOMAIN_MAPPINGS[country_code_from]
-        domain_out = DOMAIN_MAPPINGS[country_code_to]
+        domain_in = DOMAIN_MAPPINGS[country_code_to]
+        domain_out = DOMAIN_MAPPINGS[country_code_from]
         params = {
             'documentType': 'A11',
             'in_Domain': domain_in,

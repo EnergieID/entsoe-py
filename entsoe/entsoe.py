@@ -3,6 +3,7 @@ import requests
 from bs4 import BeautifulSoup
 from time import sleep
 from socket import gaierror
+import pandas as pd
 
 __title__ = "entsoe-py"
 __version__ = "0.1.17"
@@ -172,7 +173,7 @@ class Entsoe:
         session : requests.Session
         proxies : dict
             requests proxies
-        
+
         """
         if api_key is None:
             raise TypeError("API key cannot be None")
@@ -183,6 +184,9 @@ class Entsoe:
         self.proxies = proxies
         self.retry_count = retry_count
         self.retry_delay = retry_delay
+
+    class PaginationError(Exception):
+        pass
 
     def base_request(self, params, start, end):
         """
@@ -213,7 +217,8 @@ class Entsoe:
                                             proxies=self.proxies)
             except (requests.ConnectionError, gaierror) as e:
                 error = e
-                print("Connection Error, retrying in {} seconds".format(self.retry_delay))
+                print("Connection Error, retrying in {} seconds".format(
+                    self.retry_delay))
                 sleep(self.retry_delay)
                 continue
 
@@ -227,6 +232,10 @@ class Entsoe:
                     error_text = soup.find('text').text
                     if 'No matching data found' in error_text:
                         raise error
+                    if 'amount of requested data exceeds allowed limit' in error_text:
+                        requested = error_text.split(' ')[-2]
+                        print(f"The API is limited to 200 elements per request. This query requested for {requested} documents and cannot be fulfilled.")
+                        raise self.PaginationError
                 print("HTTP Error, retrying in {} seconds".format(self.retry_delay))
                 sleep(self.retry_delay)
             else:
@@ -458,7 +467,7 @@ class Entsoe:
             if squeeze:
                 df = df.squeeze()
             return df
-        
+
     def query_crossborder_flows(self, country_code_from, country_code_to, start, end, as_series=False):
         """
         Note: Result will be in the timezone of the origin country
@@ -528,23 +537,29 @@ class Entsoe:
             df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
             return df
 
-    def query_unavailability_of_production_units(self, domain: str, start: pd.Timestamp, end: pd.Timestamp) -> pd.DataFrame:
+    def query_unavailability_of_production_units(self, domain: str, docstatus: str, start: pd.Timestamp, end: pd.Timestamp) -> pd.DataFrame:
+        """
+        This endpoint serves ZIP files.
+        The query is limited to 200 items per request.
+        """
+
+        # TODO: paginate the request as to overcome said limitation.
         params = {
             'documentType': 'A77',
             'biddingZone_domain': domain,
         }
-        opt_params = {
-            'businessType': None, # A53: planned maintenance, A54: unplanned outage
-            'DocStatus': None, # A05: Active, A09: Cancelled, A13: Withdrawn (mandatory)
-            'TimeIntervalUpdate': None,
-            'RegisteredResource': None,
-            'mRID': None
-        }
+
+        withdrawn = None
+        if docstatus:
+            params['docstatus'] = docstatus
+            if docstatus != 'A13':
+                withdrawn = self.query_unavailability_of_production_units(
+                    domain, docstatus, start, end)
+
         response = self.base_request(params=params, start=start, end=end)
         if response is None:
             return None
         else:
             from . import parsers
             df = parsers.parse_unavailabilities(response.content)
-            # df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
-            return df
+            return pd.concat([df, withdrawn])

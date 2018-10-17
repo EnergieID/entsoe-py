@@ -289,3 +289,7 @@ def _resolution_to_timedelta(res_text):
                                   "Everything is hard coded. Please open an "
                                   "issue.".format(res_text))
     return delta
+
+def parse_unavailabilities(response):
+    # Response for Unavailability of Generation Units is ZIP folder with one document inside it for each outage.
+    pass

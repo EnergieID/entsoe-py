@@ -527,3 +527,24 @@ class Entsoe:
             df = parsers.parse_imbalance_prices(response.text)
             df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
             return df
+
+    def query_unavailability_of_production_units(self, domain: str, start: pd.Timestamp, end: pd.Timestamp) -> pd.DataFrame:
+        params = {
+            'documentType': 'A77',
+            'biddingZone_domain': domain,
+        }
+        opt_params = {
+            'businessType': None, # A53: planned maintenance, A54: unplanned outage
+            'DocStatus': None, # A05: Active, A09: Cancelled, A13: Withdrawn (mandatory)
+            'TimeIntervalUpdate': None,
+            'RegisteredResource': None,
+            'mRID': None
+        }
+        response = self.base_request(params=params, start=start, end=end)
+        if response is None:
+            return None
+        else:
+            from . import parsers
+            df = parsers.parse_unavailabilities(response.content)
+            # df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
+            return df

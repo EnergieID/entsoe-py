@@ -188,6 +188,9 @@ class Entsoe:
     class PaginationError(Exception):
         pass
 
+    class NoMatchingDataError(Exception):
+        pass
+
     def base_request(self, params, start, end):
         """
         Parameters
@@ -231,7 +234,8 @@ class Entsoe:
                 if len(text):
                     error_text = soup.find('text').text
                     if 'No matching data found' in error_text:
-                        raise error
+                        print(f"No matching data found.")
+                        return
                     if 'amount of requested data exceeds allowed limit' in error_text:
                         requested = error_text.split(' ')[-2]
                         print(f"The API is limited to 200 elements per request. This query requested for {requested} documents and cannot be fulfilled.")

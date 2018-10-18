@@ -4,6 +4,7 @@ from bs4 import BeautifulSoup
 from time import sleep
 from socket import gaierror
 import pandas as pd
+from .mappings import DOMAIN_MAPPINGS, BIDDING_ZONES, TIMEZONE_MAPPINGS
 
 __title__ = "entsoe-py"
 __version__ = "0.1.17"
@@ -11,151 +12,6 @@ __author__ = "EnergieID.be"
 __license__ = "MIT"
 
 URL = 'https://transparency.entsoe.eu/api'
-
-DOMAIN_MAPPINGS = {
-    'AL': '10YAL-KESH-----5',
-    'AT': '10YAT-APG------L',
-    'BA': '10YBA-JPCC-----D',
-    'BE': '10YBE----------2',
-    'BG': '10YCA-BULGARIA-R',
-    'BY': '10Y1001A1001A51S',
-    'CH': '10YCH-SWISSGRIDZ',
-    'CZ': '10YCZ-CEPS-----N',
-    'DE': '10Y1001A1001A83F',
-    'DK': '10Y1001A1001A65H',
-    'EE': '10Y1001A1001A39I',
-    'ES': '10YES-REE------0',
-    'FI': '10YFI-1--------U',
-    'FR': '10YFR-RTE------C',
-    'GB': '10YGB----------A',
-    'GB-NIR': '10Y1001A1001A016',
-    'GR': '10YGR-HTSO-----Y',
-    'HR': '10YHR-HEP------M',
-    'HU': '10YHU-MAVIR----U',
-    'IE': '10YIE-1001A00010',
-    'IT': '10YIT-GRTN-----B',
-    'LT': '10YLT-1001A0008Q',
-    'LU': '10YLU-CEGEDEL-NQ',
-    'LV': '10YLV-1001A00074',
-    # 'MD': 'MD',
-    'ME': '10YCS-CG-TSO---S',
-    'MK': '10YMK-MEPSO----8',
-    'MT': '10Y1001A1001A93C',
-    'NL': '10YNL----------L',
-    'NO': '10YNO-0--------C',
-    'PL': '10YPL-AREA-----S',
-    'PT': '10YPT-REN------W',
-    'RO': '10YRO-TEL------P',
-    'RS': '10YCS-SERBIATSOV',
-    'RU': '10Y1001A1001A49F',
-    'RU-KGD': '10Y1001A1001A50U',
-    'SE': '10YSE-1--------K',
-    'SI': '10YSI-ELES-----O',
-    'SK': '10YSK-SEPS-----K',
-    'TR': '10YTR-TEIAS----W',
-    'UA': '10YUA-WEPS-----0',
-    'DE-AT-LU': '10Y1001A1001A63L',
-}
-
-BIDDING_ZONES = DOMAIN_MAPPINGS.copy()
-BIDDING_ZONES.update({
-    'DE': '10Y1001A1001A63L',  # DE-AT-LU
-    'LU': '10Y1001A1001A63L',  # DE-AT-LU
-    'IT-NORD': '10Y1001A1001A73I',
-    'IT-CNOR': '10Y1001A1001A70O',
-    'IT-CSUD': '10Y1001A1001A71M',
-    'IT-SUD': '10Y1001A1001A788',
-    'IT-FOGN': '10Y1001A1001A72K',
-    'IT-ROSN': '10Y1001A1001A77A',
-    'IT-BRNN': '10Y1001A1001A699',
-    'IT-PRGP': '10Y1001A1001A76C',
-    'IT-SARD': '10Y1001A1001A74G',
-    'IT-SICI': '10Y1001A1001A75E'
-})
-
-TIMEZONE_MAPPINGS = {
-    'AL': 'Europe/Tirane',
-    'AT': 'Europe/Vienna',
-    'BA': 'Europe/Sarajevo',
-    'BE': 'Europe/Brussels',
-    'BG': 'Europe/Sofia',
-    'BY': 'Europe/Minsk',
-    'CH': 'Europe/Zurich',
-    'CZ': 'Europe/Prague',
-    'DE': 'Europe/Berlin',
-    'DK': 'Europe/Copenhagen',
-    'EE': 'Europe/Tallinn',
-    'ES': 'Europe/Madrid',
-    'FI': 'Europe/Helsinki',
-    'FR': 'Europe/Paris',
-    'GB': 'Europe/London',
-    'GB-NIR': 'Europe/Belfast',
-    'GR': 'Europe/Athens',
-    'HR': 'Europe/Zagreb',
-    'HU': 'Europe/Budapest',
-    'IE': 'Europe/Dublin',
-    'IT': 'Europe/Rome',
-    'LT': 'Europe/Vilnius',
-    'LU': 'Europe/Luxembourg',
-    'LV': 'Europe/Riga',
-    # 'MD': 'MD',
-    'ME': 'Europe/Podgorica',
-    'MK': 'Europe/Skopje',
-    'MT': 'Europe/Malta',
-    'NL': 'Europe/Amsterdam',
-    'NO': 'Europe/Oslo',
-    'PL': 'Europe/Warsaw',
-    'PT': 'Europe/Lisbon',
-    'RO': 'Europe/Bucharest',
-    'RS': 'Europe/Belgrade',
-    'RU': 'Europe/Moscow',
-    'RU-KGD': 'Europe/Kaliningrad',
-    'SE': 'Europe/Stockholm',
-    'SI': 'Europe/Ljubljana',
-    'SK': 'Europe/Bratislava',
-    'TR': 'Europe/Istanbul',
-    'UA': 'Europe/Kiev',
-    'IT-NORD': 'Europe/Rome',
-    'IT-CNOR': 'Europe/Rome',
-    'IT-CSUD': 'Europe/Rome',
-    'IT-SUD': 'Europe/Rome',
-    'IT-FOGN': 'Europe/Rome',
-    'IT-ROSN': 'Europe/Rome',
-    'IT-BRNN': 'Europe/Rome',
-    'IT-PRGP': 'Europe/Rome',
-    'IT-SARD': 'Europe/Rome',
-    'IT-SICI': 'Europe/Rome',
-    'DE-AT-LU': 'Europe/Berlin'
-}
-
-PSRTYPE_MAPPINGS = {
-    'A03': 'Mixed',
-    'A04': 'Generation',
-    'A05': 'Load',
-    'B01': 'Biomass',
-    'B02': 'Fossil Brown coal/Lignite',
-    'B03': 'Fossil Coal-derived gas',
-    'B04': 'Fossil Gas',
-    'B05': 'Fossil Hard coal',
-    'B06': 'Fossil Oil',
-    'B07': 'Fossil Oil shale',
-    'B08': 'Fossil Peat',
-    'B09': 'Geothermal',
-    'B10': 'Hydro Pumped Storage',
-    'B11': 'Hydro Run-of-river and poundage',
-    'B12': 'Hydro Water Reservoir',
-    'B13': 'Marine',
-    'B14': 'Nuclear',
-    'B15': 'Other renewable',
-    'B16': 'Solar',
-    'B17': 'Waste',
-    'B18': 'Wind Offshore',
-    'B19': 'Wind Onshore',
-    'B20': 'Other',
-    'B21': 'AC Link',
-    'B22': 'DC Link',
-    'B23': 'Substation',
-    'B24': 'Transformer'}
 
 
 class Entsoe:
@@ -238,7 +94,8 @@ class Entsoe:
                         return
                     if 'amount of requested data exceeds allowed limit' in error_text:
                         requested = error_text.split(' ')[-2]
-                        print(f"The API is limited to 200 elements per request. This query requested for {requested} documents and cannot be fulfilled.")
+                        print(
+                            f"The API is limited to 200 elements per request. This query requested for {requested} documents and cannot be fulfilled as is.")
                         raise self.PaginationError
                 print("HTTP Error, retrying in {} seconds".format(self.retry_delay))
                 sleep(self.retry_delay)
@@ -547,20 +404,25 @@ class Entsoe:
         The query is limited to 200 items per request.
         """
 
-        # TODO: paginate the request as to overcome said limitation.
         params = {
             'documentType': 'A77',
-            'biddingZone_domain': domain,
+            'biddingZone_domain': domain
+            #,'businessType': 'A53 (unplanned) | A54 (planned)'
         }
 
         withdrawn = None
         if docstatus:
-            params['docstatus'] = docstatus
-            if docstatus != 'A13':
-                withdrawn = self.query_unavailability_of_production_units(
-                    domain, docstatus, start, end)
+            params['docStatus'] = docstatus
+        else:
+            withdrawn = self.query_unavailability_of_production_units(
+                domain, 'A13', start, end)  # withdrawn unavailabilities
 
-        response = self.base_request(params=params, start=start, end=end)
+        try:
+            response = self.base_request(params=params, start=start, end=end)
+        except self.PaginationError:
+            print("Too many elements requested, going to split the interval in half.")
+            pivot = start + (end - start) / 2
+            return pd.concat([self.query_unavailability_of_production_units(domain, docstatus, start, pivot), self.query_unavailability_of_production_units(domain, docstatus, pivot, end)])
         if response is None:
             return None
         else:

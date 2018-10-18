@@ -1,7 +1,7 @@
 import bs4
 import pandas as pd
 from io import BytesIO
-from .entsoe import PSRTYPE_MAPPINGS
+from .mappings import PSRTYPE_MAPPINGS, DOCSTATUS, BSNTYPE, BIDDING_ZONES
 
 
 def _extract_timeseries(xml_text):
@@ -313,14 +313,16 @@ def _available_period(timeseries: bs4.BeautifulSoup) -> list:
 def _unavailability_timeseries(ts: bs4.BeautifulSoup) -> list:
     if not ts:
         return
-    f = [ts.find('businesstype').text,
-         ts.find('biddingzone_domain.mrid').text,
+    dm = {k: v for (v, k) in BIDDING_ZONES.items()}
+    f = [BSNTYPE[ts.find('businesstype').text],
+         dm[ts.find('biddingzone_domain.mrid').text],
          ts.find('quantity_measure_unit.name').text,
          ts.find('curvetype').text,
          ts.find('production_registeredresource.mrid').text,
          ts.find('production_registeredresource.name').text,
          ts.find('production_registeredresource.location.name').text,
-         ts.find('production_registeredresource.psrtype.psrtype').text,
+         PSRTYPE_MAPPINGS[ts.find(
+             'production_registeredresource.psrtype.psrtype').text],
          ts.find('production_registeredresource.psrtype.powersystemresources.nominalp').text]
     return [f + p for p in _available_period(ts)]
 
@@ -350,7 +352,7 @@ def _outage_parser(xml_file: bytes) -> pd.DataFrame:
     creation_date = soup.createddatetime.text
     docstatus = None
     try:
-        docstatus = soup.docstatus.value.text
+        docstatus = DOCSTATUS[soup.docstatus.value.text]
     except AttributeError:
         pass
     d = list()

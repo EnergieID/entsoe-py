@@ -289,6 +289,29 @@ class Entsoe:
             series = series.tz_convert(TIMEZONE_MAPPINGS[country_code])
             return series
 
+    def query_price_series(self, country_code, start, end):
+        """
+        Query Day Ahead prices as Pandas Series
+
+        This method has the added benefit that you can query over periods larger than one year
+
+        Parameters
+        ----------
+        country_code : str
+        start : pd.Timestamp
+        end : pd.Timestamp
+
+        Returns
+        -------
+        pd.Series
+        """
+        from .misc import year_blocks
+        import pandas as pd
+
+        series = (self.query_price(country_code=country_code, start=_start, end=_end, as_series=True) for _start, _end in year_blocks(start, end))
+        ts = pd.concat(series)
+        return ts
+
     def query_load(self, country_code, start, end, as_series=False):
         """
         Parameters

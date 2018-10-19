@@ -14,6 +14,14 @@ __license__ = "MIT"
 URL = 'https://transparency.entsoe.eu/api'
 
 
+class PaginationError(Exception):
+    pass
+
+
+class NoMatchingDataError(Exception):
+    pass
+
+
 class Entsoe:
     """
     Attributions: Parts of the code for parsing Entsoe responses were copied
@@ -40,12 +48,6 @@ class Entsoe:
         self.proxies = proxies
         self.retry_count = retry_count
         self.retry_delay = retry_delay
-
-    class PaginationError(Exception):
-        pass
-
-    class NoMatchingDataError(Exception):
-        pass
 
     def base_request(self, params, start, end):
         """
@@ -96,7 +98,7 @@ class Entsoe:
                         requested = error_text.split(' ')[-2]
                         print(
                             f"The API is limited to 200 elements per request. This query requested for {requested} documents and cannot be fulfilled as is.")
-                        raise self.PaginationError
+                        raise PaginationError
                 print("HTTP Error, retrying in {} seconds".format(self.retry_delay))
                 sleep(self.retry_delay)
             else:
@@ -398,12 +400,12 @@ class Entsoe:
             df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
             return df
 
-    def query_unavailability_of_production_units(self, domain: str, docstatus: str, start: pd.Timestamp, end: pd.Timestamp) -> pd.DataFrame:
+    def query_unavailability_of_production_units(self, country_code: str, start: pd.Timestamp, end: pd.Timestamp, docstatus=None) -> pd.DataFrame:
         """
         This endpoint serves ZIP files.
         The query is limited to 200 items per request.
         """
-
+        domain = DOMAIN_MAPPINGS[country_code]
         params = {
             'documentType': 'A77',
             'biddingZone_domain': domain
@@ -415,16 +417,16 @@ class Entsoe:
             params['docStatus'] = docstatus
         else:
             withdrawn = self.query_unavailability_of_production_units(
-                domain, 'A13', start, end)  # withdrawn unavailabilities
+                country_code=country_code, docstatus='A13', start=start, end=end)  # withdrawn unavailabilities
 
         try:
             response = self.base_request(params=params, start=start, end=end)
-        except self.PaginationError:
+        except PaginationError:
             print("Too many elements requested, going to split the interval in half.")
             pivot = start + (end - start) / 2
-            return pd.concat([self.query_unavailability_of_production_units(domain, docstatus, start, pivot), self.query_unavailability_of_production_units(domain, docstatus, pivot, end)])
+            return pd.concat([self.query_unavailability_of_production_units(country_code=country_code, docstatus=docstatus, start=start, end=pivot), self.query_unavailability_of_production_units(country_code=country_code, docstatus=docstatus, start=pivot, end=end)])
         if response is None:
-            return None
+            return pd.DataFrame()
         else:
             from . import parsers
             df = parsers.parse_unavailabilities(response.content)

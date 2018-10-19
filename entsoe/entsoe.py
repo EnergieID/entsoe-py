@@ -3,15 +3,23 @@ import requests
 from bs4 import BeautifulSoup
 from time import sleep
 from socket import gaierror
-
-from .mappings import *
+import pandas as pd
+from .mappings import DOMAIN_MAPPINGS, BIDDING_ZONES, TIMEZONE_MAPPINGS
 
 __title__ = "entsoe-py"
-__version__ = "0.1.17"
+__version__ = "0.1.18"
 __author__ = "EnergieID.be"
 __license__ = "MIT"
 
 URL = 'https://transparency.entsoe.eu/api'
+
+
+class PaginationError(Exception):
+    pass
+
+
+class NoMatchingDataError(Exception):
+    pass
 
 
 class Entsoe:
@@ -83,7 +91,13 @@ class Entsoe:
                 if len(text):
                     error_text = soup.find('text').text
                     if 'No matching data found' in error_text:
-                        raise error
+                        print(f"No matching data found.")
+                        return
+                    if 'amount of requested data exceeds allowed limit' in error_text:
+                        requested = error_text.split(' ')[-2]
+                        print(
+                            f"The API is limited to 200 elements per request. This query requested for {requested} documents and cannot be fulfilled as is.")
+                        raise PaginationError
                 print("HTTP Error, retrying in {} seconds".format(self.retry_delay))
                 sleep(self.retry_delay)
             else:
@@ -407,3 +421,35 @@ class Entsoe:
             df = parsers.parse_imbalance_prices(response.text)
             df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
             return df
+
+    def query_unavailability_of_production_units(self, country_code: str, start: pd.Timestamp, end: pd.Timestamp, docstatus=None) -> pd.DataFrame:
+        """
+        This endpoint serves ZIP files.
+        The query is limited to 200 items per request.
+        """
+        domain = DOMAIN_MAPPINGS[country_code]
+        params = {
+            'documentType': 'A77',
+            'biddingZone_domain': domain
+            #,'businessType': 'A53 (unplanned) | A54 (planned)'
+        }
+
+        withdrawn = None
+        if docstatus:
+            params['docStatus'] = docstatus
+        else:
+            withdrawn = self.query_unavailability_of_production_units(
+                country_code=country_code, docstatus='A13', start=start, end=end)  # withdrawn unavailabilities
+
+        try:
+            response = self.base_request(params=params, start=start, end=end)
+        except PaginationError:
+            print("Too many elements requested, going to split the interval in half.")
+            pivot = start + (end - start) / 2
+            return pd.concat([self.query_unavailability_of_production_units(country_code=country_code, docstatus=docstatus, start=start, end=pivot), self.query_unavailability_of_production_units(country_code=country_code, docstatus=docstatus, start=pivot, end=end)])
+        if response is None:
+            return pd.DataFrame()
+        else:
+            from . import parsers
+            df = parsers.parse_unavailabilities(response.content)
+            return pd.concat([df, withdrawn])

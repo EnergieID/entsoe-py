@@ -37,7 +37,7 @@ class Entsoe:
         session : requests.Session
         proxies : dict
             requests proxies
-
+        
         """
         if api_key is None:
             raise TypeError("API key cannot be None")
@@ -78,8 +78,7 @@ class Entsoe:
                                             proxies=self.proxies)
             except (requests.ConnectionError, gaierror) as e:
                 error = e
-                print("Connection Error, retrying in {} seconds".format(
-                    self.retry_delay))
+                print("Connection Error, retrying in {} seconds".format(self.retry_delay))
                 sleep(self.retry_delay)
                 continue
 
@@ -160,6 +159,29 @@ class Entsoe:
             series = parsers.parse_prices(response.text)
             series = series.tz_convert(TIMEZONE_MAPPINGS[country_code])
             return series
+
+    def query_price_series(self, country_code, start, end):
+        """
+        Query Day Ahead prices as Pandas Series
+
+        This method has the added benefit that you can query over periods larger than one year
+
+        Parameters
+        ----------
+        country_code : str
+        start : pd.Timestamp
+        end : pd.Timestamp
+
+        Returns
+        -------
+        pd.Series
+        """
+        from .misc import year_blocks
+        import pandas as pd
+
+        series = (self.query_price(country_code=country_code, start=_start, end=_end, as_series=True) for _start, _end in year_blocks(start, end))
+        ts = pd.concat(series)
+        return ts
 
     def query_load(self, country_code, start, end, as_series=False):
         """
@@ -330,7 +352,7 @@ class Entsoe:
             if squeeze:
                 df = df.squeeze()
             return df
-
+        
     def query_crossborder_flows(self, country_code_from, country_code_to, start, end, as_series=False):
         """
         Note: Result will be in the timezone of the origin country

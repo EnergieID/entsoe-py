@@ -7,7 +7,7 @@ import pandas as pd
 from .mappings import DOMAIN_MAPPINGS, BIDDING_ZONES, TIMEZONE_MAPPINGS
 
 __title__ = "entsoe-py"
-__version__ = "0.1.17"
+__version__ = "0.1.18"
 __author__ = "EnergieID.be"
 __license__ = "MIT"
 

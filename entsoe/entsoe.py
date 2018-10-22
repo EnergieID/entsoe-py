@@ -579,3 +579,20 @@ class EntsoePandasClient(EntsoeRawClient):
             docstatus=docstatus)
         df = parse_unavailabilities(content)
         return df
+
+    def query_withdrawn_unavailability_of_generation_units(
+            self, country_code, start, end):
+        """
+        Parameters
+        ----------
+        country_code : str
+        start : pd.Timestamp
+        end : pd.Timestamp
+
+        Returns
+        -------
+        pd.DataFrame
+        """
+        df = self.query_unavailability_of_generation_units(
+            country_code=country_code, start=start, end=end, docstatus='A13')
+        return df

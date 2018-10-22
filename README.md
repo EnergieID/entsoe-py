@@ -45,7 +45,7 @@ with open('outfile.zip', 'wb') as f:
     f.write(zip_bytes)
 ```
 #### Making another request
-Is the API-call you want not in the list, you can lookup the parameters yourself in the API documentation?
+Is the API-call you want not in the list, you can lookup the parameters yourself in the API documentation
 ```python
 params = {
     'documentType': 'A44',

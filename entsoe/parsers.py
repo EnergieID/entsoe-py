@@ -1,6 +1,7 @@
 import bs4
 import pandas as pd
 from io import BytesIO
+import zipfile
 from .mappings import PSRTYPE_MAPPINGS, DOCSTATUS, BSNTYPE, BIDDING_ZONES
 
 
@@ -285,52 +286,55 @@ def _resolution_to_timedelta(res_text: str) -> str:
     return delta
 
 
-def parse_unavailabilities(response: object) -> pd.DataFrame:
+def parse_unavailabilities(response: bytes) -> pd.DataFrame:
     """
     Response for Unavailability of Generation Units is ZIP folder
     with one document inside it for each outage.
     This function parses all the files in the ZIP and returns a Pandas DataFrame.
     """
-    import zipfile
     dfs = list()
     with zipfile.ZipFile(BytesIO(response), 'r') as arc:
         for f in arc.infolist():
             if f.filename.endswith('xml'):
-                dfs.append(_outage_parser(arc.read(f)))
-    return pd.concat(dfs, axis=0)
+                frame = _outage_parser(arc.read(f))
+                dfs.append(frame)
+    df = pd.concat(dfs, axis=0)
+    df.set_index('created_doc_time', inplace=True)
+    df.sort_index(inplace=True)
+    return df
 
 
 def _available_period(timeseries: bs4.BeautifulSoup) -> list:
-    if not timeseries:
-        return
+    #if not timeseries:
+    #    return
     for period in timeseries.find_all('available_period'):
-        start, end = period.timeinterval.start.text, period.timeinterval.end.text
+        start, end = pd.Timestamp(period.timeinterval.start.text), pd.Timestamp(period.timeinterval.end.text)
         res = period.resolution.text
         pstn, qty = period.point.position.text, period.point.quantity.text
         yield [start, end, res, pstn, qty]
 
 
-def _unavailability_timeseries(ts: bs4.BeautifulSoup) -> list:
-    if not ts:
-        return
+def _unavailability_timeseries(soup: bs4.BeautifulSoup) -> list:
+    #if not ts:
+    #    return
     dm = {k: v for (v, k) in BIDDING_ZONES.items()}
-    f = [BSNTYPE[ts.find('businesstype').text],
-         dm[ts.find('biddingzone_domain.mrid').text],
-         ts.find('quantity_measure_unit.name').text,
-         ts.find('curvetype').text,
-         ts.find('production_registeredresource.mrid').text,
-         ts.find('production_registeredresource.name').text,
-         ts.find('production_registeredresource.location.name').text,
-         PSRTYPE_MAPPINGS[ts.find(
+    f = [BSNTYPE[soup.find('businesstype').text],
+         dm[soup.find('biddingzone_domain.mrid').text],
+         soup.find('quantity_measure_unit.name').text,
+         soup.find('curvetype').text,
+         soup.find('production_registeredresource.mrid').text,
+         soup.find('production_registeredresource.name').text,
+         soup.find('production_registeredresource.location.name').text,
+         PSRTYPE_MAPPINGS[soup.find(
              'production_registeredresource.psrtype.psrtype').text],
-         ts.find('production_registeredresource.psrtype.powersystemresources.nominalp').text]
-    return [f + p for p in _available_period(ts)]
+         float(soup.find('production_registeredresource.psrtype.powersystemresources.nominalp').text)]
+    return [f + p for p in _available_period(soup)]
 
 
 def _outage_parser(xml_file: bytes) -> pd.DataFrame:
     xml_text = xml_file.decode()
-    if not(xml_text):
-        return
+    #if not(xml_text):
+        #return
     headers = ['created_doc_time',
                'docstatus',
                'businesstype',
@@ -349,15 +353,16 @@ def _outage_parser(xml_file: bytes) -> pd.DataFrame:
                'avail_qty'
                ]
     soup = bs4.BeautifulSoup(xml_text, 'html.parser')
-    creation_date = soup.createddatetime.text
-    docstatus = None
+    creation_date = pd.Timestamp(soup.createddatetime.text)
     try:
         docstatus = DOCSTATUS[soup.docstatus.value.text]
     except AttributeError:
-        pass
+        docstatus = None
     d = list()
-    for ts in _extract_timeseries(xml_text):
+    series = _extract_timeseries(xml_text)
+    for ts in series:
         row = [creation_date, docstatus]
         for t in _unavailability_timeseries(ts):
             d.append(row + t)
-    return pd.DataFrame.from_records(d, columns=headers)
+    df = pd.DataFrame.from_records(d, columns=headers)
+    return df

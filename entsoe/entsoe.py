@@ -422,7 +422,7 @@ class EntsoePandasClient(EntsoeRawClient):
         return series
 
     @year_limited
-    def query_load(self, country_code, start, end) -> pd.DataFrame:
+    def query_load(self, country_code, start, end) -> pd.Series:
         """
         Parameters
         ----------
@@ -432,7 +432,7 @@ class EntsoePandasClient(EntsoeRawClient):
 
         Returns
         -------
-        pd.DataFrame
+        pd.Series
         """
         text = super(EntsoePandasClient, self).query_load(
             country_code=country_code, start=start, end=end)
@@ -578,6 +578,9 @@ class EntsoePandasClient(EntsoeRawClient):
             country_code=country_code, start=start, end=end,
             docstatus=docstatus)
         df = parse_unavailabilities(content)
+        df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
+        df['start'] = df['start'].apply(lambda x: x.tz_convert(TIMEZONE_MAPPINGS[country_code]))
+        df['end'] = df['end'].apply(lambda x: x.tz_convert(TIMEZONE_MAPPINGS[country_code]))
         return df
 
     def query_withdrawn_unavailability_of_generation_units(

@@ -14,7 +14,7 @@ from .parsers import parse_prices, parse_loads, parse_generation, \
     parse_crossborder_flows, parse_imbalance_prices, parse_unavailabilities
 
 __title__ = "entsoe-py"
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 __author__ = "EnergieID.be"
 __license__ = "MIT"
 
@@ -369,12 +369,10 @@ def paginated(func):
     again. Finally it concatenates the results"""
 
     @wraps(func)
-    def pagination_wrapper(*args, **kwargs):
+    def pagination_wrapper(*args, start, end, **kwargs):
         try:
-            df = func(*args, **kwargs)
+            df = func(*args, start=start, end=end, **kwargs)
         except PaginationError:
-            start = kwargs.pop('start')
-            end = kwargs.pop('end')
             pivot = start + (end - start) / 2
             df1 = pagination_wrapper(*args, start=start, end=pivot, **kwargs)
             df2 = pagination_wrapper(*args, start=pivot, end=end, **kwargs)
@@ -389,9 +387,7 @@ def year_limited(func):
     the call up in blocks per year"""
 
     @wraps(func)
-    def year_wrapper(*args, **kwargs):
-        start = kwargs.pop('start')
-        end = kwargs.pop('end')
+    def year_wrapper(*args, start, end, **kwargs):
         blocks = year_blocks(start, end)
         frames = [func(*args, start=_start, end=_end, **kwargs) for _start, _end
                   in blocks]

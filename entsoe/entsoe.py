@@ -458,6 +458,24 @@ class EntsoePandasClient(EntsoeRawClient):
         return series
 
     @year_limited
+    def query_load_forecast(self, country_code, start, end) -> pd.Series:
+        """
+        Parameters
+        ----------
+        country_code : str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        Returns
+        -------
+        pd.Series
+        """
+        text = super(EntsoePandasClient, self).query_load_forecast(
+            country_code=country_code, start=start, end=end)
+        series = parse_loads(text)
+        series = series.tz_convert(TIMEZONE_MAPPINGS[country_code])
+        return series
+
+    @year_limited
     def query_generation_forecast(self, country_code, start, end, psr_type=None,
                                   lookup_bzones=False):
         """

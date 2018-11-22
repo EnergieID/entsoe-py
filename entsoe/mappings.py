@@ -122,7 +122,18 @@ TIMEZONE_MAPPINGS = {
     'IT-PRGP': 'Europe/Rome',
     'IT-SARD': 'Europe/Rome',
     'IT-SICI': 'Europe/Rome',
-    'DE-AT-LU': 'Europe/Berlin'
+    'DE-AT-LU': 'Europe/Berlin',
+    'NO-1': 'Europe/Oslo',
+    'NO-2': 'Europe/Oslo',
+    'NO-3': 'Europe/Oslo',
+    'NO-4': 'Europe/Oslo',
+    'NO-5': 'Europe/Oslo',
+    'SE-1': 'Europe/Stockholm',
+    'SE-2': 'Europe/Stockholm',
+    'SE-3': 'Europe/Stockholm',
+    'SE-4': 'Europe/Stockholm',
+    'DK-1': 'Europe/Copenhagen',
+    'DK-2': 'Europe/Copenhagen'
 }
 
 PSRTYPE_MAPPINGS = {

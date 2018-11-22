@@ -182,6 +182,27 @@ class EntsoeRawClient:
         response = self.base_request(params=params, start=start, end=end)
         return response.text
 
+    def query_load_forecast(self, country_code, start, end):
+        """
+        Parameters
+        ----------
+        country_code : str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        Returns
+        -------
+        str
+        """
+        domain = BIDDING_ZONES[country_code]
+        params = {
+            'documentType': 'A65',
+            'processType': 'A01',
+            'outBiddingZone_Domain': domain,
+            # 'out_Domain': domain
+        }
+        response = self.base_request(params=params, start=start, end=end)
+        return response.text
+
     def query_generation_forecast(self, country_code, start, end, psr_type=None, lookup_bzones=False):
         """
         Parameters

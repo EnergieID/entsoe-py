@@ -116,6 +116,7 @@ def parse_imbalance_prices(xml_text):
     frames = (_parse_imbalance_prices_timeseries(soup)
               for soup in timeseries_blocks)
     df = pd.concat(frames, axis=1)
+    df = df.stack().unstack() # ad-hoc fix to prevent column splitting by NaNs
     df.sort_index(inplace=True)
     return df
 

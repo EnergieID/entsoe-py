@@ -24,8 +24,10 @@ class EntsoeRawClientTest(unittest.TestCase):
         queries = [
             self.client.query_day_ahead_prices,
             self.client.query_load,
-            self.client.query_generation_forecast,
+            self.client.query_wind_and_solar_forecast,
+            self.client.query_load_forecast,
             self.client.query_generation,
+            self.client.query_generation_forecast,
             self.client.query_installed_generation_capacity,
             self.client.query_imbalance_prices
         ]
@@ -75,6 +77,8 @@ class EntsoePandasClientTest(EntsoeRawClientTest):
         queries = [
             self.client.query_day_ahead_prices,
             self.client.query_load,
+            self.client.query_load_forecast,
+            self.client.query_generation_forecast
         ]
         for query in queries:
             ts = query(country_code=self.country_code, start=self.start,
@@ -89,7 +93,7 @@ class EntsoePandasClientTest(EntsoeRawClientTest):
 
     def test_basic_dataframes(self):
         queries = [
-            self.client.query_generation_forecast,
+            self.client.query_wind_and_solar_forecast,
             self.client.query_generation,
             self.client.query_installed_generation_capacity,
             self.client.query_imbalance_prices,

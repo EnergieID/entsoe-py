@@ -116,6 +116,7 @@ def parse_imbalance_prices(xml_text):
     frames = (_parse_imbalance_prices_timeseries(soup)
               for soup in timeseries_blocks)
     df = pd.concat(frames, axis=1)
+    df = df.stack().unstack() # ad-hoc fix to prevent column splitting by NaNs
     df.sort_index(inplace=True)
     return df
 
@@ -136,7 +137,10 @@ def _parse_imbalance_prices_timeseries(soup):
     for point in soup.find_all('point'):
         positions.append(int(point.find('position').text))
         amounts.append(float(point.find('imbalance_price.amount').text))
-        categories.append(point.find('imbalance_price.category').text)
+        if point.find('imbalance_price.category'):
+            categories.append(point.find('imbalance_price.category').text)
+        else:
+            categories.append('None')
 
     df = pd.DataFrame(data={'position': positions,
                             'amount': amounts, 'category': categories})
@@ -146,7 +150,8 @@ def _parse_imbalance_prices_timeseries(soup):
     df = df.xs('amount', axis=1)
     df.index.name = None
     df.columns.name = None
-    df.rename(columns={'A04': 'Generation', 'A05': 'Load'}, inplace=True)
+    df.rename(columns={'A04': 'Long', 'A05': 'Short',
+                       'None' : 'Price for Consumption'}, inplace=True)
 
     return df
 

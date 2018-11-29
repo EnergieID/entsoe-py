@@ -24,7 +24,9 @@ country_code = 'BE'  # Belgium
 # methods that return XML
 client.query_day_ahead_prices(country_code, start, end)
 client.query_load(country_code, start, end)
-client.query_generation_forecast(country_code, start, end, psr_type=None)
+client.query_load_forecast(country_code, start, end)
+client.query_wind_and_solar_forecast(country_code, start, end, psr_type=None)
+client.query_generation_forecast(country_code, start, end)
 client.query_generation(country_code, start, end, psr_type=None)
 client.query_installed_generation_capacity(country_code, start, end, psr_type=None)
 client.query_crossborder_flows(country_code_from, country_code_to, start, end)
@@ -73,9 +75,11 @@ country_code = 'BE'  # Belgium
 # methods that return Pandas Series
 client.query_day_ahead_prices(country_code, start, end)
 client.query_load(country_code, start, end)
+client.query_load_forecast(country_code, start, end)
+client.query_generation_forecast(country_code, start, end)
 
 # methods that return Pandas DataFrames
-client.query_generation_forecast(country_code, start, end, psr_type=None)
+client.query_wind_and_solar_forecast(country_code, start, end, psr_type=None)
 client.query_generation(country_code, start, end, psr_type=None)
 client.query_installed_generation_capacity(country_code, start, end, psr_type=None)
 client.query_crossborder_flows(country_code_from, country_code_to, start, end)
@@ -154,7 +158,18 @@ BIDDING_ZONES.update({
     'IT-BRNN': '10Y1001A1001A699',
     'IT-PRGP': '10Y1001A1001A76C',
     'IT-SARD': '10Y1001A1001A74G',
-    'IT-SICI': '10Y1001A1001A75E'
+    'IT-SICI': '10Y1001A1001A75E',
+    'NO-1': '10YNO-1--------2',
+    'NO-2': '10YNO-2--------T',
+    'NO-3': '10YNO-3--------J',
+    'NO-4': '10YNO-4--------9',
+    'NO-5': '10Y1001A1001A48H',
+    'SE-1': '10Y1001A1001A44P',
+    'SE-2': '10Y1001A1001A45N',
+    'SE-3': '10Y1001A1001A46L',
+    'SE-4': '10Y1001A1001A47J',
+    'DK-1': '10YDK-1--------W',
+    'DK-2': '10YDK-2--------M'
 })
 ```
 #### PSR-type

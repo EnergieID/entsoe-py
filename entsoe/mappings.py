@@ -56,7 +56,18 @@ BIDDING_ZONES.update({
     'IT-BRNN': '10Y1001A1001A699',
     'IT-PRGP': '10Y1001A1001A76C',
     'IT-SARD': '10Y1001A1001A74G',
-    'IT-SICI': '10Y1001A1001A75E'
+    'IT-SICI': '10Y1001A1001A75E',
+    'NO-1': '10YNO-1--------2',
+    'NO-2': '10YNO-2--------T',
+    'NO-3': '10YNO-3--------J',
+    'NO-4': '10YNO-4--------9',
+    'NO-5': '10Y1001A1001A48H',
+    'SE-1': '10Y1001A1001A44P',
+    'SE-2': '10Y1001A1001A45N',
+    'SE-3': '10Y1001A1001A46L',
+    'SE-4': '10Y1001A1001A47J',
+    'DK-1': '10YDK-1--------W',
+    'DK-2': '10YDK-2--------M'
 })
 
 TIMEZONE_MAPPINGS = {
@@ -111,7 +122,18 @@ TIMEZONE_MAPPINGS = {
     'IT-PRGP': 'Europe/Rome',
     'IT-SARD': 'Europe/Rome',
     'IT-SICI': 'Europe/Rome',
-    'DE-AT-LU': 'Europe/Berlin'
+    'DE-AT-LU': 'Europe/Berlin',
+    'NO-1': 'Europe/Oslo',
+    'NO-2': 'Europe/Oslo',
+    'NO-3': 'Europe/Oslo',
+    'NO-4': 'Europe/Oslo',
+    'NO-5': 'Europe/Oslo',
+    'SE-1': 'Europe/Stockholm',
+    'SE-2': 'Europe/Stockholm',
+    'SE-3': 'Europe/Stockholm',
+    'SE-4': 'Europe/Stockholm',
+    'DK-1': 'Europe/Copenhagen',
+    'DK-2': 'Europe/Copenhagen'
 }
 
 PSRTYPE_MAPPINGS = {

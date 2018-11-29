@@ -14,7 +14,7 @@ from .parsers import parse_prices, parse_loads, parse_generation, \
     parse_crossborder_flows, parse_imbalance_prices, parse_unavailabilities
 
 __title__ = "entsoe-py"
-__version__ = "0.2.1"
+__version__ = "0.2.2"
 __author__ = "EnergieID.be"
 __license__ = "MIT"
 
@@ -203,13 +203,14 @@ class EntsoeRawClient:
         response = self.base_request(params=params, start=start, end=end)
         return response.text
 
-    def query_generation_forecast_agg(self, country_code, start, end):
+    def query_generation_forecast(self, country_code, start, end):
         """
         Parameters
         ----------
         country_code : str
         start : pd.Timestamp
         end : pd.Timestamp
+
         Returns
         -------
         str
@@ -223,7 +224,7 @@ class EntsoeRawClient:
         response = self.base_request(params=params, start=start, end=end)
         return response.text
 
-    def query_generation_forecast(self, country_code, start, end, psr_type=None, lookup_bzones=False):
+    def query_wind_and_solar_forecast(self, country_code, start, end, psr_type=None, lookup_bzones=False):
         """
         Parameters
         ----------
@@ -496,7 +497,7 @@ class EntsoePandasClient(EntsoeRawClient):
         return series
 
     @year_limited
-    def query_generation_forecast_agg(self, country_code, start, end) -> pd.Series:
+    def query_generation_forecast(self, country_code, start, end) -> pd.Series:
         """
         Parameters
         ----------
@@ -507,15 +508,15 @@ class EntsoePandasClient(EntsoeRawClient):
         -------
         pd.Series
         """
-        text = super(EntsoePandasClient, self).query_generation_forecast_agg(
+        text = super(EntsoePandasClient, self).query_generation_forecast(
             country_code=country_code, start=start, end=end)
         series = parse_loads(text)
         series = series.tz_convert(TIMEZONE_MAPPINGS[country_code])
         return series
 
     @year_limited
-    def query_generation_forecast(self, country_code, start, end, psr_type=None,
-                                  lookup_bzones=False):
+    def query_wind_and_solar_forecast(self, country_code, start, end, psr_type=None,
+                                      lookup_bzones=False):
         """
         Parameters
         ----------
@@ -531,7 +532,7 @@ class EntsoePandasClient(EntsoeRawClient):
         -------
         pd.DataFrame
         """
-        text = super(EntsoePandasClient, self).query_generation_forecast(
+        text = super(EntsoePandasClient, self).query_wind_and_solar_forecast(
             country_code=country_code, start=start, end=end, psr_type=psr_type,
             lookup_bzones=lookup_bzones)
         df = parse_generation(text)

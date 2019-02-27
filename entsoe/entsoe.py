@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 from .exceptions import NoMatchingDataError, PaginationError
 from .mappings import DOMAIN_MAPPINGS, BIDDING_ZONES, TIMEZONE_MAPPINGS
 from .misc import year_blocks
-from .parsers import parse_prices, parse_loads, parse_generation, \
+from .parsers import parse_prices, parse_loads, parse_generation, parse_generation_per_plant, \
     parse_crossborder_flows, parse_imbalance_prices, parse_unavailabilities
 
 __title__ = "entsoe-py"
@@ -279,6 +279,38 @@ class EntsoeRawClient:
 
         params = {
             'documentType': 'A75',
+            'processType': 'A16',
+            'in_Domain': domain,
+        }
+        if psr_type:
+            params.update({'psrType': psr_type})
+
+        response = self.base_request(params=params, start=start, end=end)
+        return response.text
+    
+    def query_generation_per_plant(self, country_code, start, end, psr_type=None, lookup_bzones=False):
+        """
+        Parameters
+        ----------
+        country_code : str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        psr_type : str
+            filter on a single psr type
+        lookup_bzones : bool
+            if True, country_code is expected to be a bidding zone
+
+        Returns
+        -------
+        str
+        """
+        if not lookup_bzones:
+            domain = DOMAIN_MAPPINGS[country_code]
+        else:
+            domain = BIDDING_ZONES[country_code]
+
+        params = {
+            'documentType': 'A73',
             'processType': 'A16',
             'in_Domain': domain,
         }
@@ -672,4 +704,27 @@ class EntsoePandasClient(EntsoeRawClient):
         """
         df = self.query_unavailability_of_generation_units(
             country_code=country_code, start=start, end=end, docstatus='A13')
+        return df
+    @year_limited
+    def query_generation_per_plant(self, country_code, start, end, psr_type=None,lookup_bzones=False):
+        """
+        Parameters
+        ----------
+        country_code : str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        psr_type : str
+            filter on a single psr type
+        lookup_bzones : bool
+            if True, country_code is expected to be a bidding zone
+
+        Returns
+        -------
+        pd.DataFrame
+        """
+        text = super(EntsoePandasClient, self).query_generation_per_plant(
+            country_code=country_code, start=start, end=end, psr_type=psr_type,
+            lookup_bzones=lookup_bzones)
+        df = parse_generation_per_plant(text)
+        df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
         return df

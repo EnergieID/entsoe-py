@@ -14,7 +14,7 @@ from .parsers import parse_prices, parse_loads, parse_generation, parse_generati
     parse_crossborder_flows, parse_imbalance_prices, parse_unavailabilities
 
 __title__ = "entsoe-py"
-__version__ = "0.2.2"
+__version__ = "0.2.3"
 __author__ = "EnergieID.be"
 __license__ = "MIT"
 
@@ -705,6 +705,7 @@ class EntsoePandasClient(EntsoeRawClient):
         df = self.query_unavailability_of_generation_units(
             country_code=country_code, start=start, end=end, docstatus='A13')
         return df
+
     @year_limited
     def query_generation_per_plant(self, country_code, start, end, psr_type=None,lookup_bzones=False):
         """

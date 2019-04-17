@@ -445,7 +445,7 @@ class EntsoeRawClient:
         """
         content = self.query_unavailability(
             country_code=country_code, start=start, end=end, 
-            doctype="A77", docstatus='A13')
+            doctype="A77", docstatus=docstatus)
         return content
         
     def query_unavailability_of_production_units(self, country_code, start, end,
@@ -467,7 +467,7 @@ class EntsoeRawClient:
         """
         content = self.query_unavailability(
             country_code=country_code, start=start, end=end, 
-            doctype="A80", docstatus='A13')
+            doctype="A80", docstatus=docstatus)
         return content
 
     def query_withdrawn_unavailability_of_generation_units(

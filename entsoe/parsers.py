@@ -252,7 +252,7 @@ def _parse_generation_forecast_timeseries(soup):
 
     series.name = PSRTYPE_MAPPINGS[psrtype]
     return series
-	
+    
 def _parse_generation_forecast_timeseries_per_plant(soup):
     """
     Parameters

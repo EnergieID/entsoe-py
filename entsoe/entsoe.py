@@ -393,6 +393,39 @@ class EntsoeRawClient:
         response = self.base_request(params=params, start=start, end=end)
         return response.text
 
+    def query_unavailability(self, country_code, start, end, 
+                                        doctype, docstatus=None) -> bytes:
+        """
+        Generic unavailibility query method.
+        This endpoint serves ZIP files.
+        The query is limited to 200 items per request.
+
+        Parameters
+        ----------
+        country_code : str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        doctype : str
+        docstatus : str, optional
+
+        Returns
+        -------
+        bytes
+        """
+        domain = BIDDING_ZONES[country_code]
+        params = {
+            'documentType': doctype,
+            'biddingZone_domain': domain
+            # ,'businessType': 'A53 (unplanned) | A54 (planned)'
+        }
+
+        if docstatus:
+            params['docStatus'] = docstatus
+
+        response = self.base_request(params=params, start=start, end=end)
+
+        return response.content
+
     def query_unavailability_of_generation_units(self, country_code, start, end,
                                                  docstatus=None) -> bytes:
         """
@@ -410,19 +443,32 @@ class EntsoeRawClient:
         -------
         bytes
         """
-        domain = BIDDING_ZONES[country_code]
-        params = {
-            'documentType': 'A77',
-            'biddingZone_domain': domain
-            # ,'businessType': 'A53 (unplanned) | A54 (planned)'
-        }
+        content = self.query_unavailability(
+            country_code=country_code, start=start, end=end, 
+            doctype="A77", docstatus='A13')
+        return content
+        
+    def query_unavailability_of_production_units(self, country_code, start, end,
+                                                 docstatus=None) -> bytes:
+        """
+        This endpoint serves ZIP files.
+        The query is limited to 200 items per request.
 
-        if docstatus:
-            params['docStatus'] = docstatus
+        Parameters
+        ----------
+        country_code : str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        docstatus : str, optional
 
-        response = self.base_request(params=params, start=start, end=end)
-
-        return response.content
+        Returns
+        -------
+        bytes
+        """
+        content = self.query_unavailability(
+            country_code=country_code, start=start, end=end, 
+            doctype="A80", docstatus='A13')
+        return content
 
     def query_withdrawn_unavailability_of_generation_units(
             self, country_code, start, end):
@@ -433,8 +479,9 @@ class EntsoeRawClient:
         start : pd.Timestamp
         end : pd.Timestamp
         """
-        content = self.query_unavailability_of_generation_units(
-            country_code=country_code, start=start, end=end, docstatus='A13')
+        content = self.query_unavailability(
+            country_code=country_code, start=start, end=end, 
+            doctype="A77", docstatus='A13')
         return content
 
 
@@ -681,6 +728,32 @@ class EntsoePandasClient(EntsoeRawClient):
         """
         content = super(EntsoePandasClient,
                         self).query_unavailability_of_generation_units(
+            country_code=country_code, start=start, end=end,
+            docstatus=docstatus)
+        df = parse_unavailabilities(content)
+        df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
+        df['start'] = df['start'].apply(lambda x: x.tz_convert(TIMEZONE_MAPPINGS[country_code]))
+        df['end'] = df['end'].apply(lambda x: x.tz_convert(TIMEZONE_MAPPINGS[country_code]))
+        return df
+
+    @year_limited
+    @paginated
+    def query_unavailability_of_production_units(self, country_code, start, end,
+                                                 docstatus=None):
+        """
+        Parameters
+        ----------
+        country_code : str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        docstatus : str, optional
+
+        Returns
+        -------
+        pd.DataFrame
+        """
+        content = super(EntsoePandasClient,
+                        self).query_unavailability_of_production_units(
             country_code=country_code, start=start, end=end,
             docstatus=docstatus)
         df = parse_unavailabilities(content)

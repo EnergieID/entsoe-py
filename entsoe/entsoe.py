@@ -410,7 +410,7 @@ class EntsoeRawClient:
         -------
         bytes
         """
-        domain = DOMAIN_MAPPINGS[country_code]
+        domain = BIDDING_ZONES[country_code]
         params = {
             'documentType': 'A77',
             'biddingZone_domain': domain

@@ -394,7 +394,8 @@ class EntsoeRawClient:
         return response.text
 
     def query_unavailability(self, country_code, start, end, 
-                                        doctype, docstatus=None) -> bytes:
+                            doctype, docstatus=None, periodstartupdate = None, 
+                            periodendupdate = None) -> bytes:
         """
         Generic unavailibility query method.
         This endpoint serves ZIP files.
@@ -407,6 +408,8 @@ class EntsoeRawClient:
         end : pd.Timestamp
         doctype : str
         docstatus : str, optional
+        periodStartUpdate : pd.Timestamp, optional
+        periodEndUpdate : pd.Timestamp, optional
 
         Returns
         -------
@@ -421,13 +424,17 @@ class EntsoeRawClient:
 
         if docstatus:
             params['docStatus'] = docstatus
+        if periodstartupdate and periodendupdate:
+            params['periodStartUpdate'] = self._datetime_to_str(periodstartupdate)
+            params['periodEndUpdate'] = self._datetime_to_str(periodendupdate)
 
         response = self.base_request(params=params, start=start, end=end)
 
         return response.content
 
     def query_unavailability_of_generation_units(self, country_code, start, end,
-                                                 docstatus=None) -> bytes:
+                                     docstatus=None, periodstartupdate = None, 
+                                     periodendupdate = None) -> bytes:
         """
         This endpoint serves ZIP files.
         The query is limited to 200 items per request.
@@ -438,6 +445,8 @@ class EntsoeRawClient:
         start : pd.Timestamp
         end : pd.Timestamp
         docstatus : str, optional
+        periodStartUpdate : pd.Timestamp, optional
+        periodEndUpdate : pd.Timestamp, optional
 
         Returns
         -------
@@ -445,11 +454,14 @@ class EntsoeRawClient:
         """
         content = self.query_unavailability(
             country_code=country_code, start=start, end=end, 
-            doctype="A77", docstatus=docstatus)
+            doctype="A77", docstatus=docstatus, 
+            periodstartupdate = periodstartupdate,
+            periodendupdate = periodendupdate)
         return content
         
     def query_unavailability_of_production_units(self, country_code, start, end,
-                                                 docstatus=None) -> bytes:
+                                     docstatus=None, periodstartupdate = None, 
+                                     periodendupdate = None) -> bytes:
         """
         This endpoint serves ZIP files.
         The query is limited to 200 items per request.
@@ -460,6 +472,8 @@ class EntsoeRawClient:
         start : pd.Timestamp
         end : pd.Timestamp
         docstatus : str, optional
+        periodStartUpdate : pd.Timestamp, optional
+        periodEndUpdate : pd.Timestamp, optional
 
         Returns
         -------
@@ -467,7 +481,9 @@ class EntsoeRawClient:
         """
         content = self.query_unavailability(
             country_code=country_code, start=start, end=end, 
-            doctype="A80", docstatus=docstatus)
+            doctype="A80", docstatus=docstatus, 
+            periodstartupdate = periodstartupdate,
+            periodendupdate = periodendupdate)
         return content
 
     def query_withdrawn_unavailability_of_generation_units(
@@ -713,7 +729,8 @@ class EntsoePandasClient(EntsoeRawClient):
     @year_limited
     @paginated
     def query_unavailability_of_generation_units(self, country_code, start, end,
-                                                 docstatus=None):
+                                     docstatus=None, periodstartupdate = None, 
+                                     periodendupdate = None):
         """
         Parameters
         ----------
@@ -721,6 +738,8 @@ class EntsoePandasClient(EntsoeRawClient):
         start : pd.Timestamp
         end : pd.Timestamp
         docstatus : str, optional
+        periodStartUpdate : pd.Timestamp, optional
+        periodEndUpdate : pd.Timestamp, optional
 
         Returns
         -------
@@ -729,7 +748,8 @@ class EntsoePandasClient(EntsoeRawClient):
         content = super(EntsoePandasClient,
                         self).query_unavailability_of_generation_units(
             country_code=country_code, start=start, end=end,
-            docstatus=docstatus)
+            docstatus=docstatus,  periodstartupdate = periodstartupdate,
+            periodendupdate = periodendupdate)
         df = parse_unavailabilities(content)
         df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
         df['start'] = df['start'].apply(lambda x: x.tz_convert(TIMEZONE_MAPPINGS[country_code]))
@@ -739,7 +759,8 @@ class EntsoePandasClient(EntsoeRawClient):
     @year_limited
     @paginated
     def query_unavailability_of_production_units(self, country_code, start, end,
-                                                 docstatus=None):
+                                     docstatus=None, periodstartupdate = None, 
+                                     periodendupdate = None):
         """
         Parameters
         ----------
@@ -747,6 +768,8 @@ class EntsoePandasClient(EntsoeRawClient):
         start : pd.Timestamp
         end : pd.Timestamp
         docstatus : str, optional
+        periodStartUpdate : pd.Timestamp, optional
+        periodEndUpdate : pd.Timestamp, optional
 
         Returns
         -------
@@ -755,7 +778,8 @@ class EntsoePandasClient(EntsoeRawClient):
         content = super(EntsoePandasClient,
                         self).query_unavailability_of_production_units(
             country_code=country_code, start=start, end=end,
-            docstatus=docstatus)
+            docstatus=docstatus, periodstartupdate = periodstartupdate,
+            periodendupdate = periodendupdate)
         df = parse_unavailabilities(content)
         df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
         df['start'] = df['start'].apply(lambda x: x.tz_convert(TIMEZONE_MAPPINGS[country_code]))

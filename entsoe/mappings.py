@@ -41,6 +41,7 @@ DOMAIN_MAPPINGS = {
     'TR': '10YTR-TEIAS----W',
     'UA': '10YUA-WEPS-----0',
     'DE-AT-LU': '10Y1001A1001A63L',
+    'DE-LU': '10Y1001A1001A82H'
 }
 
 BIDDING_ZONES = DOMAIN_MAPPINGS.copy()
@@ -48,6 +49,9 @@ BIDDING_ZONES.update({
     'DE': '10Y1001A1001A63L',  # DE-AT-LU
     'LU': '10Y1001A1001A63L',  # DE-AT-LU
     'IT-NORD': '10Y1001A1001A73I',
+    'IT-NORD-AT': '10Y1001A1001A80L',
+    'IT-NORD-FR': '10Y1001A1001A81J',
+    'IT-NORD-CH': '10Y1001A1001A68B',
     'IT-CNOR': '10Y1001A1001A70O',
     'IT-CSUD': '10Y1001A1001A71M',
     'IT-SUD': '10Y1001A1001A788',
@@ -57,6 +61,7 @@ BIDDING_ZONES.update({
     'IT-PRGP': '10Y1001A1001A76C',
     'IT-SARD': '10Y1001A1001A74G',
     'IT-SICI': '10Y1001A1001A75E',
+    'IT-GR': '10Y1001A1001A66F',
     'NO-1': '10YNO-1--------2',
     'NO-2': '10YNO-2--------T',
     'NO-3': '10YNO-3--------J',
@@ -67,7 +72,9 @@ BIDDING_ZONES.update({
     'SE-3': '10Y1001A1001A46L',
     'SE-4': '10Y1001A1001A47J',
     'DK-1': '10YDK-1--------W',
-    'DK-2': '10YDK-2--------M'
+    'DK-2': '10YDK-2--------M',
+    'IE-SEM': '10Y1001A1001A59C',
+    'UA': '10Y1001C--00003F'
 })
 
 TIMEZONE_MAPPINGS = {
@@ -80,6 +87,7 @@ TIMEZONE_MAPPINGS = {
     'CH': 'Europe/Zurich',
     'CZ': 'Europe/Prague',
     'DE': 'Europe/Berlin',
+    'DE-LU': 'Europe/Berlin',
     'DK': 'Europe/Copenhagen',
     'EE': 'Europe/Tallinn',
     'ES': 'Europe/Madrid',
@@ -91,6 +99,7 @@ TIMEZONE_MAPPINGS = {
     'HR': 'Europe/Zagreb',
     'HU': 'Europe/Budapest',
     'IE': 'Europe/Dublin',
+    'IE-SEM': 'Europe/Dublin',
     'IT': 'Europe/Rome',
     'LT': 'Europe/Vilnius',
     'LU': 'Europe/Luxembourg',

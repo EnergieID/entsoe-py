@@ -8,7 +8,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from .exceptions import NoMatchingDataError, PaginationError
-from .mappings import DOMAIN_MAPPINGS, BIDDING_ZONES, TIMEZONE_MAPPINGS
+from .mappings import DOMAIN_MAPPINGS, BIDDING_ZONES, TIMEZONE_MAPPINGS, NEIGHBOURS
 from .misc import year_blocks
 from .parsers import parse_prices, parse_loads, parse_generation, parse_generation_per_plant, \
     parse_crossborder_flows, parse_imbalance_prices, parse_unavailabilities
@@ -864,4 +864,34 @@ class EntsoePandasClient(EntsoeRawClient):
             lookup_bzones=lookup_bzones)
         df = parse_generation_per_plant(text)
         df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
+        return df
+
+    def query_import(self, country_code: str, start: pd.Timestamp, end: pd.Timestamp) -> pd.DataFrame:
+        """
+        Adds together all incoming cross-border flows to a country
+        The neighbours of a country are given by the NEIGHBOURS mapping
+        """
+        imports = []
+        for neighbour in NEIGHBOURS[country_code]:
+            try:
+                im = self.query_crossborder_flows(country_code_from=neighbour, country_code_to=country_code, end=end,
+                                                  start=start, lookup_bzones=True)
+            except NoMatchingDataError:
+                continue
+            im.name = neighbour
+            imports.append(im)
+        df = pd.concat(imports, axis=1)
+        df = df.loc[:, (df != 0).any(axis=0)]  # drop columns that contain only zero's
+        df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
+        return df
+
+    def query_generation_import(self, country_code: str, start: pd.Timestamp, end: pd.Timestamp) -> pd.DataFrame:
+        """Query the combination of both domestic generation and imports"""
+        generation = self.query_generation(country_code=country_code, end=end, start=start, lookup_bzones=True)
+        generation = generation.loc[:, (generation != 0).any(axis=0)]  # drop columns that contain only zero's
+        generation = generation.resample('H').sum()
+        imports = self.query_import(country_code=country_code, start=start, end=end)
+
+        data = {f'Generation': generation, f'Import': imports}
+        df = pd.concat(data.values(), axis=1, keys=data.keys())
         return df

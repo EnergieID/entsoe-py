@@ -252,7 +252,7 @@ def _parse_generation_forecast_timeseries(soup):
 
     series.name = PSRTYPE_MAPPINGS[psrtype]
     return series
-	
+    
 def _parse_generation_forecast_timeseries_per_plant(soup):
     """
     Parameters
@@ -371,19 +371,23 @@ def _available_period(timeseries: bs4.BeautifulSoup) -> list:
 
 
 def _unavailability_timeseries(soup: bs4.BeautifulSoup) -> list:
-    #if not ts:
-    #    return
+
+    # Avoid attribute errors when some of the fields are void: 
+    get_attr = lambda attr: "" if soup.find(attr) is None else soup.find(attr).text 
+    # When no nominal power is given, give default numeric value of 0:
+    get_float = lambda val: float('NaN') if val == "" else float(val)
+
     dm = {k: v for (v, k) in BIDDING_ZONES.items()}
-    f = [BSNTYPE[soup.find('businesstype').text],
-         dm[soup.find('biddingzone_domain.mrid').text],
-         soup.find('quantity_measure_unit.name').text,
-         soup.find('curvetype').text,
-         soup.find('production_registeredresource.mrid').text,
-         soup.find('production_registeredresource.name').text,
-         soup.find('production_registeredresource.location.name').text,
-         PSRTYPE_MAPPINGS[soup.find(
-             'production_registeredresource.psrtype.psrtype').text],
-         float(soup.find('production_registeredresource.psrtype.powersystemresources.nominalp').text)]
+    f = [BSNTYPE[get_attr('businesstype')],
+         dm[get_attr('biddingzone_domain.mrid')],
+         get_attr('quantity_measure_unit.name'),
+         get_attr('curvetype'),
+         get_attr('production_registeredresource.mrid'),
+         get_attr('production_registeredresource.name'),
+         get_attr('production_registeredresource.location.name'),
+         PSRTYPE_MAPPINGS.get(get_attr(
+             'production_registeredresource.psrtype.psrtype'), ""),
+         get_float(get_attr('production_registeredresource.psrtype.powersystemresources.nominalp'))]
     return [f + p for p in _available_period(soup)]
 
 
@@ -409,7 +413,11 @@ def _outage_parser(xml_file: bytes) -> pd.DataFrame:
                'avail_qty'
                ]
     soup = bs4.BeautifulSoup(xml_text, 'html.parser')
-    creation_date = pd.Timestamp(soup.createddatetime.text)
+    try:
+        creation_date = pd.Timestamp(soup.createddatetime.text)
+    except AttributeError:
+        creation_date = ""
+
     try:
         docstatus = DOCSTATUS[soup.docstatus.value.text]
     except AttributeError:

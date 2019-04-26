@@ -375,7 +375,7 @@ def _unavailability_timeseries(soup: bs4.BeautifulSoup) -> list:
     # Avoid attribute errors when some of the fields are void: 
     get_attr = lambda attr: "" if soup.find(attr) is None else soup.find(attr).text 
     # When no nominal power is given, give default numeric value of 0:
-    get_float = lambda val: 0 if val == "" else float(val)
+    get_float = lambda val: float('NaN') if val == "" else float(val)
 
     dm = {k: v for (v, k) in BIDDING_ZONES.items()}
     f = [BSNTYPE[get_attr('businesstype')],

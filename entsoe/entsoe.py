@@ -461,7 +461,7 @@ class EntsoeRawClient:
         """
         content = self.query_unavailability(
             country_code=country_code, start=start, end=end,
-            doctype="A77", docstatus=docstatus,
+            doctype="A80", docstatus=docstatus,
             periodstartupdate = periodstartupdate,
             periodendupdate = periodendupdate)
         return content
@@ -488,7 +488,7 @@ class EntsoeRawClient:
         """
         content = self.query_unavailability(
             country_code=country_code, start=start, end=end,
-            doctype="A80", docstatus=docstatus,
+            doctype="A77", docstatus=docstatus,
             periodstartupdate = periodstartupdate,
             periodendupdate = periodendupdate)
         return content
@@ -504,7 +504,7 @@ class EntsoeRawClient:
         """
         content = self.query_unavailability(
             country_code=country_code, start=start, end=end,
-            doctype="A77", docstatus='A13')
+            doctype="A80", docstatus='A13')
         return content
 
 

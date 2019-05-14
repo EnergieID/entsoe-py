@@ -10,7 +10,8 @@ from bs4 import BeautifulSoup
 from .exceptions import NoMatchingDataError, PaginationError
 from .mappings import DOMAIN_MAPPINGS, BIDDING_ZONES, TIMEZONE_MAPPINGS, NEIGHBOURS
 from .misc import year_blocks
-from .parsers import parse_prices, parse_loads, parse_generation, parse_generation_per_plant, \
+from .parsers import parse_prices, parse_loads, parse_generation, \
+    parse_generation_per_plant, parse_installed_capacity_per_plant, \
     parse_crossborder_flows, parse_imbalance_prices, parse_unavailabilities
 
 __title__ = "entsoe-py"
@@ -287,7 +288,7 @@ class EntsoeRawClient:
 
         response = self.base_request(params=params, start=start, end=end)
         return response.text
-    
+
     def query_generation_per_plant(self, country_code, start, end, psr_type=None, lookup_bzones=False):
         """
         Parameters
@@ -337,6 +338,33 @@ class EntsoeRawClient:
         domain = DOMAIN_MAPPINGS[country_code]
         params = {
             'documentType': 'A68',
+            'processType': 'A33',
+            'in_Domain': domain,
+        }
+        if psr_type:
+            params.update({'psrType': psr_type})
+
+        response = self.base_request(params=params, start=start, end=end)
+        return response.text
+
+    def query_installed_generation_capacity_per_unit(self, country_code,
+                                                      start, end, psr_type=None):
+        """
+        Parameters
+        ----------
+        country_code : str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        psr_type : str
+            filter query for a specific psr type
+
+        Returns
+        -------
+        str
+        """
+        domain = DOMAIN_MAPPINGS[country_code]
+        params = {
+            'documentType': 'A71',
             'processType': 'A33',
             'in_Domain': domain,
         }
@@ -687,6 +715,28 @@ class EntsoePandasClient(EntsoeRawClient):
             country_code=country_code, start=start, end=end, psr_type=psr_type)
         df = parse_generation(text)
         df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
+        return df
+
+    @year_limited
+    def query_installed_generation_capacity_per_unit(self, country_code,
+                                                     start, end, psr_type=None):
+        """
+        Parameters
+        ----------
+        country_code : str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        psr_type : str
+            filter query for a specific psr type
+
+        Returns
+        -------
+        pd.DataFrame
+        """
+        text = super(
+            EntsoePandasClient, self).query_installed_generation_capacity_per_unit(
+            country_code=country_code, start=start, end=end, psr_type=psr_type)
+        df = parse_installed_capacity_per_plant(text)
         return df
 
     @year_limited

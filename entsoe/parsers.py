@@ -112,6 +112,36 @@ def parse_generation_per_plant(xml_text):
     df = pd.DataFrame.from_dict(all_series)
     return df
 
+def parse_installed_capacity_per_plant(xml_text):
+    """
+    Parameters
+    ----------
+    xml_text : str
+
+    Returns
+    -------
+    pd.DataFrame
+    """
+    all_series = {}
+    for soup in _extract_timeseries(xml_text):
+        s = _parse_installed_capacity_per_plant(soup)
+        series = all_series.get(s.name)
+        if series is None:
+            all_series[s.name] = s
+        else:
+            series = series.append(s)
+            series.sort_index()
+            all_series[series.name] = series
+
+    for name in all_series:
+        ts = all_series[name]
+        all_series[name] = ts[~ts.index.duplicated(keep='first')]
+
+    df = pd.DataFrame.from_dict(all_series).T
+    df['Production Type'] = df['Production Type'].map(PSRTYPE_MAPPINGS)
+#    df['Status'] = df['Status'].map(BSNTYPE)
+    return df
+
 def parse_crossborder_flows(xml_text):
     """
     Parameters
@@ -252,7 +282,7 @@ def _parse_generation_forecast_timeseries(soup):
 
     series.name = PSRTYPE_MAPPINGS[psrtype]
     return series
-    
+
 def _parse_generation_forecast_timeseries_per_plant(soup):
     """
     Parameters
@@ -275,6 +305,32 @@ def _parse_generation_forecast_timeseries_per_plant(soup):
     series.index = _parse_datetimeindex(soup)
 
     series.name = plantname
+    return series
+
+def _parse_installed_capacity_per_plant(soup):
+    """
+    Parameters
+    ----------
+    soup : bs4.element.tag
+
+    Returns
+    -------
+    pd.Series
+    """
+    extract_vals = {'Name':'registeredresource.name',
+                    'Production Type': 'psrtype',
+                    'Bidding Zone': 'inbiddingzone_domain.mrid',
+                    # 'Status': 'businesstype',
+                    'Voltage Connection Level [kV]':
+                        'voltage_powersystemresources.highvoltagelimit'}
+    series = pd.Series(extract_vals).apply(lambda v: soup.find(v).text)
+
+    #extract only first point
+    series['Installed Capacity [MW]'] = \
+        soup.find_all('point')[0].find('quantity').text
+
+    series.name = soup.find('registeredresource.mrid').text
+
     return series
 
 
@@ -372,8 +428,8 @@ def _available_period(timeseries: bs4.BeautifulSoup) -> list:
 
 def _unavailability_timeseries(soup: bs4.BeautifulSoup) -> list:
 
-    # Avoid attribute errors when some of the fields are void: 
-    get_attr = lambda attr: "" if soup.find(attr) is None else soup.find(attr).text 
+    # Avoid attribute errors when some of the fields are void:
+    get_attr = lambda attr: "" if soup.find(attr) is None else soup.find(attr).text
     # When no nominal power is given, give default numeric value of 0:
     get_float = lambda val: float('NaN') if val == "" else float(val)
 

@@ -274,7 +274,10 @@ def _parse_generation_forecast_timeseries(soup):
     quantities = []
     for point in soup.find_all('point'):
         positions.append(int(point.find('position').text))
-        quantities.append(float(point.find('quantity').text))
+        quantity = point.find('quantity')
+        if quantity is None:
+            raise LookupError(f'No quantity found in this point, it should have one: {point}')
+        quantities.append(float(quantity.text))
 
     series = pd.Series(index=positions, data=quantities)
     series = series.sort_index()

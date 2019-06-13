@@ -84,6 +84,63 @@ def parse_generation(xml_text):
     df = pd.DataFrame.from_dict(all_series)
     return df
 
+def parse_generation_per_plant(xml_text):
+    """
+    Parameters
+    ----------
+    xml_text : str
+
+    Returns
+    -------
+    pd.DataFrame
+    """
+    all_series = {}
+    for soup in _extract_timeseries(xml_text):
+        ts = _parse_generation_forecast_timeseries_per_plant(soup)
+        series = all_series.get(ts.name)
+        if series is None:
+            all_series[ts.name] = ts
+        else:
+            series = series.append(ts)
+            series.sort_index()
+            all_series[series.name] = series
+
+    for name in all_series:
+        ts = all_series[name]
+        all_series[name] = ts[~ts.index.duplicated(keep='first')]
+
+    df = pd.DataFrame.from_dict(all_series)
+    return df
+
+def parse_installed_capacity_per_plant(xml_text):
+    """
+    Parameters
+    ----------
+    xml_text : str
+
+    Returns
+    -------
+    pd.DataFrame
+    """
+    all_series = {}
+    for soup in _extract_timeseries(xml_text):
+        s = _parse_installed_capacity_per_plant(soup)
+        series = all_series.get(s.name)
+        if series is None:
+            all_series[s.name] = s
+        else:
+            series = series.append(s)
+            series.sort_index()
+            all_series[series.name] = series
+
+    for name in all_series:
+        ts = all_series[name]
+        all_series[name] = ts[~ts.index.duplicated(keep='first')]
+
+    df = pd.DataFrame.from_dict(all_series).T
+    df['Production Type'] = df['Production Type'].map(PSRTYPE_MAPPINGS)
+#    df['Status'] = df['Status'].map(BSNTYPE)
+    return df
 
 def parse_crossborder_flows(xml_text):
     """
@@ -217,13 +274,66 @@ def _parse_generation_forecast_timeseries(soup):
     quantities = []
     for point in soup.find_all('point'):
         positions.append(int(point.find('position').text))
-        quantities.append(float(point.find('quantity').text))
+        quantity = point.find('quantity')
+        if quantity is None:
+            raise LookupError(f'No quantity found in this point, it should have one: {point}')
+        quantities.append(float(quantity.text))
 
     series = pd.Series(index=positions, data=quantities)
     series = series.sort_index()
     series.index = _parse_datetimeindex(soup)
 
     series.name = PSRTYPE_MAPPINGS[psrtype]
+    return series
+
+def _parse_generation_forecast_timeseries_per_plant(soup):
+    """
+    Parameters
+    ----------
+    soup : bs4.element.tag
+
+    Returns
+    -------
+    pd.Series
+    """
+    plantname = soup.find('name').text
+    positions = []
+    quantities = []
+    for point in soup.find_all('point'):
+        positions.append(int(point.find('position').text))
+        quantities.append(float(point.find('quantity').text))
+
+    series = pd.Series(index=positions, data=quantities)
+    series = series.sort_index()
+    series.index = _parse_datetimeindex(soup)
+
+    series.name = plantname
+    return series
+
+def _parse_installed_capacity_per_plant(soup):
+    """
+    Parameters
+    ----------
+    soup : bs4.element.tag
+
+    Returns
+    -------
+    pd.Series
+    """
+    extract_vals = {'Name':'registeredresource.name',
+                    'Production Type': 'psrtype',
+                    'Bidding Zone': 'inbiddingzone_domain.mrid',
+                    # 'Status': 'businesstype',
+                    'Voltage Connection Level [kV]':
+                        'voltage_powersystemresources.highvoltagelimit'}
+    series = pd.Series(extract_vals).apply(lambda v: soup.find(v).text)
+
+    #extract only first point
+    series['Installed Capacity [MW]'] = \
+        soup.find_all('point')[0].find('quantity').text
+
+    series.name = soup.find('registeredresource.mrid').text
+
     return series
 
 
@@ -320,19 +430,23 @@ def _available_period(timeseries: bs4.BeautifulSoup) -> list:
 
 
 def _unavailability_timeseries(soup: bs4.BeautifulSoup) -> list:
-    #if not ts:
-    #    return
+
+    # Avoid attribute errors when some of the fields are void:
+    get_attr = lambda attr: "" if soup.find(attr) is None else soup.find(attr).text
+    # When no nominal power is given, give default numeric value of 0:
+    get_float = lambda val: float('NaN') if val == "" else float(val)
+
     dm = {k: v for (v, k) in BIDDING_ZONES.items()}
-    f = [BSNTYPE[soup.find('businesstype').text],
-         dm[soup.find('biddingzone_domain.mrid').text],
-         soup.find('quantity_measure_unit.name').text,
-         soup.find('curvetype').text,
-         soup.find('production_registeredresource.mrid').text,
-         soup.find('production_registeredresource.name').text,
-         soup.find('production_registeredresource.location.name').text,
-         PSRTYPE_MAPPINGS[soup.find(
-             'production_registeredresource.psrtype.psrtype').text],
-         float(soup.find('production_registeredresource.psrtype.powersystemresources.nominalp').text)]
+    f = [BSNTYPE[get_attr('businesstype')],
+         dm[get_attr('biddingzone_domain.mrid')],
+         get_attr('quantity_measure_unit.name'),
+         get_attr('curvetype'),
+         get_attr('production_registeredresource.mrid'),
+         get_attr('production_registeredresource.name'),
+         get_attr('production_registeredresource.location.name'),
+         PSRTYPE_MAPPINGS.get(get_attr(
+             'production_registeredresource.psrtype.psrtype'), ""),
+         get_float(get_attr('production_registeredresource.psrtype.powersystemresources.nominalp'))]
     return [f + p for p in _available_period(soup)]
 
 
@@ -358,7 +472,11 @@ def _outage_parser(xml_file: bytes) -> pd.DataFrame:
                'avail_qty'
                ]
     soup = bs4.BeautifulSoup(xml_text, 'html.parser')
-    creation_date = pd.Timestamp(soup.createddatetime.text)
+    try:
+        creation_date = pd.Timestamp(soup.createddatetime.text)
+    except AttributeError:
+        creation_date = ""
+
     try:
         docstatus = DOCSTATUS[soup.docstatus.value.text]
     except AttributeError:

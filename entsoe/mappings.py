@@ -41,6 +41,7 @@ DOMAIN_MAPPINGS = {
     'TR': '10YTR-TEIAS----W',
     'UA': '10YUA-WEPS-----0',
     'DE-AT-LU': '10Y1001A1001A63L',
+    'DE-LU': '10Y1001A1001A82H'
 }
 
 BIDDING_ZONES = DOMAIN_MAPPINGS.copy()
@@ -48,6 +49,9 @@ BIDDING_ZONES.update({
     'DE': '10Y1001A1001A63L',  # DE-AT-LU
     'LU': '10Y1001A1001A63L',  # DE-AT-LU
     'IT-NORD': '10Y1001A1001A73I',
+    'IT-NORD-AT': '10Y1001A1001A80L',
+    'IT-NORD-FR': '10Y1001A1001A81J',
+    'IT-NORD-CH': '10Y1001A1001A68B',
     'IT-CNOR': '10Y1001A1001A70O',
     'IT-CSUD': '10Y1001A1001A71M',
     'IT-SUD': '10Y1001A1001A788',
@@ -57,6 +61,7 @@ BIDDING_ZONES.update({
     'IT-PRGP': '10Y1001A1001A76C',
     'IT-SARD': '10Y1001A1001A74G',
     'IT-SICI': '10Y1001A1001A75E',
+    'IT-GR': '10Y1001A1001A66F',
     'NO-1': '10YNO-1--------2',
     'NO-2': '10YNO-2--------T',
     'NO-3': '10YNO-3--------J',
@@ -67,7 +72,9 @@ BIDDING_ZONES.update({
     'SE-3': '10Y1001A1001A46L',
     'SE-4': '10Y1001A1001A47J',
     'DK-1': '10YDK-1--------W',
-    'DK-2': '10YDK-2--------M'
+    'DK-2': '10YDK-2--------M',
+    'IE-SEM': '10Y1001A1001A59C',
+    'UA': '10Y1001C--00003F'
 })
 
 TIMEZONE_MAPPINGS = {
@@ -80,6 +87,7 @@ TIMEZONE_MAPPINGS = {
     'CH': 'Europe/Zurich',
     'CZ': 'Europe/Prague',
     'DE': 'Europe/Berlin',
+    'DE-LU': 'Europe/Berlin',
     'DK': 'Europe/Copenhagen',
     'EE': 'Europe/Tallinn',
     'ES': 'Europe/Madrid',
@@ -91,6 +99,7 @@ TIMEZONE_MAPPINGS = {
     'HR': 'Europe/Zagreb',
     'HU': 'Europe/Budapest',
     'IE': 'Europe/Dublin',
+    'IE-SEM': 'Europe/Dublin',
     'IT': 'Europe/Rome',
     'LT': 'Europe/Vilnius',
     'LU': 'Europe/Luxembourg',
@@ -226,3 +235,51 @@ DOCUMENTTYPE = {'A09': 'Finalised schedule',
                 'A94': 'Non EU allocations',
                 'A95': 'Configuration document',
                 'B11': 'Flow-based allocations'}
+
+# neighbouring bidding zones that have cross-border flows
+NEIGHBOURS = {
+    'BE': ['NL', 'DE-AT-LU', 'FR', 'GB', 'DE-LU'],
+    'NL': ['BE', 'DE-AT-LU', 'DE-LU', 'GB', 'NO-2'],
+    'DE-AT-LU': ['BE', 'CH', 'CZ', 'DK-1', 'DK-2', 'FR', 'IT-NORD', 'IT-NORD-AT', 'NL', 'PL', 'SE-4', 'SI'],
+    'FR': ['BE', 'CH', 'DE-AT-LU', 'DE-LU', 'ES', 'GB', 'IT-NORD', 'IT-NORD-FR'],
+    'CH': ['AT', 'DE-AT-LU', 'DE-LU', 'FR', 'IT-NORD', 'IT-NORD-CH'],
+    'AT': ['CH', 'CZ', 'DE-LU', 'HU', 'IT-NORD', 'SI'],
+    'CZ': ['AT', 'DE-AT-LU', 'DE-LU', 'PL', 'SK'],
+    'GB': ['BE', 'FR', 'IE-SEM', 'NL'],
+    'NO-2': ['DK-1', 'NL', 'NO-5'],
+    'HU': ['AT', 'HR', 'RO', 'RS', 'SK', 'UA'],
+    'IT-NORD': ['CH', 'DE-AT-LU', 'FR', 'SI', 'AT'],
+    'ES': ['FR', 'PT'],
+    'SI': ['AT', 'DE-AT-LU', 'HR', 'IT-NORD'],
+    'RS': ['AL', 'BA', 'BG', 'HR', 'HU', 'ME', 'MK', 'RO'],
+    'PL': ['CZ', 'DE-AT-LU', 'DE-LU', 'LT', 'SE-4', 'SK', 'UA'],
+    'ME': ['AL', 'BA', 'RS'],
+    'DK-1': ['DE-AT-LU', 'DE-LU', 'DK-2', 'NO-2', 'SE-3'],
+    'RO': ['BG', 'HU', 'RS', 'UA'],
+    'LT': ['BY', 'LV', 'PL', 'RU-KGD', 'SE-4'],
+    'BG': ['GR', 'MK', 'RO', 'RS', 'TR'],
+    'SE-3': ['DK-1', 'FI', 'NO-1', 'SE-4'],
+    'LV': ['EE', 'LT', 'RU'],
+    'IE-SEM': ['GB'],
+    'BA': ['HR', 'ME', 'RS'],
+    'NO-1': ['NO-2', 'NO-3', 'NO-5', 'SE-3'],
+    'SE-4': ['DE-AT-LU', 'DE-LU', 'DK-2', 'LT', 'PL'],
+    'NO-5': ['NO-1', 'NO-2', 'NO-3'],
+    'SK': ['CZ', 'HU', 'PL', 'UA'],
+    'EE': ['FI', 'LV', 'RU'],
+    'DK-2': ['DE-AT-LU', 'DE-LU', 'SE-4'],
+    'FI': ['EE', 'NO-4', 'RU', 'SE-1', 'SE-3'],
+    'NO-4': ['SE-2', 'FI', 'SE-1'],
+    'SE-1': ['FI', 'NO-4', 'SE-2'],
+    'SE-2': ['NO-3', 'NO-4', 'SE-3'],
+    'DE-LU': ['AT', 'BE', 'CH', 'CZ', 'DK-1', 'DK-2', 'FR', 'NL', 'PL', 'SE-4'],
+    'MK': ['BG', 'GR', 'RS'],
+    'PT': ['ES'],
+    'GR': ['AL', 'BG', 'IT-BRNN', 'IT-GR', 'MK', 'TR'],
+    'NO-3': ['NO-4', 'NO-5', 'SE-2'],
+    'IT-BRNN': ['GR', 'IT-SUD'],
+    'IT-SUD': ['IT-BRNN', 'IT-CSUD', 'IT-FOGN', 'IT-ROSN'],
+    'IT-FOGN': ['IT-SUD'],
+    'IT-ROSN': ['IT-SICI', 'IT-SUD'],
+    'IT-CSUD': ['IT-CNOR', 'IT-SARD', 'IT-SUD']
+}

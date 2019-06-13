@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 
 from .exceptions import NoMatchingDataError, PaginationError
 from .mappings import DOMAIN_MAPPINGS, BIDDING_ZONES, TIMEZONE_MAPPINGS, NEIGHBOURS
-from .misc import year_blocks
+from .misc import year_blocks, day_blocks
 from .parsers import parse_prices, parse_loads, parse_generation, \
     parse_generation_per_plant, parse_installed_capacity_per_plant, \
     parse_crossborder_flows, parse_imbalance_prices, parse_unavailabilities
@@ -569,6 +569,20 @@ def year_limited(func):
     return year_wrapper
 
 
+def day_limited(func):
+    """Deals with calls where you cannot query more than a year, by splitting
+    the call up in blocks per year"""
+
+    @wraps(func)
+    def day_wrapper(*args, start, end, **kwargs):
+        blocks = day_blocks(start, end)
+        frames = [func(*args, start=_start, end=_end, **kwargs) for _start, _end
+                  in blocks]
+        df = pd.concat(frames)
+        return df
+
+    return day_wrapper
+
 class EntsoePandasClient(EntsoeRawClient):
     @year_limited
     def query_day_ahead_prices(self, country_code, start, end) -> pd.Series:
@@ -892,7 +906,7 @@ class EntsoePandasClient(EntsoeRawClient):
             country_code=country_code, start=start, end=end, docstatus='A13')
         return df
 
-    @year_limited
+    @day_limited
     def query_generation_per_plant(self, country_code, start, end, psr_type=None,lookup_bzones=False):
         """
         Parameters

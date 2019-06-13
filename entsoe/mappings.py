@@ -48,6 +48,10 @@ BIDDING_ZONES = DOMAIN_MAPPINGS.copy()
 BIDDING_ZONES.update({
     'DE': '10Y1001A1001A63L',  # DE-AT-LU
     'LU': '10Y1001A1001A63L',  # DE-AT-LU
+    'DE-50HZ': '10YDE-VE-------2',
+    'DE-AMPIRION': '10YDE-RWENET---I',
+    'DE-TENNET': '10YDE-EON------1',
+    'DE-TRANSNET': '10YDE-ENBW-----N',
     'IT-NORD': '10Y1001A1001A73I',
     'IT-NORD-AT': '10Y1001A1001A80L',
     'IT-NORD-FR': '10Y1001A1001A81J',
@@ -87,6 +91,10 @@ TIMEZONE_MAPPINGS = {
     'CH': 'Europe/Zurich',
     'CZ': 'Europe/Prague',
     'DE': 'Europe/Berlin',
+    'DE-50HZ': 'Europe/Berlin',
+    'DE-AMPIRION': 'Europe/Berlin',
+    'DE-TENNET': 'Europe/Berlin',
+    'DE-TRANSNET': 'Europe/Berlin',
     'DE-LU': 'Europe/Berlin',
     'DK': 'Europe/Copenhagen',
     'EE': 'Europe/Tallinn',

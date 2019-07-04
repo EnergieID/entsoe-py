@@ -92,7 +92,7 @@ TIMEZONE_MAPPINGS = {
     'CZ': 'Europe/Prague',
     'DE': 'Europe/Berlin',
     'DE-50HZ': 'Europe/Berlin',
-    'DE-AMPIRION': 'Europe/Berlin',
+    'DE-AMPRIRON': 'Europe/Berlin',
     'DE-TENNET': 'Europe/Berlin',
     'DE-TRANSNET': 'Europe/Berlin',
     'DE-LU': 'Europe/Berlin',

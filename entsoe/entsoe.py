@@ -15,7 +15,7 @@ from .parsers import parse_prices, parse_loads, parse_generation, \
     parse_crossborder_flows, parse_imbalance_prices, parse_unavailabilities
 
 __title__ = "entsoe-py"
-__version__ = "0.2.7"
+__version__ = "0.2.8"
 __author__ = "EnergieID.be"
 __license__ = "MIT"
 

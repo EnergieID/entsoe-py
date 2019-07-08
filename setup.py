@@ -32,6 +32,7 @@ setup(
     version=__version__,
     description='A python API wrapper for ENTSO-E',
     long_description=long_description,
+    long_description_content_type='text/markdown',
     url='https://github.com/EnergieID/entsoe-py',
     author='EnergieID.be',
     author_email='jan@energieid.be',

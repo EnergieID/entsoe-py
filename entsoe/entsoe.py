@@ -617,7 +617,7 @@ def year_limited(func):
         blocks = year_blocks(start, end)
         frames = [func(*args, start=_start, end=_end, **kwargs) for _start, _end
                   in blocks]
-        df = pd.concat(frames)
+        df = pd.concat(frames, sort = True)
         return df
 
     return year_wrapper

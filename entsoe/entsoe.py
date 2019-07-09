@@ -112,8 +112,9 @@ class EntsoeRawClient:
                     raise NoMatchingDataError
                 elif 'amount of requested data exceeds allowed limit' in error_text:
                     requested = error_text.split(' ')[-2]
+                    allowed = error_text.split(' ')[-5]
                     raise PaginationError(
-                        f"The API is limited to 200 elements per request. This query requested for {requested} documents and cannot be fulfilled as is.")
+                        f"The API is limited to {allowed} elements per request. This query requested for {requested} documents and cannot be fulfilled as is.")
             raise e
         else:
             return response

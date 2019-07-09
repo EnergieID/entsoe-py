@@ -106,7 +106,7 @@ def parse_generation_per_plant(xml_text):
         if series is None:
             all_series[ts.name] = ts
         else:
-            if (series.name == ts.name) & (series.index == ts.index).all():
+            if (series.name == ts.name) & series.index.equals(ts.index):
                 series = series + ts
             else:
                 series = series.append(ts)

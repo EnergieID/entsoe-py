@@ -178,6 +178,71 @@ def parse_imbalance_prices(xml_text):
     return df
 
 
+def parse_contracted_reserve(xml_text, tz, label):
+    """
+    Parameters
+    ----------
+    xml_text : str
+    tz: str
+    label: str
+    
+    Returns
+    -------
+    pd.DataFrame
+    """
+    timeseries_blocks = _extract_timeseries(xml_text)
+    frames = (_parse_contracted_reserve_series(soup, tz, label)
+              for soup in timeseries_blocks)
+    df = pd.concat(frames, axis = 1)
+    # df = df.stack().unstack() # ad-hoc fix to prevent column splitting by NaNs
+    df = df.groupby(by = df.columns, axis = 1).mean()
+    df.sort_index(inplace = True)
+    return df
+
+
+def _parse_contracted_reserve_series(soup, tz, label):
+    """
+    Parameters
+    ----------
+    soup : bs4.element.tag
+    tz: str
+    label: str
+
+    Returns
+    -------
+    pd.Series
+    """
+    positions = []
+    prices = []
+    for point in soup.find_all('point'):
+        positions.append(int(point.find('position').text))
+        prices.append(float(point.find(label).text))
+
+    df = pd.DataFrame(data = {'position': positions,
+                            label: prices})
+    df = df.set_index(['position'])
+    df.sort_index(inplace = True)
+    index = _parse_datetimeindex(soup, tz)
+    if len(index) > len(df.index):
+        print("Shortening index")
+        df.index = index[:len(df.index)]
+    else:
+        df.index = index
+
+    df.index.name = None
+    df.columns.name = None
+    direction_dico = {'A01': 'Up',
+                      'A02': 'Down',
+                      'A03' : 'Symmetric'}
+
+    reserve_type = BSNTYPE[soup.find("businesstype").text]
+    direction = direction_dico[soup.find("flowdirection.direction").text]
+
+    df.rename(columns = {label: "%s - %s" % (reserve_type, direction)},
+              inplace = True)
+    return df
+
+
 def _parse_imbalance_prices_timeseries(soup):
     """
     Parameters
@@ -337,7 +402,7 @@ def _parse_installed_capacity_per_plant(soup):
     return series
 
 
-def _parse_datetimeindex(soup):
+def _parse_datetimeindex(soup, tz = None):
     """
     Create a datetimeindex from a parsed beautifulsoup,
     given that it contains the elements 'start', 'end'
@@ -346,6 +411,7 @@ def _parse_datetimeindex(soup):
     Parameters
     ----------
     soup : bs4.element.tag
+    tz: str
 
     Returns
     -------
@@ -353,8 +419,21 @@ def _parse_datetimeindex(soup):
     """
     start = pd.Timestamp(soup.find('start').text)
     end = pd.Timestamp(soup.find('end').text)
+    if not tz is None:
+        start = start.tz_convert(tz)
+        end = end.tz_convert(tz)
+
     delta = _resolution_to_timedelta(res_text=soup.find('resolution').text)
     index = pd.date_range(start=start, end=end, freq=delta, closed='left')
+    if not tz is None:
+        dst_jump = len(set(index.map(lambda d:d.dst()))) > 1
+        if dst_jump and delta == "7D":
+            # For a weekly granularity, if we jump over the DST date in October,
+            # date_range erronously returns an additional index element
+            # because that week contains 169 hours instead of 168.
+            index = index[:-1]
+        index = index.tz_convert("UTC")
+
     return index
 
 

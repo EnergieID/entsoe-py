@@ -12,7 +12,8 @@ from .mappings import DOMAIN_MAPPINGS, BIDDING_ZONES, TIMEZONE_MAPPINGS, NEIGHBO
 from .misc import year_blocks, day_blocks
 from .parsers import parse_prices, parse_loads, parse_generation, \
     parse_generation_per_plant, parse_installed_capacity_per_plant, \
-    parse_crossborder_flows, parse_imbalance_prices, parse_unavailabilities
+    parse_crossborder_flows, parse_imbalance_prices, parse_unavailabilities, \
+    parse_contracted_reserve
 
 __title__ = "entsoe-py"
 __version__ = "0.2.8"
@@ -428,6 +429,58 @@ class EntsoeRawClient:
         response = self.base_request(params=params, start=start, end=end)
         return response.text
 
+    def query_contracted_reserve_prices(self, country_code, start, end,
+                                        type_marketagreement_type, psr_type = None):
+        """
+        Parameters
+        ----------
+        country_code : str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        psr_type : str
+            filter query for a specific psr type
+
+        Returns
+        -------
+        str
+        """
+        domain = BIDDING_ZONES[country_code]
+        params = {
+            'documentType': 'A89',
+            'controlArea_Domain': domain,
+            'type_MarketAgreement.Type': type_marketagreement_type,
+        }
+        if psr_type:
+            params.update({'psrType': psr_type})
+        response = self.base_request(params = params, start = start, end = end)
+        return response.text
+
+    def query_contracted_reserve_amount(self, country_code, start, end,
+                                        type_marketagreement_type, psr_type = None):
+        """
+        Parameters
+        ----------
+        country_code : str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        psr_type : str
+            filter query for a specific psr type
+
+        Returns
+        -------
+        str
+        """
+        domain = BIDDING_ZONES[country_code]
+        params = {
+            'documentType': 'A81',
+            'controlArea_Domain': domain,
+            'type_MarketAgreement.Type': type_marketagreement_type,
+        }
+        if psr_type:
+            params.update({'psrType': psr_type})
+        response = self.base_request(params = params, start = start, end = end)
+        return response.text
+
     def query_unavailability(self, country_code, start, end,
                             doctype, docstatus=None, periodstartupdate = None,
                             periodendupdate = None) -> bytes:
@@ -805,6 +858,54 @@ class EntsoePandasClient(EntsoeRawClient):
         df = parse_imbalance_prices(text)
         df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
         df = df.truncate(before=start, after=end)
+        return df
+
+    @year_limited
+    @paginated
+    def query_contracted_reserve_prices(self, country_code, start, end,
+                                        type_marketagreement_type, psr_type = None):
+        """
+        Parameters
+        ----------
+        country_code : str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        psr_type : str
+            filter query for a specific psr type
+
+        Returns
+        -------
+        pd.DataFrame
+        """
+        text = super(EntsoePandasClient, self).query_contracted_reserve_prices(
+            country_code = country_code, start = start, end = end,
+            type_marketagreement_type = type_marketagreement_type, psr_type = psr_type)
+        df = parse_contracted_reserve(text, TIMEZONE_MAPPINGS[country_code], "procurement_price.amount")
+        df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
+        return df
+
+    @year_limited
+    @paginated
+    def query_contracted_reserve_amount(self, country_code, start, end,
+                                        type_marketagreement_type, psr_type = None):
+        """
+        Parameters
+        ----------
+        country_code : str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        psr_type : str
+            filter query for a specific psr type
+
+        Returns
+        -------
+        pd.DataFrame
+        """
+        text = super(EntsoePandasClient, self).query_contracted_reserve_amount(
+            country_code = country_code, start = start, end = end,
+            type_marketagreement_type = type_marketagreement_type, psr_type = psr_type)
+        df = parse_contracted_reserve(text, TIMEZONE_MAPPINGS[country_code], "quantity")
+        df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
         return df
 
     @year_limited

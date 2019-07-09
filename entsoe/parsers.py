@@ -4,6 +4,8 @@ from io import BytesIO
 import zipfile
 from .mappings import PSRTYPE_MAPPINGS, DOCSTATUS, BSNTYPE, BIDDING_ZONES
 
+GENERATION_ELEMENT = "inBiddingZone_Domain.mRID"
+CONSUMPTION_ELEMENT = "outBiddingZone_Domain.mRID"
 
 def _extract_timeseries(xml_text):
     """
@@ -349,6 +351,13 @@ def _parse_generation_forecast_timeseries(soup):
     series.index = _parse_datetimeindex(soup)
 
     series.name = PSRTYPE_MAPPINGS[psrtype]
+    if soup.find(CONSUMPTION_ELEMENT.lower()):
+        # https://entsoe.zendesk.com/hc/en-us/articles/115005485123-Resful-API-How-to-differentiate-TimeSeries-for-Scheduled-Generation-from-Scheduled-Consumption-
+        # For Consumption, we should find the entry "outBiddingZone_Domain.mRID".
+        # This allows to distinguish Hydro Pumped Storage Generation and
+        # Hydro Pumped Storage Load from each other and avoid non-unique index errors.
+        series = -series
+
     return series
 
 def _parse_generation_forecast_timeseries_per_plant(soup):

@@ -15,7 +15,7 @@ from .parsers import parse_prices, parse_loads, parse_generation, \
     parse_crossborder_flows, parse_imbalance_prices, parse_unavailabilities
 
 __title__ = "entsoe-py"
-__version__ = "0.2.8"
+__version__ = "0.2.9"
 __author__ = "EnergieID.be"
 __license__ = "MIT"
 
@@ -758,7 +758,6 @@ class EntsoePandasClient(EntsoeRawClient):
             EntsoePandasClient, self).query_installed_generation_capacity_per_unit(
             country_code=country_code, start=start, end=end, psr_type=psr_type)
         df = parse_installed_capacity_per_plant(text)
-        df = df.truncate(before=start, after=end)
         return df
 
     @year_limited

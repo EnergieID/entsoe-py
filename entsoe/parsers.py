@@ -84,6 +84,34 @@ def parse_generation(xml_text):
     df = pd.DataFrame.from_dict(all_series)
     return df
 
+def parse_generation_aggregated_forecast(xml_text):
+    """
+    Parameters
+    ----------
+    xml_text : str
+
+    Returns
+    -------
+    pd.DataFrame
+    """
+    all_series={}
+    for soup in _extract_timeseries(xml_text):
+        ts = _parse_generation_aggregated_forecast_timeseries(soup)
+        series = all_series.get(ts.name)
+        if series is None:
+            all_series[ts.name] = ts
+        else:
+            series = series.append(ts)
+            series.sort_index()
+            all_series[series.name] = series
+
+    for name in all_series:
+        ts = all_series[name]
+        all_series[name] = ts[~ts.index.duplicated(keep='first')]
+
+    df = pd.DataFrame.from_dict(all_series)
+    return df
+
 def parse_generation_per_plant(xml_text):
     """
     Parameters
@@ -308,6 +336,33 @@ def _parse_generation_forecast_timeseries_per_plant(soup):
     series.index = _parse_datetimeindex(soup)
 
     series.name = plantname
+    return series
+
+def _parse_generation_aggregated_forecast_timeseries(soup):
+    """
+    Parameters
+    ----------
+    soup : bs4.element.tag
+
+    Returns
+    -------
+    pd.Series
+    """
+    positions = []
+    prices = []
+    for point in soup.find_all('point'):
+        positions.append(int(point.find('position').text))
+        prices.append(float(point.find('quantity').text))
+
+    series = pd.Series(index=positions, data=prices)
+    if not len(soup.find_all('inBiddingZone_Domain.mRID'.lower())):
+        series.name = 'Scheduled Consumption'
+    if not len(soup.find_all('outBiddingZone_Domain.mRID'.lower())):
+        series.name = 'Scheduled Generation'
+
+    series = series.sort_index()
+    series.index = _parse_datetimeindex(soup)
+
     return series
 
 def _parse_installed_capacity_per_plant(soup):

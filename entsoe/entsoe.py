@@ -12,7 +12,7 @@ from .mappings import DOMAIN_MAPPINGS, BIDDING_ZONES, TIMEZONE_MAPPINGS, NEIGHBO
 from .misc import year_blocks, day_blocks
 from .parsers import parse_prices, parse_loads, parse_generation, \
     parse_generation_per_plant, parse_installed_capacity_per_plant, \
-    parse_crossborder_flows, parse_imbalance_prices, parse_unavailabilities
+    parse_crossborder_flows, parse_imbalance_prices, parse_unavailabilities, parse_generation_aggregated_forecast
 
 __title__ = "entsoe-py"
 __version__ = "0.2.10"
@@ -657,7 +657,7 @@ class EntsoePandasClient(EntsoeRawClient):
         """
         text = super(EntsoePandasClient, self).query_generation_forecast(
             country_code=country_code, start=start, end=end)
-        series = parse_loads(text)
+        series=parse_generation_aggregated_forecast(text)
         series = series.tz_convert(TIMEZONE_MAPPINGS[country_code])
         series = series.truncate(before=start, after=end)
         return series

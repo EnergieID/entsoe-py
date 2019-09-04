@@ -76,6 +76,12 @@ def parse_generation(xml_text):
             all_series[ts.name] = ts
         else:
             if (series.name == ts.name) & series.index.equals(ts.index):
+                # For some production means the generation and consumption (e.g.
+                # Pumped Storage, wind) are returned separately, with the same
+                # index. The correct sign is ensured in the method
+                # _parse_generation_forecast_timeseries.
+                # Here we simply sum up the series to obtain the net generation,
+                # i.e. generation - consumption.
                 series = series + ts
             else:
                 series = series.append(ts)

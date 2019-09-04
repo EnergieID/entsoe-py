@@ -108,7 +108,9 @@ class EntsoeRawClient:
             text = soup.find_all('text')
             if len(text):
                 error_text = soup.find('text').text
-                if 'No matching data found' in error_text:
+                if 'No matching data found' in error_text \
+                        or "is not valid for this area" in error_text \
+                        or "check you request against dependency tables" in error_text:
                     raise NoMatchingDataError
                 elif 'amount of requested data exceeds allowed limit' in error_text:
                     requested = error_text.split(' ')[-2]

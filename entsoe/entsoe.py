@@ -891,6 +891,7 @@ class EntsoePandasClient(EntsoeRawClient):
             type_marketagreement_type = type_marketagreement_type, psr_type = psr_type)
         df = parse_contracted_reserve(text, TIMEZONE_MAPPINGS[country_code], "procurement_price.amount")
         df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
+        df = df.truncate(before = start, after = end)
         return df
 
     @year_limited
@@ -917,6 +918,7 @@ class EntsoePandasClient(EntsoeRawClient):
             type_marketagreement_type = type_marketagreement_type, psr_type = psr_type)
         df = parse_contracted_reserve(text, TIMEZONE_MAPPINGS[country_code], "quantity")
         df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
+        df = df.truncate(before = start, after = end)
         return df
 
     @year_limited

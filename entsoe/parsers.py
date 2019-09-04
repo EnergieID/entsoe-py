@@ -447,13 +447,13 @@ def _parse_datetimeindex(soup, tz = None):
     """
     start = pd.Timestamp(soup.find('start').text)
     end = pd.Timestamp(soup.find('end').text)
-    if not tz is None:
+    if tz is not None:
         start = start.tz_convert(tz)
         end = end.tz_convert(tz)
 
     delta = _resolution_to_timedelta(res_text=soup.find('resolution').text)
     index = pd.date_range(start=start, end=end, freq=delta, closed='left')
-    if not tz is None:
+    if tz is not None:
         dst_jump = len(set(index.map(lambda d:d.dst()))) > 1
         if dst_jump and delta == "7D":
             # For a weekly granularity, if we jump over the DST date in October,

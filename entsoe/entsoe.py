@@ -440,6 +440,8 @@ class EntsoeRawClient:
         country_code : str
         start : pd.Timestamp
         end : pd.Timestamp
+        type_marketagreement_type : str
+            type of contract (see mappings.MARKETAGREEMENTTYPE)
         psr_type : str
             filter query for a specific psr type
 
@@ -466,6 +468,8 @@ class EntsoeRawClient:
         country_code : str
         start : pd.Timestamp
         end : pd.Timestamp
+        type_marketagreement_type : str
+            type of contract (see mappings.MARKETAGREEMENTTYPE)
         psr_type : str
             filter query for a specific psr type
 
@@ -873,6 +877,8 @@ class EntsoePandasClient(EntsoeRawClient):
         country_code : str
         start : pd.Timestamp
         end : pd.Timestamp
+        type_marketagreement_type : str
+            type of contract (see mappings.MARKETAGREEMENTTYPE)
         psr_type : str
             filter query for a specific psr type
 
@@ -897,6 +903,8 @@ class EntsoePandasClient(EntsoeRawClient):
         country_code : str
         start : pd.Timestamp
         end : pd.Timestamp
+        type_marketagreement_type : str
+            type of contract (see mappings.MARKETAGREEMENTTYPE)
         psr_type : str
             filter query for a specific psr type
 

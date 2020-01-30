@@ -621,9 +621,16 @@ def year_limited(func):
     @wraps(func)
     def year_wrapper(*args, start, end, **kwargs):
         blocks = year_blocks(start, end)
-        frames = [func(*args, start=_start, end=_end, **kwargs) for _start, _end
-                  in blocks]
-        df = pd.concat(frames, sort = True)
+        frames = []
+        for _start, _end in blocks:
+            try:
+                frame = func(*args, start=_start, end=_end, **kwargs)
+            except NoMatchingDataError:
+                print(f"NoMatchingDataError: between {_start} and {_end}")
+                frame = pd.DataFrame()
+            frames.append(frame)
+
+        df = pd.concat(frames, sort=True)
         return df
 
     return year_wrapper
@@ -636,8 +643,15 @@ def day_limited(func):
     @wraps(func)
     def day_wrapper(*args, start, end, **kwargs):
         blocks = day_blocks(start, end)
-        frames = [func(*args, start=_start, end=_end, **kwargs) for _start, _end
-                  in blocks]
+        frames = []
+        for _start, _end in blocks:
+            try:
+                frame = func(*args, start=_start, end=_end, **kwargs)
+            except NoMatchingDataError:
+                print(f"NoMatchingDataError: between {_start} and {_end}")
+                frame = pd.DataFrame()
+            frames.append(frame)
+
         df = pd.concat(frames)
         return df
 

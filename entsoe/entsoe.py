@@ -1051,6 +1051,9 @@ class EntsoePandasClient(EntsoeRawClient):
             lookup_bzones=lookup_bzones)
         df = parse_generation_per_plant(text)
         df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
+        # Truncation will fail if data is not sorted along the index in rare
+        # cases. Ensure the dataframe is sorted:
+        df = df.sort_index(0)
         df = df.truncate(before=start, after=end)
         return df
 

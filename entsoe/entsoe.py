@@ -627,8 +627,12 @@ def year_limited(func):
                 frame = func(*args, start=_start, end=_end, **kwargs)
             except NoMatchingDataError:
                 print(f"NoMatchingDataError: between {_start} and {_end}")
-                frame = pd.DataFrame()
+                frame = None
             frames.append(frame)
+
+        if sum([f is None for f in frames]) == len(frames):
+            # All the data returned are void
+            raise NoMatchingDataError
 
         df = pd.concat(frames, sort=True)
         return df
@@ -649,8 +653,12 @@ def day_limited(func):
                 frame = func(*args, start=_start, end=_end, **kwargs)
             except NoMatchingDataError:
                 print(f"NoMatchingDataError: between {_start} and {_end}")
-                frame = pd.DataFrame()
+                frame = None
             frames.append(frame)
+
+        if sum([f is None for f in frames]) == len(frames):
+            # All the data returned are void
+            raise NoMatchingDataError
 
         df = pd.concat(frames)
         return df
@@ -1054,7 +1062,7 @@ class EntsoePandasClient(EntsoeRawClient):
         # Truncation will fail if data is not sorted along the index in rare
         # cases. Ensure the dataframe is sorted:
         df = df.sort_index(0)
-        df = df.truncate(before=start, after=end)
+        df = df.truncate(before = start, after = end)
         return df
 
     def query_import(self, country_code: str, start: pd.Timestamp, end: pd.Timestamp) -> pd.DataFrame:

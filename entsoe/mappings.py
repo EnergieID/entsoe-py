@@ -92,7 +92,7 @@ TIMEZONE_MAPPINGS = {
     'CZ': 'Europe/Prague',
     'DE': 'Europe/Berlin',
     'DE-50HZ': 'Europe/Berlin',
-    'DE-AMPRIRON': 'Europe/Berlin',
+    'DE-AMPRION': 'Europe/Berlin',
     'DE-TENNET': 'Europe/Berlin',
     'DE-TRANSNET': 'Europe/Berlin',
     'DE-LU': 'Europe/Berlin',
@@ -205,6 +205,15 @@ BSNTYPE = {'A29': 'Already allocated capacity (AAC)',
            'B10': 'Congestion income',
            'B11': 'Production unit'}
 
+MARKETAGREEMENTTYPE = {'A01':'Daily',
+                       'A02':'Weekly',
+                       'A03':'Monthly',
+                       'A04':'Yearly',
+                       'A05':'Total',
+                       'A06':'Long term',
+                       'A07':'Intraday',
+                       'A13':'Hourly'}
+
 DOCUMENTTYPE = {'A09': 'Finalised schedule',
                 'A11': 'Aggregated energy data report',
                 'A25': 'Allocation result document',
@@ -256,7 +265,7 @@ NEIGHBOURS = {
     'GB': ['BE', 'FR', 'IE-SEM', 'NL'],
     'NO-2': ['DK-1', 'NL', 'NO-5'],
     'HU': ['AT', 'HR', 'RO', 'RS', 'SK', 'UA'],
-    'IT-NORD': ['CH', 'DE-AT-LU', 'FR', 'SI', 'AT'],
+    'IT-NORD': ['CH', 'DE-AT-LU', 'FR', 'SI', 'AT', 'IT-CNOR'],
     'ES': ['FR', 'PT'],
     'SI': ['AT', 'DE-AT-LU', 'HR', 'IT-NORD'],
     'RS': ['AL', 'BA', 'BG', 'HR', 'HU', 'ME', 'MK', 'RO'],
@@ -289,5 +298,9 @@ NEIGHBOURS = {
     'IT-SUD': ['IT-BRNN', 'IT-CSUD', 'IT-FOGN', 'IT-ROSN'],
     'IT-FOGN': ['IT-SUD'],
     'IT-ROSN': ['IT-SICI', 'IT-SUD'],
-    'IT-CSUD': ['IT-CNOR', 'IT-SARD', 'IT-SUD']
+    'IT-CSUD': ['IT-CNOR', 'IT-SARD', 'IT-SUD'],
+    'IT-CNOR': ['IT-NORD', 'IT-CSUD', 'IT-SARD'],
+    'IT-SARD': ['IT-CNOR', 'IT-CSUD'],
+    'IT-SICI': ['IT-ROSN', 'MT'],
+    'MT': ['IT-SICI']
 }

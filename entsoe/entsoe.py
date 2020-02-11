@@ -12,10 +12,11 @@ from .mappings import DOMAIN_MAPPINGS, BIDDING_ZONES, TIMEZONE_MAPPINGS, NEIGHBO
 from .misc import year_blocks, day_blocks
 from .parsers import parse_prices, parse_loads, parse_generation, \
     parse_generation_per_plant, parse_installed_capacity_per_plant, \
-    parse_crossborder_flows, parse_imbalance_prices, parse_unavailabilities
+    parse_crossborder_flows, parse_imbalance_prices, parse_unavailabilities, \
+    parse_contracted_reserve
 
 __title__ = "entsoe-py"
-__version__ = "0.2.8"
+__version__ = "0.2.11"
 __author__ = "EnergieID.be"
 __license__ = "MIT"
 
@@ -107,12 +108,15 @@ class EntsoeRawClient:
             text = soup.find_all('text')
             if len(text):
                 error_text = soup.find('text').text
-                if 'No matching data found' in error_text:
+                if 'No matching data found' in error_text \
+                        or "is not valid for this area" in error_text \
+                        or "check you request against dependency tables" in error_text:
                     raise NoMatchingDataError
                 elif 'amount of requested data exceeds allowed limit' in error_text:
                     requested = error_text.split(' ')[-2]
+                    allowed = error_text.split(' ')[-5]
                     raise PaginationError(
-                        f"The API is limited to 200 elements per request. This query requested for {requested} documents and cannot be fulfilled as is.")
+                        f"The API is limited to {allowed} elements per request. This query requested for {requested} documents and cannot be fulfilled as is.")
             raise e
         else:
             return response
@@ -428,6 +432,62 @@ class EntsoeRawClient:
         response = self.base_request(params=params, start=start, end=end)
         return response.text
 
+    def query_contracted_reserve_prices(self, country_code, start, end,
+                                        type_marketagreement_type, psr_type = None):
+        """
+        Parameters
+        ----------
+        country_code : str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        type_marketagreement_type : str
+            type of contract (see mappings.MARKETAGREEMENTTYPE)
+        psr_type : str
+            filter query for a specific psr type
+
+        Returns
+        -------
+        str
+        """
+        domain = BIDDING_ZONES[country_code]
+        params = {
+            'documentType': 'A89',
+            'controlArea_Domain': domain,
+            'type_MarketAgreement.Type': type_marketagreement_type,
+        }
+        if psr_type:
+            params.update({'psrType': psr_type})
+        response = self.base_request(params = params, start = start, end = end)
+        return response.text
+
+    def query_contracted_reserve_amount(self, country_code, start, end,
+                                        type_marketagreement_type, psr_type = None):
+        """
+        Parameters
+        ----------
+        country_code : str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        type_marketagreement_type : str
+            type of contract (see mappings.MARKETAGREEMENTTYPE)
+        psr_type : str
+            filter query for a specific psr type
+
+        Returns
+        -------
+        str
+        """
+        domain = BIDDING_ZONES[country_code]
+        params = {
+            'documentType': 'A81',
+            'controlArea_Domain': domain,
+            'type_MarketAgreement.Type': type_marketagreement_type,
+        }
+        if psr_type:
+            params.update({'psrType': psr_type})
+        response = self.base_request(params = params, start = start, end = end)
+        return response.text
+
     def query_unavailability(self, country_code, start, end,
                             doctype, docstatus=None, periodstartupdate = None,
                             periodendupdate = None) -> bytes:
@@ -561,9 +621,16 @@ def year_limited(func):
     @wraps(func)
     def year_wrapper(*args, start, end, **kwargs):
         blocks = year_blocks(start, end)
-        frames = [func(*args, start=_start, end=_end, **kwargs) for _start, _end
-                  in blocks]
-        df = pd.concat(frames)
+        frames = []
+        for _start, _end in blocks:
+            try:
+                frame = func(*args, start=_start, end=_end, **kwargs)
+            except NoMatchingDataError:
+                print(f"NoMatchingDataError: between {_start} and {_end}")
+                frame = pd.DataFrame()
+            frames.append(frame)
+
+        df = pd.concat(frames, sort=True)
         return df
 
     return year_wrapper
@@ -576,8 +643,15 @@ def day_limited(func):
     @wraps(func)
     def day_wrapper(*args, start, end, **kwargs):
         blocks = day_blocks(start, end)
-        frames = [func(*args, start=_start, end=_end, **kwargs) for _start, _end
-                  in blocks]
+        frames = []
+        for _start, _end in blocks:
+            try:
+                frame = func(*args, start=_start, end=_end, **kwargs)
+            except NoMatchingDataError:
+                print(f"NoMatchingDataError: between {_start} and {_end}")
+                frame = pd.DataFrame()
+            frames.append(frame)
+
         df = pd.concat(frames)
         return df
 
@@ -758,7 +832,6 @@ class EntsoePandasClient(EntsoeRawClient):
             EntsoePandasClient, self).query_installed_generation_capacity_per_unit(
             country_code=country_code, start=start, end=end, psr_type=psr_type)
         df = parse_installed_capacity_per_plant(text)
-        df = df.truncate(before=start, after=end)
         return df
 
     @year_limited
@@ -809,6 +882,60 @@ class EntsoePandasClient(EntsoeRawClient):
 
     @year_limited
     @paginated
+    def query_contracted_reserve_prices(self, country_code, start, end,
+                                        type_marketagreement_type, psr_type = None):
+        """
+        Parameters
+        ----------
+        country_code : str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        type_marketagreement_type : str
+            type of contract (see mappings.MARKETAGREEMENTTYPE)
+        psr_type : str
+            filter query for a specific psr type
+
+        Returns
+        -------
+        pd.DataFrame
+        """
+        text = super(EntsoePandasClient, self).query_contracted_reserve_prices(
+            country_code = country_code, start = start, end = end,
+            type_marketagreement_type = type_marketagreement_type, psr_type = psr_type)
+        df = parse_contracted_reserve(text, TIMEZONE_MAPPINGS[country_code], "procurement_price.amount")
+        df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
+        df = df.truncate(before = start, after = end)
+        return df
+
+    @year_limited
+    @paginated
+    def query_contracted_reserve_amount(self, country_code, start, end,
+                                        type_marketagreement_type, psr_type = None):
+        """
+        Parameters
+        ----------
+        country_code : str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        type_marketagreement_type : str
+            type of contract (see mappings.MARKETAGREEMENTTYPE)
+        psr_type : str
+            filter query for a specific psr type
+
+        Returns
+        -------
+        pd.DataFrame
+        """
+        text = super(EntsoePandasClient, self).query_contracted_reserve_amount(
+            country_code = country_code, start = start, end = end,
+            type_marketagreement_type = type_marketagreement_type, psr_type = psr_type)
+        df = parse_contracted_reserve(text, TIMEZONE_MAPPINGS[country_code], "quantity")
+        df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
+        df = df.truncate(before = start, after = end)
+        return df
+
+    @year_limited
+    @paginated
     def query_unavailability(self, country_code, start, end, doctype,
                                      docstatus=None, periodstartupdate = None,
                                      periodendupdate = None):
@@ -839,8 +966,6 @@ class EntsoePandasClient(EntsoeRawClient):
         df = df.truncate(before=start, after=end)
         return df
 
-    @year_limited
-    @paginated
     def query_unavailability_of_generation_units(self, country_code, start, end,
                                      docstatus=None, periodstartupdate = None,
                                      periodendupdate = None):
@@ -858,19 +983,12 @@ class EntsoePandasClient(EntsoeRawClient):
         -------
         pd.DataFrame
         """
-        df = super(EntsoePandasClient,
-                        self).query_unavailability_of_generation_units(
-            country_code=country_code, start=start, end=end,
-            docstatus=docstatus,  periodstartupdate = periodstartupdate,
-            periodendupdate = periodendupdate)
-        df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
-        df['start'] = df['start'].apply(lambda x: x.tz_convert(TIMEZONE_MAPPINGS[country_code]))
-        df['end'] = df['end'].apply(lambda x: x.tz_convert(TIMEZONE_MAPPINGS[country_code]))
-        df = df.truncate(before=start, after=end)
+
+        df = self.query_unavailability(country_code=country_code, start=start, end=end,
+                                       doctype="A80", docstatus=docstatus, periodstartupdate=periodstartupdate,
+                                       periodendupdate=periodendupdate)
         return df
 
-    @year_limited
-    @paginated
     def query_unavailability_of_production_units(self, country_code, start, end,
                                      docstatus=None, periodstartupdate = None,
                                      periodendupdate = None):
@@ -888,16 +1006,9 @@ class EntsoePandasClient(EntsoeRawClient):
         -------
         pd.DataFrame
         """
-        content = super(EntsoePandasClient,
-                        self).query_unavailability_of_production_units(
-            country_code=country_code, start=start, end=end,
-            docstatus=docstatus, periodstartupdate = periodstartupdate,
-            periodendupdate = periodendupdate)
-        df = parse_unavailabilities(content)
-        df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
-        df['start'] = df['start'].apply(lambda x: x.tz_convert(TIMEZONE_MAPPINGS[country_code]))
-        df['end'] = df['end'].apply(lambda x: x.tz_convert(TIMEZONE_MAPPINGS[country_code]))
-        df = df.truncate(before=start, after=end)
+        df = self.query_unavailability(country_code=country_code, start=start, end=end,
+                                       doctype="A77", docstatus=docstatus, periodstartupdate=periodstartupdate,
+                                       periodendupdate=periodendupdate)
         return df
 
     def query_withdrawn_unavailability_of_generation_units(

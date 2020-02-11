@@ -378,7 +378,8 @@ class EntsoeRawClient:
         response = self.base_request(params=params, start=start, end=end)
         return response.text
 
-    def query_crossborder_flows(self, country_code_from, country_code_to, start, end, lookup_bzones=False):
+    def query_crossborder_flows(self, country_code_from, country_code_to,
+                                start, end, lookup_bzones = False):
         """
         Parameters
         ----------
@@ -386,6 +387,60 @@ class EntsoeRawClient:
         country_code_to : str
         start : pd.Timestamp
         end : pd.Timestamp
+        lookup_bzones : bool
+            if True, country_code is expected to be a bidding zone
+
+        Returns
+        -------
+        str
+        """
+        return self.query_crossborder(country_code_from = country_code_from,
+                                      country_code_to = country_code_to,
+                                      start = start,
+                                      end = end,
+                                      doctype = "A11",
+                                      contract_marketagreement_type = None,
+                                      lookup_bzones = lookup_bzones)
+
+    def query_scheduled_exchanges(self, country_code_from, country_code_to,
+                                start, end, lookup_bzones = False):
+        """
+        Parameters
+        ----------
+        country_code_from : str
+        country_code_to : str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        lookup_bzones : bool
+            if True, country_code is expected to be a bidding zone
+
+        Returns
+        -------
+        str
+        """
+        return self.query_crossborder(country_code_from = country_code_from,
+                                      country_code_to = country_code_to,
+                                      start = start,
+                                      end = end,
+                                      doctype = "A09",
+                                      contract_marketagreement_type = "A05",
+                                      lookup_bzones = lookup_bzones)
+
+    def query_crossborder(self, country_code_from, country_code_to,
+                          start, end, doctype,
+                          contract_marketagreement_type = None,
+                          lookup_bzones = False):
+        """
+        Generic function called by query_crossborder_flows and 
+        query_scheduled_exchanges.
+        Parameters
+        ----------
+        country_code_from : str
+        country_code_to : str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        doctype: str
+        contract_marketagreement_type: str
         lookup_bzones : bool
             if True, country_code is expected to be a bidding zone
 
@@ -401,10 +456,13 @@ class EntsoeRawClient:
             domain_out = BIDDING_ZONES[country_code_from]
 
         params = {
-            'documentType': 'A11',
+            'documentType': doctype,
             'in_Domain': domain_in,
             'out_Domain': domain_out
         }
+        if contract_marketagreement_type is not None:
+            params['contract_MarketAgreement.Type'] = contract_marketagreement_type,
+
         response = self.base_request(params=params, start=start, end=end)
         return response.text
 
@@ -859,11 +917,41 @@ class EntsoePandasClient(EntsoeRawClient):
         pd.Series
         """
         text = super(EntsoePandasClient, self).query_crossborder_flows(
-            country_code_from=country_code_from,
-            country_code_to=country_code_to, start=start, end=end, lookup_bzones=lookup_bzones)
+            country_code_from = country_code_from,
+            country_code_to = country_code_to,
+            start = start,
+            end = end,
+            lookup_bzones = lookup_bzones)
         ts = parse_crossborder_flows(text)
         ts = ts.tz_convert(TIMEZONE_MAPPINGS[country_code_from])
         ts = ts.truncate(before=start, after=end)
+        return ts
+
+    @year_limited
+    def query_scheduled_exchanges(self, country_code_from, country_code_to, start, end, lookup_bzones = False):
+        """
+        Note: Result will be in the timezone of the origin country
+
+        Parameters
+        ----------
+        country_code_from : str
+        country_code_to : str
+        start : pd.Timestamp
+        end : pd.Timestamp
+
+        Returns
+        -------
+        pd.Series
+        """
+        text = super(EntsoePandasClient, self).query_scheduled_exchanges(
+            country_code_from = country_code_from,
+            country_code_to = country_code_to,
+            start = start,
+            end = end,
+            lookup_bzones = lookup_bzones)
+        ts = parse_crossborder_flows(text)
+        ts = ts.tz_convert(TIMEZONE_MAPPINGS[country_code_from])
+        ts = ts.truncate(before = start, after = end)
         return ts
 
     @year_limited

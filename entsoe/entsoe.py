@@ -8,7 +8,8 @@ import requests
 from bs4 import BeautifulSoup
 
 from .exceptions import NoMatchingDataError, PaginationError
-from .mappings import DOMAIN_MAPPINGS, BIDDING_ZONES, TIMEZONE_MAPPINGS, NEIGHBOURS
+from .mappings import DOMAIN_MAPPINGS, BIDDING_ZONES, TIMEZONE_MAPPINGS, \
+    NEIGHBOURS
 from .misc import year_blocks, day_blocks
 from .parsers import parse_prices, parse_loads, parse_generation, \
     parse_generation_per_plant, parse_installed_capacity_per_plant, \
@@ -22,6 +23,7 @@ __license__ = "MIT"
 
 URL = 'https://transparency.entsoe.eu/api'
 
+
 def retry(func):
     """Catches connection errors, waits and retries"""
     @wraps(func)
@@ -33,7 +35,8 @@ def retry(func):
                 result = func(*args, **kwargs)
             except (requests.ConnectionError, gaierror) as e:
                 error = e
-                print("Connection Error, retrying in {} seconds".format(self.retry_delay))
+                print("Connection Error, retrying in {} seconds".format(
+                    self.retry_delay))
                 sleep(self.retry_delay)
                 continue
             else:
@@ -120,7 +123,6 @@ class EntsoeRawClient:
             raise e
         else:
             return response
-
 
     @staticmethod
     def _datetime_to_str(dtm):
@@ -229,7 +231,8 @@ class EntsoeRawClient:
         response = self.base_request(params=params, start=start, end=end)
         return response.text
 
-    def query_wind_and_solar_forecast(self, country_code, start, end, psr_type=None, lookup_bzones=False):
+    def query_wind_and_solar_forecast(self, country_code, start, end,
+                                      psr_type=None, lookup_bzones=False):
         """
         Parameters
         ----------
@@ -261,7 +264,8 @@ class EntsoeRawClient:
         response = self.base_request(params=params, start=start, end=end)
         return response.text
 
-    def query_generation(self, country_code, start, end, psr_type=None, lookup_bzones=False):
+    def query_generation(self, country_code, start, end, psr_type=None,
+                         lookup_bzones=False):
         """
         Parameters
         ----------
@@ -293,7 +297,8 @@ class EntsoeRawClient:
         response = self.base_request(params=params, start=start, end=end)
         return response.text
 
-    def query_generation_per_plant(self, country_code, start, end, psr_type=None, lookup_bzones=False):
+    def query_generation_per_plant(self, country_code, start, end,
+                                   psr_type=None, lookup_bzones=False):
         """
         Parameters
         ----------
@@ -325,7 +330,8 @@ class EntsoeRawClient:
         response = self.base_request(params=params, start=start, end=end)
         return response.text
 
-    def query_installed_generation_capacity(self, country_code, start, end, psr_type=None):
+    def query_installed_generation_capacity(self, country_code, start, end,
+                                            psr_type=None):
         """
         Parameters
         ----------
@@ -352,7 +358,7 @@ class EntsoeRawClient:
         return response.text
 
     def query_installed_generation_capacity_per_unit(self, country_code,
-                                                      start, end, psr_type=None):
+                                                     start, end, psr_type=None):
         """
         Parameters
         ----------
@@ -378,7 +384,8 @@ class EntsoeRawClient:
         response = self.base_request(params=params, start=start, end=end)
         return response.text
 
-    def query_crossborder_flows(self, country_code_from, country_code_to, start, end, lookup_bzones=False):
+    def query_crossborder_flows(self, country_code_from, country_code_to,
+                                start, end, lookup_bzones=False):
         """
         Parameters
         ----------
@@ -402,6 +409,38 @@ class EntsoeRawClient:
 
         params = {
             'documentType': 'A11',
+            'in_Domain': domain_in,
+            'out_Domain': domain_out
+        }
+        response = self.base_request(params=params, start=start, end=end)
+        return response.text
+
+    def query_forecasted_capacities(self, country_code_from, country_code_to,
+                                    start, end, lookup_bzones=False):
+        """
+        Parameters
+        ----------
+        country_code_from : str
+        country_code_to : str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        lookup_bzones : bool
+            if True, country_code is expected to be a bidding zone
+
+        Returns
+        -------
+        str
+        """
+        if not lookup_bzones:
+            domain_in = DOMAIN_MAPPINGS[country_code_to]
+            domain_out = DOMAIN_MAPPINGS[country_code_from]
+        else:
+            domain_in = BIDDING_ZONES[country_code_to]
+            domain_out = BIDDING_ZONES[country_code_from]
+
+        params = {
+            'documentType': 'A61',
+            'contract_MarketAgreement.Type': 'A01',
             'in_Domain': domain_in,
             'out_Domain': domain_out
         }
@@ -433,7 +472,7 @@ class EntsoeRawClient:
         return response.text
 
     def query_contracted_reserve_prices(self, country_code, start, end,
-                                        type_marketagreement_type, psr_type = None):
+                                        type_marketagreement_type, psr_type=None):
         """
         Parameters
         ----------
@@ -457,11 +496,11 @@ class EntsoeRawClient:
         }
         if psr_type:
             params.update({'psrType': psr_type})
-        response = self.base_request(params = params, start = start, end = end)
+        response = self.base_request(params=params, start=start, end=end)
         return response.text
 
     def query_contracted_reserve_amount(self, country_code, start, end,
-                                        type_marketagreement_type, psr_type = None):
+                                        type_marketagreement_type, psr_type=None):
         """
         Parameters
         ----------
@@ -485,12 +524,12 @@ class EntsoeRawClient:
         }
         if psr_type:
             params.update({'psrType': psr_type})
-        response = self.base_request(params = params, start = start, end = end)
+        response = self.base_request(params=params, start=start, end=end)
         return response.text
 
     def query_unavailability(self, country_code, start, end,
-                            doctype, docstatus=None, periodstartupdate = None,
-                            periodendupdate = None) -> bytes:
+                             doctype, docstatus=None, periodstartupdate=None,
+                             periodendupdate=None) -> bytes:
         """
         Generic unavailibility query method.
         This endpoint serves ZIP files.
@@ -520,7 +559,8 @@ class EntsoeRawClient:
         if docstatus:
             params['docStatus'] = docstatus
         if periodstartupdate and periodendupdate:
-            params['periodStartUpdate'] = self._datetime_to_str(periodstartupdate)
+            params['periodStartUpdate'] = self._datetime_to_str(
+                periodstartupdate)
             params['periodEndUpdate'] = self._datetime_to_str(periodendupdate)
 
         response = self.base_request(params=params, start=start, end=end)
@@ -528,8 +568,9 @@ class EntsoeRawClient:
         return response.content
 
     def query_unavailability_of_generation_units(self, country_code, start, end,
-                                     docstatus=None, periodstartupdate = None,
-                                     periodendupdate = None) -> bytes:
+                                                 docstatus=None,
+                                                 periodstartupdate=None,
+                                                 periodendupdate=None) -> bytes:
         """
         This endpoint serves ZIP files.
         The query is limited to 200 items per request.
@@ -550,13 +591,13 @@ class EntsoeRawClient:
         content = self.query_unavailability(
             country_code=country_code, start=start, end=end,
             doctype="A80", docstatus=docstatus,
-            periodstartupdate = periodstartupdate,
-            periodendupdate = periodendupdate)
+            periodstartupdate=periodstartupdate,
+            periodendupdate=periodendupdate)
         return content
 
     def query_unavailability_of_production_units(self, country_code, start, end,
-                                     docstatus=None, periodstartupdate = None,
-                                     periodendupdate = None) -> bytes:
+                                                 docstatus=None, periodstartupdate=None,
+                                                 periodendupdate=None) -> bytes:
         """
         This endpoint serves ZIP files.
         The query is limited to 200 items per request.
@@ -577,8 +618,8 @@ class EntsoeRawClient:
         content = self.query_unavailability(
             country_code=country_code, start=start, end=end,
             doctype="A77", docstatus=docstatus,
-            periodstartupdate = periodstartupdate,
-            periodendupdate = periodendupdate)
+            periodstartupdate=periodstartupdate,
+            periodendupdate=periodendupdate)
         return content
 
     def query_withdrawn_unavailability_of_generation_units(
@@ -656,6 +697,7 @@ def day_limited(func):
         return df
 
     return day_wrapper
+
 
 class EntsoePandasClient(EntsoeRawClient):
     @year_limited
@@ -859,6 +901,32 @@ class EntsoePandasClient(EntsoeRawClient):
         return ts
 
     @year_limited
+    def query_forecasted_capacities(self, country_code_from, country_code_to,
+                                    start, end, lookup_bzones=False):
+        """
+        Note: Result will be in the timezone of the origin country
+
+        Parameters
+        ----------
+        country_code_from : str
+        country_code_to : str
+        start : pd.Timestamp
+        end : pd.Timestamp
+
+        Returns
+        -------
+        pd.Series
+        """
+        text = super(EntsoePandasClient, self).query_forecasted_capacities(
+            country_code_from=country_code_from,
+            country_code_to=country_code_to, start=start, end=end,
+            lookup_bzones=lookup_bzones)
+        ts = parse_crossborder_flows(text)
+        ts = ts.tz_convert(TIMEZONE_MAPPINGS[country_code_from])
+        ts = ts.truncate(before=start, after=end)
+        return ts
+
+    @year_limited
     def query_imbalance_prices(self, country_code, start, end, psr_type=None):
         """
         Parameters
@@ -883,7 +951,7 @@ class EntsoePandasClient(EntsoeRawClient):
     @year_limited
     @paginated
     def query_contracted_reserve_prices(self, country_code, start, end,
-                                        type_marketagreement_type, psr_type = None):
+                                        type_marketagreement_type, psr_type=None):
         """
         Parameters
         ----------
@@ -900,17 +968,18 @@ class EntsoePandasClient(EntsoeRawClient):
         pd.DataFrame
         """
         text = super(EntsoePandasClient, self).query_contracted_reserve_prices(
-            country_code = country_code, start = start, end = end,
-            type_marketagreement_type = type_marketagreement_type, psr_type = psr_type)
-        df = parse_contracted_reserve(text, TIMEZONE_MAPPINGS[country_code], "procurement_price.amount")
+            country_code=country_code, start=start, end=end,
+            type_marketagreement_type=type_marketagreement_type, psr_type=psr_type)
+        df = parse_contracted_reserve(
+            text, TIMEZONE_MAPPINGS[country_code], "procurement_price.amount")
         df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
-        df = df.truncate(before = start, after = end)
+        df = df.truncate(before=start, after=end)
         return df
 
     @year_limited
     @paginated
     def query_contracted_reserve_amount(self, country_code, start, end,
-                                        type_marketagreement_type, psr_type = None):
+                                        type_marketagreement_type, psr_type=None):
         """
         Parameters
         ----------
@@ -927,18 +996,19 @@ class EntsoePandasClient(EntsoeRawClient):
         pd.DataFrame
         """
         text = super(EntsoePandasClient, self).query_contracted_reserve_amount(
-            country_code = country_code, start = start, end = end,
-            type_marketagreement_type = type_marketagreement_type, psr_type = psr_type)
-        df = parse_contracted_reserve(text, TIMEZONE_MAPPINGS[country_code], "quantity")
+            country_code=country_code, start=start, end=end,
+            type_marketagreement_type=type_marketagreement_type, psr_type=psr_type)
+        df = parse_contracted_reserve(
+            text, TIMEZONE_MAPPINGS[country_code], "quantity")
         df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
-        df = df.truncate(before = start, after = end)
+        df = df.truncate(before=start, after=end)
         return df
 
     @year_limited
     @paginated
     def query_unavailability(self, country_code, start, end, doctype,
-                                     docstatus=None, periodstartupdate = None,
-                                     periodendupdate = None):
+                             docstatus=None, periodstartupdate=None,
+                             periodendupdate=None):
         """
         Parameters
         ----------
@@ -956,19 +1026,21 @@ class EntsoePandasClient(EntsoeRawClient):
         """
         content = super(EntsoePandasClient,
                         self).query_unavailability(
-            country_code=country_code, start=start, end=end, doctype = doctype,
-            docstatus=docstatus,  periodstartupdate = periodstartupdate,
-            periodendupdate = periodendupdate)
+            country_code=country_code, start=start, end=end, doctype=doctype,
+            docstatus=docstatus,  periodstartupdate=periodstartupdate,
+            periodendupdate=periodendupdate)
         df = parse_unavailabilities(content)
         df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
-        df['start'] = df['start'].apply(lambda x: x.tz_convert(TIMEZONE_MAPPINGS[country_code]))
-        df['end'] = df['end'].apply(lambda x: x.tz_convert(TIMEZONE_MAPPINGS[country_code]))
+        df['start'] = df['start'].apply(
+            lambda x: x.tz_convert(TIMEZONE_MAPPINGS[country_code]))
+        df['end'] = df['end'].apply(
+            lambda x: x.tz_convert(TIMEZONE_MAPPINGS[country_code]))
         df = df.truncate(before=start, after=end)
         return df
 
     def query_unavailability_of_generation_units(self, country_code, start, end,
-                                     docstatus=None, periodstartupdate = None,
-                                     periodendupdate = None):
+                                                 docstatus=None, periodstartupdate=None,
+                                                 periodendupdate=None):
         """
         Parameters
         ----------
@@ -990,8 +1062,8 @@ class EntsoePandasClient(EntsoeRawClient):
         return df
 
     def query_unavailability_of_production_units(self, country_code, start, end,
-                                     docstatus=None, periodstartupdate = None,
-                                     periodendupdate = None):
+                                                 docstatus=None, periodstartupdate=None,
+                                                 periodendupdate=None):
         """
         Parameters
         ----------
@@ -1030,7 +1102,7 @@ class EntsoePandasClient(EntsoeRawClient):
         return df
 
     @day_limited
-    def query_generation_per_plant(self, country_code, start, end, psr_type=None,lookup_bzones=False):
+    def query_generation_per_plant(self, country_code, start, end, psr_type=None, lookup_bzones=False):
         """
         Parameters
         ----------
@@ -1069,17 +1141,21 @@ class EntsoePandasClient(EntsoeRawClient):
             im.name = neighbour
             imports.append(im)
         df = pd.concat(imports, axis=1)
-        df = df.loc[:, (df != 0).any(axis=0)]  # drop columns that contain only zero's
+        # drop columns that contain only zero's
+        df = df.loc[:, (df != 0).any(axis=0)]
         df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
         df = df.truncate(before=start, after=end)
         return df
 
     def query_generation_import(self, country_code: str, start: pd.Timestamp, end: pd.Timestamp) -> pd.DataFrame:
         """Query the combination of both domestic generation and imports"""
-        generation = self.query_generation(country_code=country_code, end=end, start=start, lookup_bzones=True)
-        generation = generation.loc[:, (generation != 0).any(axis=0)]  # drop columns that contain only zero's
+        generation = self.query_generation(
+            country_code=country_code, end=end, start=start, lookup_bzones=True)
+        generation = generation.loc[:, (generation != 0).any(
+            axis=0)]  # drop columns that contain only zero's
         generation = generation.resample('H').sum()
-        imports = self.query_import(country_code=country_code, start=start, end=end)
+        imports = self.query_import(
+            country_code=country_code, start=start, end=end)
 
         data = {f'Generation': generation, f'Import': imports}
         df = pd.concat(data.values(), axis=1, keys=data.keys())

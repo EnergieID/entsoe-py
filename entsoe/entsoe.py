@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 
 from .exceptions import NoMatchingDataError, PaginationError
 from .mappings import DOMAIN_MAPPINGS, BIDDING_ZONES, TIMEZONE_MAPPINGS, \
-    NEIGHBOURS
+    NEIGHBOURS, MARKETAGREEMENTTYPE
 from .misc import year_blocks, day_blocks
 from .parsers import parse_prices, parse_loads, parse_generation, \
     parse_generation_per_plant, parse_installed_capacity_per_plant, \
@@ -409,6 +409,43 @@ class EntsoeRawClient:
 
         params = {
             'documentType': 'A11',
+            'in_Domain': domain_in,
+            'out_Domain': domain_out
+        }
+        response = self.base_request(params=params, start=start, end=end)
+        return response.text
+
+    def query_scheduled_commercial_exchanges(self, country_code_from,
+                                             country_code_to,
+                                             start, end,
+                                             ma_type,
+                                             lookup_bzones=False):
+        """
+        Parameters
+        ----------
+        country_code_from : str
+        country_code_to : str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        lookup_bzones : bool
+            if True, country_code is expected to be a bidding zone
+
+        Returns
+        -------
+        str
+        """
+        if not lookup_bzones:
+            domain_in = DOMAIN_MAPPINGS[country_code_to]
+            domain_out = DOMAIN_MAPPINGS[country_code_from]
+        else:
+            domain_in = BIDDING_ZONES[country_code_to]
+            domain_out = BIDDING_ZONES[country_code_from]
+
+        inv_marketagreement = {v: k for k, v in MARKETAGREEMENTTYPE.items()}
+
+        params = {
+            'documentType': 'A09',
+            'contract_MarketAgreement.Type': inv_marketagreement[ma_type],
             'in_Domain': domain_in,
             'out_Domain': domain_out
         }
@@ -895,6 +932,36 @@ class EntsoePandasClient(EntsoeRawClient):
         text = super(EntsoePandasClient, self).query_crossborder_flows(
             country_code_from=country_code_from,
             country_code_to=country_code_to, start=start, end=end, lookup_bzones=lookup_bzones)
+        ts = parse_crossborder_flows(text)
+        ts = ts.tz_convert(TIMEZONE_MAPPINGS[country_code_from])
+        ts = ts.truncate(before=start, after=end)
+        return ts
+
+    @year_limited
+    def query_scheduled_commercial_exchanges(self, country_code_from,
+                                             country_code_to,
+                                             start, end,
+                                             ma_type='Daily',
+                                             lookup_bzones=False):
+        """
+        Note: Result will be in the timezone of the origin country
+
+        Parameters
+        ----------
+        country_code_from : str
+        country_code_to : str
+        start : pd.Timestamp
+        end : pd.Timestamp
+
+        Returns
+        -------
+        pd.Series
+        """
+        text = super(EntsoePandasClient, self).query_scheduled_commercial_exchanges(
+            country_code_from=country_code_from,
+            country_code_to=country_code_to, start=start, end=end,
+            ma_type=ma_type,
+            lookup_bzones=lookup_bzones)
         ts = parse_crossborder_flows(text)
         ts = ts.tz_convert(TIMEZONE_MAPPINGS[country_code_from])
         ts = ts.truncate(before=start, after=end)

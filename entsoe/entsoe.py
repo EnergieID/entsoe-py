@@ -639,6 +639,55 @@ class EntsoeRawClient:
             periodendupdate = periodendupdate)
         return content
 
+    def query_unavailability_transmission(self, country_code_from,
+                                          country_code_to, start, end,
+                                          docstatus = None,
+                                          periodstartupdate = None,
+                                          periodendupdate = None,
+                                          lookup_bzones = False) -> bytes:
+        """
+        Generic unavailibility query method.
+        This endpoint serves ZIP files.
+        The query is limited to 200 items per request.
+
+        Parameters
+        ----------
+        country_code : str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        doctype : str
+        docstatus : str, optional
+        periodStartUpdate : pd.Timestamp, optional
+        periodEndUpdate : pd.Timestamp, optional
+
+        Returns
+        -------
+        bytes
+        """
+
+        if not lookup_bzones:
+            domain_in = DOMAIN_MAPPINGS[country_code_to]
+            domain_out = DOMAIN_MAPPINGS[country_code_from]
+        else:
+            domain_in = BIDDING_ZONES[country_code_to]
+            domain_out = BIDDING_ZONES[country_code_from]
+
+        params = {
+            'documentType': "A78",
+            'in_Domain': domain_in,
+            'out_Domain': domain_out
+        }
+
+        if docstatus:
+            params['docStatus'] = docstatus
+        if periodstartupdate and periodendupdate:
+            params['periodStartUpdate'] = self._datetime_to_str(periodstartupdate)
+            params['periodEndUpdate'] = self._datetime_to_str(periodendupdate)
+
+        response = self.base_request(params = params, start = start, end = end)
+
+        return response.content
+
     def query_withdrawn_unavailability_of_generation_units(
             self, country_code, start, end):
         """
@@ -1055,7 +1104,7 @@ class EntsoePandasClient(EntsoeRawClient):
             country_code=country_code, start=start, end=end, doctype = doctype,
             docstatus=docstatus,  periodstartupdate = periodstartupdate,
             periodendupdate = periodendupdate)
-        df = parse_unavailabilities(content)
+        df = parse_unavailabilities(content, doctype)
         df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
         df['start'] = df['start'].apply(lambda x: x.tz_convert(TIMEZONE_MAPPINGS[country_code]))
         df['end'] = df['end'].apply(lambda x: x.tz_convert(TIMEZONE_MAPPINGS[country_code]))
@@ -1105,6 +1154,39 @@ class EntsoePandasClient(EntsoeRawClient):
         df = self.query_unavailability(country_code=country_code, start=start, end=end,
                                        doctype="A77", docstatus=docstatus, periodstartupdate=periodstartupdate,
                                        periodendupdate=periodendupdate)
+        return df
+
+    def query_unavailability_transmission(self, country_code_from,
+                                          country_code_to, start, end,
+                                          docstatus = None,
+                                          periodstartupdate = None,
+                                          periodendupdate = None,
+                                          lookup_bzones = False):
+        """
+        Parameters
+        ----------
+        country_code : str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        docstatus : str, optional
+        periodStartUpdate : pd.Timestamp, optional
+        periodEndUpdate : pd.Timestamp, optional
+
+        Returns
+        -------
+        pd.DataFrame
+        """
+        content = super(EntsoePandasClient, self).query_unavailability_transmission(country_code_from,
+                                                    country_code_to,
+                                                    start, end, docstatus,
+                                                    periodstartupdate,
+                                                    periodendupdate,
+                                                    lookup_bzones)
+        df = parse_unavailabilities(content, "A78")
+        df = df.tz_convert(TIMEZONE_MAPPINGS[country_code_from])
+        df['start'] = df['start'].apply(lambda x: x.tz_convert(TIMEZONE_MAPPINGS[country_code_from]))
+        df['end'] = df['end'].apply(lambda x: x.tz_convert(TIMEZONE_MAPPINGS[country_code_from]))
+        df = df.truncate(before = start, after = end)
         return df
 
     def query_withdrawn_unavailability_of_generation_units(

@@ -1156,6 +1156,7 @@ class EntsoePandasClient(EntsoeRawClient):
                                        periodendupdate=periodendupdate)
         return df
 
+    @paginated
     def query_unavailability_transmission(self, country_code_from,
                                           country_code_to, start, end,
                                           docstatus = None,

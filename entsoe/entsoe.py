@@ -16,7 +16,7 @@ from .parsers import parse_prices, parse_loads, parse_generation, \
     parse_contracted_reserve
 
 __title__ = "entsoe-py"
-__version__ = "0.2.11"
+__version__ = "0.2.12"
 __author__ = "EnergieID.be"
 __license__ = "MIT"
 

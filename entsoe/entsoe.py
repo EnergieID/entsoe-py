@@ -14,6 +14,7 @@ from .parsers import parse_prices, parse_loads, parse_generation, \
     parse_generation_per_plant, parse_installed_capacity_per_plant, \
     parse_crossborder_flows, parse_imbalance_prices, parse_unavailabilities, \
     parse_contracted_reserve
+from entsoe.exceptions import InvalidPSRTypeError, InvalidBusinessParameterError
 
 __title__ = "entsoe-py"
 __version__ = "0.2.11"
@@ -108,10 +109,12 @@ class EntsoeRawClient:
             text = soup.find_all('text')
             if len(text):
                 error_text = soup.find('text').text
-                if 'No matching data found' in error_text \
-                        or "is not valid for this area" in error_text \
-                        or "check you request against dependency tables" in error_text:
+                if 'No matching data found' in error_text:
                     raise NoMatchingDataError
+                elif "check you request against dependency tables" in error_text:
+                    raise InvalidBusinessParameterError
+                elif "is not valid for this area" in error_text:
+                    raise InvalidPSRTypeError
                 elif 'amount of requested data exceeds allowed limit' in error_text:
                     requested = error_text.split(' ')[-2]
                     allowed = error_text.split(' ')[-5]

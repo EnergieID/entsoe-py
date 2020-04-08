@@ -187,7 +187,7 @@ class EntsoeRawClient:
         response = self.base_request(params=params, start=start, end=end)
         return response.text
 
-    def query_load_forecast(self, country_code, start, end):
+    def query_load_forecast(self, country_code, start, end, process_type = 'A01'):
         """
         Parameters
         ----------
@@ -201,14 +201,14 @@ class EntsoeRawClient:
         domain = BIDDING_ZONES[country_code]
         params = {
             'documentType': 'A65',
-            'processType': 'A01',
+            'processType': process_type,
             'outBiddingZone_Domain': domain,
             # 'out_Domain': domain
         }
         response = self.base_request(params=params, start=start, end=end)
         return response.text
 
-    def query_generation_forecast(self, country_code, start, end):
+    def query_generation_forecast(self, country_code, start, end, process_type = 'A01'):
         """
         Parameters
         ----------
@@ -223,13 +223,14 @@ class EntsoeRawClient:
         domain = BIDDING_ZONES[country_code]
         params = {
             'documentType': 'A71',
-            'processType': 'A01',
+            'processType': process_type,
             'in_Domain': domain,
         }
+
         response = self.base_request(params=params, start=start, end=end)
         return response.text
 
-    def query_wind_and_solar_forecast(self, country_code, start, end, psr_type=None, lookup_bzones=False):
+    def query_wind_and_solar_forecast(self, country_code, start, end, psr_type=None, process_type = 'A01', lookup_bzones=False):
         """
         Parameters
         ----------
@@ -252,7 +253,7 @@ class EntsoeRawClient:
 
         params = {
             'documentType': 'A69',
-            'processType': 'A01',
+            'processType': process_type,
             'in_Domain': domain,
         }
         if psr_type:
@@ -431,7 +432,7 @@ class EntsoeRawClient:
                           contract_marketagreement_type = None,
                           lookup_bzones = False):
         """
-        Generic function called by query_crossborder_flows and 
+        Generic function called by query_crossborder_flows and
         query_scheduled_exchanges.
         Parameters
         ----------
@@ -814,7 +815,7 @@ class EntsoePandasClient(EntsoeRawClient):
         return series
 
     @year_limited
-    def query_load_forecast(self, country_code, start, end) -> pd.Series:
+    def query_load_forecast(self, country_code, start, end, process_type='A01') -> pd.Series:
         """
         Parameters
         ----------
@@ -826,14 +827,14 @@ class EntsoePandasClient(EntsoeRawClient):
         pd.Series
         """
         text = super(EntsoePandasClient, self).query_load_forecast(
-            country_code=country_code, start=start, end=end)
+            country_code=country_code, start=start, end=end, process_type=process_type)
         series = parse_loads(text)
         series = series.tz_convert(TIMEZONE_MAPPINGS[country_code])
         series = series.truncate(before=start, after=end)
         return series
 
     @year_limited
-    def query_generation_forecast(self, country_code, start, end) -> pd.Series:
+    def query_generation_forecast(self, country_code, start, end, process_type='A01') -> pd.Series:
         """
         Parameters
         ----------
@@ -845,7 +846,7 @@ class EntsoePandasClient(EntsoeRawClient):
         pd.Series
         """
         text = super(EntsoePandasClient, self).query_generation_forecast(
-            country_code=country_code, start=start, end=end)
+            country_code=country_code, start=start, end=end, process_type=process_type)
         series = parse_loads(text)
         series = series.tz_convert(TIMEZONE_MAPPINGS[country_code])
         series = series.truncate(before=start, after=end)
@@ -853,7 +854,7 @@ class EntsoePandasClient(EntsoeRawClient):
 
     @year_limited
     def query_wind_and_solar_forecast(self, country_code, start, end, psr_type=None,
-                                      lookup_bzones=False):
+                                      process_type='A01', lookup_bzones=False):
         """
         Parameters
         ----------
@@ -871,7 +872,7 @@ class EntsoePandasClient(EntsoeRawClient):
         """
         text = super(EntsoePandasClient, self).query_wind_and_solar_forecast(
             country_code=country_code, start=start, end=end, psr_type=psr_type,
-            lookup_bzones=lookup_bzones)
+            process_type=process_type, lookup_bzones=lookup_bzones)
         df = parse_generation(text)
         df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
         df = df.truncate(before=start, after=end)

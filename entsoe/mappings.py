@@ -77,6 +77,7 @@ BIDDING_ZONES.update({
     'SE-4': '10Y1001A1001A47J',
     'DK-1': '10YDK-1--------W',
     'DK-2': '10YDK-2--------M',
+    'DK-ENERGINET':  "10Y1001A1001A796",
     'IE-SEM': '10Y1001A1001A59C',
     'UA': '10Y1001C--00003F'
 })
@@ -97,6 +98,7 @@ TIMEZONE_MAPPINGS = {
     'DE-TRANSNET': 'Europe/Berlin',
     'DE-LU': 'Europe/Berlin',
     'DK': 'Europe/Copenhagen',
+    'DK-ENERGINET': 'Europe/Copenhagen',
     'EE': 'Europe/Tallinn',
     'ES': 'Europe/Madrid',
     'FI': 'Europe/Helsinki',

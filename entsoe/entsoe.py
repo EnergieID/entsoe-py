@@ -6,6 +6,7 @@ import pandas as pd
 import pytz
 import requests
 from bs4 import BeautifulSoup
+import logging
 
 from .exceptions import NoMatchingDataError, PaginationError
 from .mappings import DOMAIN_MAPPINGS, BIDDING_ZONES, TIMEZONE_MAPPINGS, NEIGHBOURS
@@ -17,7 +18,7 @@ from .parsers import parse_prices, parse_loads, parse_generation, \
 from entsoe.exceptions import InvalidPSRTypeError, InvalidBusinessParameterError
 
 __title__ = "entsoe-py"
-__version__ = "0.2.12"
+__version__ = "0.2.13"
 __author__ = "EnergieID.be"
 __license__ = "MIT"
 
@@ -100,6 +101,7 @@ class EntsoeRawClient:
         }
         params.update(base_params)
 
+        logging.debug(f'Performing request to {URL} with params {params}')
         response = self.session.get(url=URL, params=params,
                                     proxies=self.proxies)
         try:

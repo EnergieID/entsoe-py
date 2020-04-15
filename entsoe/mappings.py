@@ -77,6 +77,7 @@ BIDDING_ZONES.update({
     'SE-4': '10Y1001A1001A47J',
     'DK-1': '10YDK-1--------W',
     'DK-2': '10YDK-2--------M',
+    'DK-ENERGINET':  "10Y1001A1001A796",
     'IE-SEM': '10Y1001A1001A59C',
     'UA': '10Y1001C--00003F'
 })
@@ -97,6 +98,7 @@ TIMEZONE_MAPPINGS = {
     'DE-TRANSNET': 'Europe/Berlin',
     'DE-LU': 'Europe/Berlin',
     'DK': 'Europe/Copenhagen',
+    'DK-ENERGINET': 'Europe/Copenhagen',
     'EE': 'Europe/Tallinn',
     'ES': 'Europe/Madrid',
     'FI': 'Europe/Helsinki',
@@ -253,6 +255,23 @@ DOCUMENTTYPE = {'A09': 'Finalised schedule',
                 'A95': 'Configuration document',
                 'B11': 'Flow-based allocations'}
 
+PROCESSTYPE = {
+    'A01': 'Day ahead',
+    'A02': 'Intra day incremental',
+    'A16': 'Realised',
+    'A18': 'Intraday total',
+    'A31': 'Week ahead',
+    'A32': 'Month ahead',
+    'A33': 'Year ahead',
+    'A39': 'Synchronisation process',
+    'A40': 'Intraday process',
+    'A46': 'Replacement reserve',
+    'A47': 'Manual frequency restoration reserve',
+    'A51': 'Automatic frequency restoration reserve',
+    'A52': 'Frequency containment reserve',
+    'A56': 'Frequency restoration reserve'
+}
+
 # neighbouring bidding zones that have cross-border flows
 NEIGHBOURS = {
     'BE': ['NL', 'DE-AT-LU', 'FR', 'GB', 'DE-LU'],
@@ -294,6 +313,7 @@ NEIGHBOURS = {
     'PT': ['ES'],
     'GR': ['AL', 'BG', 'IT-BRNN', 'IT-GR', 'MK', 'TR'],
     'NO-3': ['NO-4', 'NO-5', 'SE-2'],
+    'IT':['AT', 'FR', 'GR', 'MT', 'ME', 'SI', 'CH'],
     'IT-BRNN': ['GR', 'IT-SUD'],
     'IT-SUD': ['IT-BRNN', 'IT-CSUD', 'IT-FOGN', 'IT-ROSN'],
     'IT-FOGN': ['IT-SUD'],

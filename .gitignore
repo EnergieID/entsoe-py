@@ -102,3 +102,5 @@ ENV/
 .idea/
 test.ipynb
 settings.py
+/.project
+/.pydevproject

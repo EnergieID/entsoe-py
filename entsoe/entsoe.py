@@ -18,7 +18,7 @@ from .parsers import parse_prices, parse_loads, parse_generation, \
 from entsoe.exceptions import InvalidPSRTypeError, InvalidBusinessParameterError
 
 __title__ = "entsoe-py"
-__version__ = "0.2.13"
+__version__ = "0.2.14"
 __author__ = "EnergieID.be"
 __license__ = "MIT"
 
@@ -748,6 +748,7 @@ def year_limited(func):
             raise NoMatchingDataError
 
         df = pd.concat(frames, sort=True)
+        df = df.loc[~df.index.duplicated(keep='first')]
         return df
 
     return year_wrapper

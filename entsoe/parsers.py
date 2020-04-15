@@ -510,44 +510,49 @@ def _resolution_to_timedelta(res_text: str) -> str:
     return delta
 
 
-def parse_unavailabilities(response: bytes) -> pd.DataFrame:
-    """
-    Response for Unavailability of Generation Units is ZIP folder
-    with one document inside it for each outage.
-    This function parses all the files in the ZIP and returns a Pandas DataFrame.
-    """
-    dfs = list()
-    with zipfile.ZipFile(BytesIO(response), 'r') as arc:
-        for f in arc.infolist():
-            if f.filename.endswith('xml'):
-                frame = _outage_parser(arc.read(f))
-                dfs.append(frame)
-    df = pd.concat(dfs, axis=0)
-    df.set_index('created_doc_time', inplace=True)
-    df.sort_index(inplace=True)
-    return df
+# Define inverse bidding zone dico to look up bidding zone labels from the
+# domain code in the unavailibility parsers:
+_INV_BIDDING_ZONE_DICO = {k: v for (v, k) in BIDDING_ZONES.items()}
+
+HEADERS_UNAVAIL_GEN = ['created_doc_time',
+                       'docstatus',
+                       'businesstype',
+                       'biddingzone_domain',
+                       'qty_uom',
+                       'curvetype',
+                       'production_resource_id',
+                       'production_resource_name',
+                       'production_resource_location',
+                       'plant_type',
+                       'nominal_power',
+                       'start',
+                       'end',
+                       'resolution',
+                       'pstn',
+                       'avail_qty'
+                       ]
 
 
-def _available_period(timeseries: bs4.BeautifulSoup) -> list:
-    #if not timeseries:
-    #    return
-    for period in timeseries.find_all('available_period'):
-        start, end = pd.Timestamp(period.timeinterval.start.text), pd.Timestamp(period.timeinterval.end.text)
-        res = period.resolution.text
-        pstn, qty = period.point.position.text, period.point.quantity.text
-        yield [start, end, res, pstn, qty]
+def _unavailability_gen_ts(soup: bs4.BeautifulSoup) -> list:
+    '''
+    Parser for generation unavailibility time-series
+    Parameters
+    ----------
+    soup : bs4.element.tag
+    tz: str
 
-
-def _unavailability_timeseries(soup: bs4.BeautifulSoup) -> list:
+    Returns
+    -------
+    list
+    '''
 
     # Avoid attribute errors when some of the fields are void:
     get_attr = lambda attr: "" if soup.find(attr) is None else soup.find(attr).text
     # When no nominal power is given, give default numeric value of 0:
     get_float = lambda val: float('NaN') if val == "" else float(val)
 
-    dm = {k: v for (v, k) in BIDDING_ZONES.items()}
     f = [BSNTYPE[get_attr('businesstype')],
-         dm[get_attr('biddingzone_domain.mrid')],
+         _INV_BIDDING_ZONE_DICO[get_attr('biddingzone_domain.mrid')],
          get_attr('quantity_measure_unit.name'),
          get_attr('curvetype'),
          get_attr('production_registeredresource.mrid'),
@@ -558,28 +563,85 @@ def _unavailability_timeseries(soup: bs4.BeautifulSoup) -> list:
          get_float(get_attr('production_registeredresource.psrtype.powersystemresources.nominalp'))]
     return [f + p for p in _available_period(soup)]
 
+HEADERS_UNAVAIL_TRANSM = ['created_doc_time',
+                   'docstatus',
+                   'businesstype',
+                   'in_domain',
+                   'out_domain',
+                   'qty_uom',
+                   'curvetype',
+                   'start',
+                   'end',
+                   'resolution',
+                   'pstn',
+                   'avail_qty'
+                   ]
 
-def _outage_parser(xml_file: bytes) -> pd.DataFrame:
+
+def _unavailability_tm_ts(soup: bs4.BeautifulSoup) -> list:
+    '''
+    Parser for transmission unavailibility time-series
+    Parameters
+    ----------
+    soup : bs4.element.tag
+    tz: str
+
+    Returns
+    -------
+    list
+    '''
+    # Avoid attribute errors when some of the fields are void:
+    get_attr = lambda attr: "" if soup.find(attr) is None else soup.find(attr).text
+    # When no nominal power is given, give default numeric value of 0:
+
+    f = [BSNTYPE[get_attr('businesstype')],
+         _INV_BIDDING_ZONE_DICO[get_attr('in_domain.mrid')],
+         _INV_BIDDING_ZONE_DICO[get_attr('out_domain.mrid')],
+         get_attr('quantity_measure_unit.name'),
+         get_attr('curvetype'),
+         ]
+    return [f + p for p in _available_period(soup)]
+
+
+_UNAVAIL_PARSE_CFG = {}
+_UNAVAIL_PARSE_CFG['A77'] = (HEADERS_UNAVAIL_GEN, _unavailability_gen_ts)
+_UNAVAIL_PARSE_CFG['A78'] = (HEADERS_UNAVAIL_TRANSM, _unavailability_tm_ts)
+_UNAVAIL_PARSE_CFG['A80'] = (HEADERS_UNAVAIL_GEN, _unavailability_gen_ts)
+
+
+def parse_unavailabilities(response: bytes, doctype: str) -> pd.DataFrame:
+    """
+    Response for Unavailability of Generation Units is ZIP folder
+    with one document inside it for each outage.
+    This function parses all the files in the ZIP and returns a Pandas DataFrame.
+    """
+    # First, find out which parser and headers to use, based on the doc type:
+    headers, ts_func = _UNAVAIL_PARSE_CFG[doctype]
+    dfs = list()
+    with zipfile.ZipFile(BytesIO(response), 'r') as arc:
+        for f in arc.infolist():
+            if f.filename.endswith('xml'):
+                frame = _outage_parser(arc.read(f), headers, ts_func)
+                dfs.append(frame)
+    df = pd.concat(dfs, axis = 0)
+    df.set_index('created_doc_time', inplace = True)
+    df.sort_index(inplace = True)
+    return df
+
+
+def _available_period(timeseries: bs4.BeautifulSoup) -> list:
+    # if not timeseries:
+    #    return
+    for period in timeseries.find_all('available_period'):
+        start, end = pd.Timestamp(period.timeinterval.start.text), pd.Timestamp(period.timeinterval.end.text)
+        res = period.resolution.text
+        pstn, qty = period.point.position.text, period.point.quantity.text
+        yield [start, end, res, pstn, qty]
+
+
+def _outage_parser(xml_file: bytes, headers, ts_func) -> pd.DataFrame:
     xml_text = xml_file.decode()
-    #if not(xml_text):
-        #return
-    headers = ['created_doc_time',
-               'docstatus',
-               'businesstype',
-               'biddingzone_domain',
-               'qty_uom',
-               'curvetype',
-               'production_resource_id',
-               'production_resource_name',
-               'production_resource_location',
-               'plant_type',
-               'nominal_power',
-               'start',
-               'end',
-               'resolution',
-               'pstn',
-               'avail_qty'
-               ]
+
     soup = bs4.BeautifulSoup(xml_text, 'html.parser')
     try:
         creation_date = pd.Timestamp(soup.createddatetime.text)
@@ -594,7 +656,7 @@ def _outage_parser(xml_file: bytes) -> pd.DataFrame:
     series = _extract_timeseries(xml_text)
     for ts in series:
         row = [creation_date, docstatus]
-        for t in _unavailability_timeseries(ts):
+        for t in ts_func(ts):
             d.append(row + t)
-    df = pd.DataFrame.from_records(d, columns=headers)
+    df = pd.DataFrame.from_records(d, columns = headers)
     return df

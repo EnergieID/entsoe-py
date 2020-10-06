@@ -432,6 +432,102 @@ class EntsoeRawClient:
                                       contract_marketagreement_type = "A05",
                                       lookup_bzones = lookup_bzones)
 
+    def query_net_transfer_capacity_dayahead(self, country_code_from, country_code_to,
+                                start, end, lookup_bzones = True):
+        """
+        Parameters
+        ----------
+        country_code_from : str
+        country_code_to : str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        lookup_bzones : bool
+            if True, country_code is expected to be a bidding zone
+
+        Returns
+        -------
+        str
+        """
+        return self.query_crossborder(country_code_from = country_code_from,
+                                      country_code_to = country_code_to,
+                                      start = start,
+                                      end = end,
+                                      doctype = "A61",
+                                      contract_marketagreement_type = "A01",
+                                      lookup_bzones = lookup_bzones)
+
+    def query_net_transfer_capacity_weekahead(self, country_code_from, country_code_to,
+                                start, end, lookup_bzones = True):
+        """
+        Parameters
+        ----------
+        country_code_from : str
+        country_code_to : str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        lookup_bzones : bool
+            if True, country_code is expected to be a bidding zone
+
+        Returns
+        -------
+        str
+        """
+        return self.query_crossborder(country_code_from = country_code_from,
+                                      country_code_to = country_code_to,
+                                      start = start,
+                                      end = end,
+                                      doctype = "A61",
+                                      contract_marketagreement_type = "A02",
+                                      lookup_bzones = lookup_bzones)
+
+    def query_net_transfer_capacity_monthahead(self, country_code_from, country_code_to,
+                                start, end, lookup_bzones = True):
+        """
+        Parameters
+        ----------
+        country_code_from : str
+        country_code_to : str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        lookup_bzones : bool
+            if True, country_code is expected to be a bidding zone
+
+        Returns
+        -------
+        str
+        """
+        return self.query_crossborder(country_code_from = country_code_from,
+                                      country_code_to = country_code_to,
+                                      start = start,
+                                      end = end,
+                                      doctype = "A61",
+                                      contract_marketagreement_type = "A03",
+                                      lookup_bzones = lookup_bzones)
+
+    def query_net_transfer_capacity_yearahead(self, country_code_from, country_code_to,
+                                start, end, lookup_bzones = True):
+        """
+        Parameters
+        ----------
+        country_code_from : str
+        country_code_to : str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        lookup_bzones : bool
+            if True, country_code is expected to be a bidding zone
+
+        Returns
+        -------
+        str
+        """
+        return self.query_crossborder(country_code_from = country_code_from,
+                                      country_code_to = country_code_to,
+                                      start = start,
+                                      end = end,
+                                      doctype = "A61",
+                                      contract_marketagreement_type = "A04",
+                                      lookup_bzones = lookup_bzones)
+
     def query_crossborder(self, country_code_from, country_code_to,
                           start, end, doctype,
                           contract_marketagreement_type = None,

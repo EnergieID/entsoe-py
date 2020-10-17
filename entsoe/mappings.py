@@ -46,7 +46,7 @@ DOMAIN_MAPPINGS = {
 
 BIDDING_ZONES = DOMAIN_MAPPINGS.copy()
 BIDDING_ZONES.update({
-    'DE': '10Y1001A1001A63L',  # DE-AT-LU
+    'DE-AT-LU': '10Y1001A1001A63L',  # DE-AT-LU
     'LU': '10Y1001A1001A63L',  # DE-AT-LU
     'DE-50HZ': '10YDE-VE-------2',
     'DE-AMPRION': '10YDE-RWENET---I',
@@ -313,7 +313,7 @@ NEIGHBOURS = {
     'PT': ['ES'],
     'GR': ['AL', 'BG', 'IT-BRNN', 'IT-GR', 'MK', 'TR'],
     'NO-3': ['NO-4', 'NO-5', 'SE-2'],
-    'IT':['AT', 'FR', 'GR', 'MT', 'ME', 'SI', 'CH'],
+    'IT': ['AT', 'FR', 'GR', 'MT', 'ME', 'SI', 'CH'],
     'IT-BRNN': ['GR', 'IT-SUD'],
     'IT-SUD': ['IT-BRNN', 'IT-CSUD', 'IT-FOGN', 'IT-ROSN'],
     'IT-FOGN': ['IT-SUD'],

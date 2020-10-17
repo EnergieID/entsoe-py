@@ -446,7 +446,7 @@ def _parse_datetimeindex(soup, tz = None):
     pd.DatetimeIndex
     """
     start = pd.Timestamp(soup.find('start').text)
-    end = pd.Timestamp(soup.find('end').text)
+    end = pd.Timestamp(soup.find_all('end')[-1].text)
     if tz is not None:
         start = start.tz_convert(tz)
         end = end.tz_convert(tz)

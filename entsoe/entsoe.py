@@ -18,7 +18,7 @@ from .parsers import parse_prices, parse_loads, parse_generation, \
 from entsoe.exceptions import InvalidPSRTypeError, InvalidBusinessParameterError
 
 __title__ = "entsoe-py"
-__version__ = "0.2.14"
+__version__ = "0.2.15"
 __author__ = "EnergieID.be"
 __license__ = "MIT"
 

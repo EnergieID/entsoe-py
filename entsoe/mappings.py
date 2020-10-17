@@ -275,7 +275,7 @@ PROCESSTYPE = {
 # neighbouring bidding zones that have cross-border flows
 NEIGHBOURS = {
     'BE': ['NL', 'DE-AT-LU', 'FR', 'GB', 'DE-LU'],
-    'NL': ['BE', 'DE-AT-LU', 'DE-LU', 'GB', 'NO-2'],
+    'NL': ['BE', 'DE-AT-LU', 'DE-LU', 'GB', 'NO-2', 'DK-1'],
     'DE-AT-LU': ['BE', 'CH', 'CZ', 'DK-1', 'DK-2', 'FR', 'IT-NORD', 'IT-NORD-AT', 'NL', 'PL', 'SE-4', 'SI'],
     'FR': ['BE', 'CH', 'DE-AT-LU', 'DE-LU', 'ES', 'GB', 'IT-NORD', 'IT-NORD-FR'],
     'CH': ['AT', 'DE-AT-LU', 'DE-LU', 'FR', 'IT-NORD', 'IT-NORD-CH'],
@@ -290,7 +290,7 @@ NEIGHBOURS = {
     'RS': ['AL', 'BA', 'BG', 'HR', 'HU', 'ME', 'MK', 'RO'],
     'PL': ['CZ', 'DE-AT-LU', 'DE-LU', 'LT', 'SE-4', 'SK', 'UA'],
     'ME': ['AL', 'BA', 'RS'],
-    'DK-1': ['DE-AT-LU', 'DE-LU', 'DK-2', 'NO-2', 'SE-3'],
+    'DK-1': ['DE-AT-LU', 'DE-LU', 'DK-2', 'NO-2', 'SE-3', 'NL'],
     'RO': ['BG', 'HU', 'RS', 'UA'],
     'LT': ['BY', 'LV', 'PL', 'RU-KGD', 'SE-4'],
     'BG': ['GR', 'MK', 'RO', 'RS', 'TR'],

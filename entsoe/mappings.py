@@ -184,7 +184,11 @@ PSRTYPE_MAPPINGS = {
     'B23': 'Substation',
     'B24': 'Transformer'}
 
-DOCSTATUS = {'A05': 'Active', 'A09': 'Cancelled', 'A13': 'Withdrawn'}
+DOCSTATUS = {'A01': 'Intermediate',
+             'A02': 'Final',
+             'A05': 'Active',
+             'A09': 'Cancelled',
+             'X01': 'Estimated'}
 
 BSNTYPE = {'A29': 'Already allocated capacity (AAC)',
            'A43': 'Requested capacity (without price)',
@@ -218,9 +222,12 @@ MARKETAGREEMENTTYPE = {'A01':'Daily',
 
 DOCUMENTTYPE = {'A09': 'Finalised schedule',
                 'A11': 'Aggregated energy data report',
+                'A15': 'Acquiring system operator reserve schedule',
+                'A24': 'Bid document',
                 'A25': 'Allocation result document',
                 'A26': 'Capacity document',
                 'A31': 'Agreed capacity',
+                'A38': 'Reserve allocation result document',
                 'A44': 'Price Document',
                 'A61': 'Estimated Net Transfer Capacity',
                 'A63': 'Redispatch notice',

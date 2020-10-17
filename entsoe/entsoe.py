@@ -345,7 +345,7 @@ class EntsoeRawClient:
         -------
         str
         """
-        domain = DOMAIN_MAPPINGS[country_code]
+        domain = BIDDING_ZONES[country_code]
         params = {
             'documentType': 'A68',
             'processType': 'A33',

@@ -96,6 +96,7 @@ def parse_generation(xml_text):
         all_series[name] = ts[~ts.index.duplicated(keep='first')]
 
     df = pd.DataFrame.from_dict(all_series)
+    df.sort_index(inplace=True)
     return df
 
 

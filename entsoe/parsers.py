@@ -263,7 +263,30 @@ def _parse_contracted_reserve_series(soup, tz, label):
     return df
 
 
-def _parse_imbalance_prices_timeseries(soup):
+def parse_imbalance_prices_zip(zip_contents: bytes) -> pd.DataFrame:
+    """
+    Parameters
+    ----------
+    zip_contents : bytes
+
+    Returns
+    -------
+    pd.DataFrame
+    """
+    def gen_frames(archive):
+        with zipfile.ZipFile(BytesIO(archive), 'r') as arc:
+            for f in arc.infolist():
+                if f.filename.endswith('xml'):
+                    frame = parse_imbalance_prices(xml_text=arc.read(f))
+                    yield frame
+
+    frames = gen_frames(zip_contents)
+    df = pd.concat(frames)
+    df.sort_index(inplace=True)
+    return df
+
+
+def _parse_imbalance_prices_timeseries(soup) -> pd.DataFrame:
     """
     Parameters
     ----------
@@ -271,7 +294,7 @@ def _parse_imbalance_prices_timeseries(soup):
 
     Returns
     -------
-    pd.Series
+    pd.DataFrame
     """
     positions = []
     amounts = []

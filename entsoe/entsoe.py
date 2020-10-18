@@ -6,14 +6,13 @@ from typing import Union, Optional, Dict
 
 import pandas as pd
 from pandas.tseries.offsets import YearBegin, YearEnd
-import pytz
 import requests
 from bs4 import BeautifulSoup
 
 from entsoe.exceptions import InvalidPSRTypeError, InvalidBusinessParameterError
 from .exceptions import NoMatchingDataError, PaginationError
 from .mappings import Area, NEIGHBOURS, lookup_area
-from .misc import year_blocks, day_blocks
+from .misc import year_blocks, day_blocks, start_end_to_timeinterval
 from .parsers import parse_prices, parse_loads, parse_generation, \
     parse_generation_per_plant, parse_installed_capacity_per_plant, \
     parse_crossborder_flows, parse_unavailabilities, \
@@ -103,13 +102,11 @@ class EntsoeRawClient:
         -------
         requests.Response
         """
-        start_str = self._datetime_to_str(start)
-        end_str = self._datetime_to_str(end)
+        timeinterval = start_end_to_timeinterval(start, end)
 
         base_params = {
             'securityToken': self.api_key,
-            'periodStart': start_str,
-            'periodEnd': end_str
+            'TimeInterval': timeinterval
         }
         params.update(base_params)
 
@@ -139,28 +136,6 @@ class EntsoeRawClient:
             raise e
         else:
             return response
-
-    @staticmethod
-    def _datetime_to_str(dtm: pd.Timestamp) -> str:
-        """
-        Convert a datetime object to a string in UTC
-        of the form YYYYMMDDhh00
-
-        Parameters
-        ----------
-        dtm : pd.Timestamp
-            Recommended to use a timezone-aware object!
-            If timezone-naive, UTC is assumed
-
-        Returns
-        -------
-        str
-        """
-        if dtm.tzinfo is not None and dtm.tzinfo != pytz.UTC:
-            dtm = dtm.tz_convert("UTC")
-        fmt = '%Y%m%d%H00'
-        ret_str = dtm.strftime(fmt)
-        return ret_str
 
     def query_day_ahead_prices(self, country_code: Union[Area, str],
                                start: pd.Timestamp, end: pd.Timestamp) -> str:

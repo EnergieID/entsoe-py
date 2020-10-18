@@ -1,6 +1,8 @@
+from itertools import tee
+import pytz
+
 import pandas as pd
 from dateutil import rrule
-from itertools import tee
 
 
 def year_blocks(start, end):
@@ -91,3 +93,45 @@ def pairwise(iterable):
     a, b = tee(iterable)
     next(b, None)
     return zip(a, b)
+
+
+def datetime_to_str(dtm: pd.Timestamp) -> str:
+    """
+    Convert a datetime object to a string in UTC
+    of the form YYYYMMDDhh00
+
+    Parameters
+    ----------
+    dtm : pd.Timestamp
+        Recommended to use a timezone-aware object!
+        If timezone-naive, UTC is assumed
+
+    Returns
+    -------
+    str
+    """
+    if dtm.tzinfo is not None and dtm.tzinfo != pytz.UTC:
+        dtm = dtm.tz_convert("UTC")
+    fmt = '%Y%m%d%H00'
+    ret_str = dtm.strftime(fmt)
+    return ret_str
+
+
+def datetime_to_iso8601_z_notation(dtm: pd.Timestamp) -> str:
+    """
+    Convert a datetime to an ISO8601 in Z notation
+    Timezone-naive inputs are assumed UTC
+    """
+    if dtm.tzinfo is None:
+        dtm = dtm.tz_localize('UTC')
+    dtm = dtm.tz_convert('UTC')
+    ret_str = dtm.isoformat().replace('+00:00', 'Z')
+    return ret_str
+
+
+def start_end_to_timeinterval(start: pd.Timestamp, end: pd.Timestamp) -> str:
+    """Convert start and end to an ISO8601 time interval"""
+    start_str = datetime_to_iso8601_z_notation(start)
+    end_str = datetime_to_iso8601_z_notation(end)
+    timeinterval = f'{start_str}/{end_str}'
+    return timeinterval

@@ -16,8 +16,8 @@ from .mappings import Area, NEIGHBOURS, lookup_area
 from .misc import year_blocks, day_blocks
 from .parsers import parse_prices, parse_loads, parse_generation, \
     parse_generation_per_plant, parse_installed_capacity_per_plant, \
-    parse_crossborder_flows, parse_imbalance_prices, parse_unavailabilities, \
-    parse_contracted_reserve
+    parse_crossborder_flows, parse_unavailabilities, \
+    parse_contracted_reserve, parse_imbalance_prices_zip
 
 __title__ = "entsoe-py"
 __version__ = "0.3.0"
@@ -556,7 +556,7 @@ class EntsoeRawClient:
 
     def query_imbalance_prices(
             self, country_code: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp, psr_type: Optional[str] = None) -> str:
+            end: pd.Timestamp, psr_type: Optional[str] = None) -> bytes:
         """
         Parameters
         ----------
@@ -568,7 +568,7 @@ class EntsoeRawClient:
 
         Returns
         -------
-        str
+        bytes
         """
         area = lookup_area(country_code)
         params = {
@@ -578,7 +578,7 @@ class EntsoeRawClient:
         if psr_type:
             params.update({'psrType': psr_type})
         response = self._base_request(params=params, start=start, end=end)
-        return response.text
+        return response.content
 
     def query_contracted_reserve_prices(
             self, country_code: Union[Area, str], start: pd.Timestamp,
@@ -1147,9 +1147,9 @@ class EntsoePandasClient(EntsoeRawClient):
         pd.DataFrame
         """
         area = lookup_area(country_code)
-        text = super(EntsoePandasClient, self).query_imbalance_prices(
+        archive = super(EntsoePandasClient, self).query_imbalance_prices(
             country_code=area, start=start, end=end, psr_type=psr_type)
-        df = parse_imbalance_prices(text)
+        df = parse_imbalance_prices_zip(zip_contents=archive)
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df

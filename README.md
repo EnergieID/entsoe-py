@@ -54,7 +54,7 @@ params = {
     'in_Domain': '10YBE----------2',
     'out_Domain': '10YBE----------2'
 }
-response = client.base_request(params=params, start=start, end=end)
+response = client._base_request(params=params, start=start, end=end)
 print(response.text)
 ```
 

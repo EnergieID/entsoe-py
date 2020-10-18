@@ -5,6 +5,7 @@ from time import sleep
 from typing import Union, Optional, Dict
 
 import pandas as pd
+from pandas.tseries.offsets import YearBegin, YearEnd
 import pytz
 import requests
 from bs4 import BeautifulSoup
@@ -406,7 +407,7 @@ class EntsoeRawClient:
         -------
         str
         """
-        return self.query_crossborder(
+        return self._query_crossborder(
             country_code_from=country_code_from,
             country_code_to=country_code_to, start=start, end=end,
             doctype="A11", contract_marketagreement_type=None)
@@ -427,7 +428,7 @@ class EntsoeRawClient:
         -------
         str
         """
-        return self.query_crossborder(
+        return self._query_crossborder(
             country_code_from=country_code_from,
             country_code_to=country_code_to, start=start, end=end,
             doctype="A09", contract_marketagreement_type="A05")
@@ -448,7 +449,7 @@ class EntsoeRawClient:
         -------
         str
         """
-        return self.query_crossborder(
+        return self._query_crossborder(
             country_code_from=country_code_from,
             country_code_to=country_code_to, start=start, end=end,
             doctype="A61", contract_marketagreement_type="A01")
@@ -469,7 +470,7 @@ class EntsoeRawClient:
         -------
         str
         """
-        return self.query_crossborder(
+        return self._query_crossborder(
             country_code_from=country_code_from,
             country_code_to=country_code_to, start=start, end=end,
             doctype="A61", contract_marketagreement_type="A02")
@@ -490,7 +491,7 @@ class EntsoeRawClient:
         -------
         str
         """
-        return self.query_crossborder(
+        return self._query_crossborder(
             country_code_from=country_code_from,
             country_code_to=country_code_to, start=start, end=end,
             doctype="A61", contract_marketagreement_type="A03")
@@ -511,12 +512,12 @@ class EntsoeRawClient:
         -------
         str
         """
-        return self.query_crossborder(
+        return self._query_crossborder(
             country_code_from=country_code_from,
             country_code_to=country_code_to, start=start, end=end,
             doctype="A61", contract_marketagreement_type="A04")
 
-    def query_crossborder(
+    def _query_crossborder(
             self, country_code_from: Union[Area, str],
             country_code_to: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp, doctype: str,
@@ -639,7 +640,7 @@ class EntsoeRawClient:
         response = self._base_request(params=params, start=start, end=end)
         return response.text
 
-    def query_unavailability(
+    def _query_unavailability(
             self, country_code: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp, doctype: str, docstatus: Optional[str] = None,
             periodstartupdate: Optional[pd.Timestamp] = None,
@@ -700,7 +701,7 @@ class EntsoeRawClient:
         -------
         bytes
         """
-        content = self.query_unavailability(
+        content = self._query_unavailability(
             country_code=country_code, start=start, end=end, doctype="A80",
             docstatus=docstatus, periodstartupdate=periodstartupdate,
             periodendupdate=periodendupdate)
@@ -728,7 +729,7 @@ class EntsoeRawClient:
         -------
         bytes
         """
-        content = self.query_unavailability(
+        content = self._query_unavailability(
             country_code=country_code, start=start, end=end, doctype="A77",
             docstatus=docstatus, periodstartupdate=periodstartupdate,
             periodendupdate=periodendupdate)
@@ -789,7 +790,7 @@ class EntsoeRawClient:
         -------
         bytes
         """
-        content = self.query_unavailability(
+        content = self._query_unavailability(
             country_code=country_code, start=start, end=end,
             doctype="A80", docstatus='A13')
         return content
@@ -1037,7 +1038,8 @@ class EntsoePandasClient(EntsoeRawClient):
             country_code=area, start=start, end=end, psr_type=psr_type)
         df = parse_generation(text)
         df = df.tz_convert(area.tz)
-        df = df.truncate(before=start, after=end)
+        # Truncate to YearBegin and YearEnd, because answer is always year-based
+        df = df.truncate(before=start - YearBegin(), after=end + YearEnd())
         return df
 
     @year_limited
@@ -1216,7 +1218,7 @@ class EntsoePandasClient(EntsoeRawClient):
 
     @year_limited
     @paginated
-    def query_unavailability(
+    def _query_unavailability(
             self, country_code: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp, doctype: str, docstatus: Optional[str] = None,
             periodstartupdate: Optional[pd.Timestamp] = None,
@@ -1237,7 +1239,7 @@ class EntsoePandasClient(EntsoeRawClient):
         pd.DataFrame
         """
         area = lookup_area(country_code)
-        content = super(EntsoePandasClient, self).query_unavailability(
+        content = super(EntsoePandasClient, self)._query_unavailability(
             country_code=area, start=start, end=end, doctype=doctype,
             docstatus=docstatus, periodstartupdate=periodstartupdate,
             periodendupdate=periodendupdate)
@@ -1267,7 +1269,7 @@ class EntsoePandasClient(EntsoeRawClient):
         -------
         pd.DataFrame
         """
-        df = self.query_unavailability(
+        df = self._query_unavailability(
             country_code=country_code, start=start, end=end, doctype="A80",
             docstatus=docstatus, periodstartupdate=periodstartupdate,
             periodendupdate=periodendupdate)
@@ -1292,7 +1294,7 @@ class EntsoePandasClient(EntsoeRawClient):
         -------
         pd.DataFrame
         """
-        df = self.query_unavailability(
+        df = self._query_unavailability(
             country_code=country_code, start=start, end=end, doctype="A77",
             docstatus=docstatus, periodstartupdate=periodstartupdate,
             periodendupdate=periodendupdate)

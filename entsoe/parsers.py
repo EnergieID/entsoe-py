@@ -2,7 +2,7 @@ import bs4
 import pandas as pd
 from io import BytesIO
 import zipfile
-from .mappings import PSRTYPE_MAPPINGS, DOCSTATUS, BSNTYPE, BIDDING_ZONES
+from .mappings import PSRTYPE_MAPPINGS, DOCSTATUS, BSNTYPE, Area
 
 GENERATION_ELEMENT = "inBiddingZone_Domain.mRID"
 CONSUMPTION_ELEMENT = "outBiddingZone_Domain.mRID"
@@ -512,7 +512,7 @@ def _resolution_to_timedelta(res_text: str) -> str:
 
 # Define inverse bidding zone dico to look up bidding zone labels from the
 # domain code in the unavailibility parsers:
-_INV_BIDDING_ZONE_DICO = {k: v for (v, k) in BIDDING_ZONES.items()}
+_INV_BIDDING_ZONE_DICO = {area.code: area.name for area in Area}
 
 HEADERS_UNAVAIL_GEN = ['created_doc_time',
                        'docstatus',

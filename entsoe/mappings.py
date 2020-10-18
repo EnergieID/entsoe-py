@@ -1,159 +1,140 @@
-DOMAIN_MAPPINGS = {
-    'AL': '10YAL-KESH-----5',
-    'AT': '10YAT-APG------L',
-    'BA': '10YBA-JPCC-----D',
-    'BE': '10YBE----------2',
-    'BG': '10YCA-BULGARIA-R',
-    'BY': '10Y1001A1001A51S',
-    'CH': '10YCH-SWISSGRIDZ',
-    'CZ': '10YCZ-CEPS-----N',
-    'DE': '10Y1001A1001A83F',
-    'DK': '10Y1001A1001A65H',
-    'EE': '10Y1001A1001A39I',
-    'ES': '10YES-REE------0',
-    'FI': '10YFI-1--------U',
-    'FR': '10YFR-RTE------C',
-    'GB': '10YGB----------A',
-    'GB-NIR': '10Y1001A1001A016',
-    'GR': '10YGR-HTSO-----Y',
-    'HR': '10YHR-HEP------M',
-    'HU': '10YHU-MAVIR----U',
-    'IE': '10YIE-1001A00010',
-    'IT': '10YIT-GRTN-----B',
-    'LT': '10YLT-1001A0008Q',
-    'LU': '10YLU-CEGEDEL-NQ',
-    'LV': '10YLV-1001A00074',
-    # 'MD': 'MD',
-    'ME': '10YCS-CG-TSO---S',
-    'MK': '10YMK-MEPSO----8',
-    'MT': '10Y1001A1001A93C',
-    'NL': '10YNL----------L',
-    'NO': '10YNO-0--------C',
-    'PL': '10YPL-AREA-----S',
-    'PT': '10YPT-REN------W',
-    'RO': '10YRO-TEL------P',
-    'RS': '10YCS-SERBIATSOV',
-    'RU': '10Y1001A1001A49F',
-    'RU-KGD': '10Y1001A1001A50U',
-    'SE': '10YSE-1--------K',
-    'SI': '10YSI-ELES-----O',
-    'SK': '10YSK-SEPS-----K',
-    'TR': '10YTR-TEIAS----W',
-    'UA': '10YUA-WEPS-----0',
-    'DE-AT-LU': '10Y1001A1001A63L',
-    'DE-LU': '10Y1001A1001A82H'
-}
+import enum
+from typing import Union
 
-BIDDING_ZONES = DOMAIN_MAPPINGS.copy()
-BIDDING_ZONES.update({
-    'DE-AT-LU': '10Y1001A1001A63L',  # DE-AT-LU
-    'LU': '10Y1001A1001A63L',  # DE-AT-LU
-    'DE-50HZ': '10YDE-VE-------2',
-    'DE-AMPRION': '10YDE-RWENET---I',
-    'DE-TENNET': '10YDE-EON------1',
-    'DE-TRANSNET': '10YDE-ENBW-----N',
-    'IT-NORD': '10Y1001A1001A73I',
-    'IT-NORD-AT': '10Y1001A1001A80L',
-    'IT-NORD-FR': '10Y1001A1001A81J',
-    'IT-NORD-CH': '10Y1001A1001A68B',
-    'IT-CNOR': '10Y1001A1001A70O',
-    'IT-CSUD': '10Y1001A1001A71M',
-    'IT-SUD': '10Y1001A1001A788',
-    'IT-FOGN': '10Y1001A1001A72K',
-    'IT-ROSN': '10Y1001A1001A77A',
-    'IT-BRNN': '10Y1001A1001A699',
-    'IT-PRGP': '10Y1001A1001A76C',
-    'IT-SARD': '10Y1001A1001A74G',
-    'IT-SICI': '10Y1001A1001A75E',
-    'IT-GR': '10Y1001A1001A66F',
-    'NO-1': '10YNO-1--------2',
-    'NO-2': '10YNO-2--------T',
-    'NO-3': '10YNO-3--------J',
-    'NO-4': '10YNO-4--------9',
-    'NO-5': '10Y1001A1001A48H',
-    'SE-1': '10Y1001A1001A44P',
-    'SE-2': '10Y1001A1001A45N',
-    'SE-3': '10Y1001A1001A46L',
-    'SE-4': '10Y1001A1001A47J',
-    'DK-1': '10YDK-1--------W',
-    'DK-2': '10YDK-2--------M',
-    'DK-ENERGINET':  "10Y1001A1001A796",
-    'IE-SEM': '10Y1001A1001A59C',
-    'UA': '10Y1001C--00003F'
-})
 
-TIMEZONE_MAPPINGS = {
-    'AL': 'Europe/Tirane',
-    'AT': 'Europe/Vienna',
-    'BA': 'Europe/Sarajevo',
-    'BE': 'Europe/Brussels',
-    'BG': 'Europe/Sofia',
-    'BY': 'Europe/Minsk',
-    'CH': 'Europe/Zurich',
-    'CZ': 'Europe/Prague',
-    'DE': 'Europe/Berlin',
-    'DE-50HZ': 'Europe/Berlin',
-    'DE-AMPRION': 'Europe/Berlin',
-    'DE-TENNET': 'Europe/Berlin',
-    'DE-TRANSNET': 'Europe/Berlin',
-    'DE-LU': 'Europe/Berlin',
-    'DK': 'Europe/Copenhagen',
-    'DK-ENERGINET': 'Europe/Copenhagen',
-    'EE': 'Europe/Tallinn',
-    'ES': 'Europe/Madrid',
-    'FI': 'Europe/Helsinki',
-    'FR': 'Europe/Paris',
-    'GB': 'Europe/London',
-    'GB-NIR': 'Europe/Belfast',
-    'GR': 'Europe/Athens',
-    'HR': 'Europe/Zagreb',
-    'HU': 'Europe/Budapest',
-    'IE': 'Europe/Dublin',
-    'IE-SEM': 'Europe/Dublin',
-    'IT': 'Europe/Rome',
-    'LT': 'Europe/Vilnius',
-    'LU': 'Europe/Luxembourg',
-    'LV': 'Europe/Riga',
-    # 'MD': 'MD',
-    'ME': 'Europe/Podgorica',
-    'MK': 'Europe/Skopje',
-    'MT': 'Europe/Malta',
-    'NL': 'Europe/Amsterdam',
-    'NO': 'Europe/Oslo',
-    'PL': 'Europe/Warsaw',
-    'PT': 'Europe/Lisbon',
-    'RO': 'Europe/Bucharest',
-    'RS': 'Europe/Belgrade',
-    'RU': 'Europe/Moscow',
-    'RU-KGD': 'Europe/Kaliningrad',
-    'SE': 'Europe/Stockholm',
-    'SI': 'Europe/Ljubljana',
-    'SK': 'Europe/Bratislava',
-    'TR': 'Europe/Istanbul',
-    'UA': 'Europe/Kiev',
-    'IT-NORD': 'Europe/Rome',
-    'IT-CNOR': 'Europe/Rome',
-    'IT-CSUD': 'Europe/Rome',
-    'IT-SUD': 'Europe/Rome',
-    'IT-FOGN': 'Europe/Rome',
-    'IT-ROSN': 'Europe/Rome',
-    'IT-BRNN': 'Europe/Rome',
-    'IT-PRGP': 'Europe/Rome',
-    'IT-SARD': 'Europe/Rome',
-    'IT-SICI': 'Europe/Rome',
-    'DE-AT-LU': 'Europe/Berlin',
-    'NO-1': 'Europe/Oslo',
-    'NO-2': 'Europe/Oslo',
-    'NO-3': 'Europe/Oslo',
-    'NO-4': 'Europe/Oslo',
-    'NO-5': 'Europe/Oslo',
-    'SE-1': 'Europe/Stockholm',
-    'SE-2': 'Europe/Stockholm',
-    'SE-3': 'Europe/Stockholm',
-    'SE-4': 'Europe/Stockholm',
-    'DK-1': 'Europe/Copenhagen',
-    'DK-2': 'Europe/Copenhagen'
-}
+def lookup_area(s: Union['Area', str]) -> 'Area':
+    if isinstance(s, Area):
+        # If it already is an Area object, we're happy
+        area = s
+    else:  # It is a string
+        try:
+            # If it is a "country code" string, we do a lookup
+            area = Area[s]
+        except KeyError:
+            # It is not, it may be a direct code
+            area = [area for area in Area if area.value == s][0]
+    return area
+
+
+class Area(enum.Enum):
+    """
+    ENUM containing 3 things about an Area: CODE, Meaning, Timezone
+    """
+    def __new__(cls, *args, **kwds):
+        obj = object.__new__(cls)
+        obj._value_ = args[0]
+        return obj
+
+    # ignore the first param since it's already set by __new__
+    def __init__(self, _: str, meaning: str, tz: str):
+        self._meaning = meaning
+        self._tz = tz
+
+    def __str__(self):
+        return self.value
+
+    @property
+    def meaning(self):
+        return self._meaning
+
+    @property
+    def tz(self):
+        return self._tz
+
+    @property
+    def code(self):
+        return self.value
+
+    # List taken directly from the API Docs
+    DE_50HZ =       '10YDE-VE-------2', '50Hertz CA, DE(50HzT) BZA',                    'Europe/Berlin',
+    AL =            '10YAL-KESH-----5', 'Albania, OST BZ / CA / MBA',                   'Europe/Tirane',
+    DE_AMPRION =    '10YDE-RWENET---I', 'Amprion CA',                                   'Europe/Berlin',
+    AT =            '10YAT-APG------L', 'Austria, APG BZ / CA / MBA',                   'Europe/Vienna',
+    BY =            '10Y1001A1001A51S', 'Belarus BZ / CA / MBA',                        'Europe/Minsk',
+    BE =            '10YBE----------2', 'Belgium, Elia BZ / CA / MBA',                  'Europe/Brussels',
+    BA =            '10YBA-JPCC-----D', 'Bosnia Herzegovina, NOS BiH BZ / CA / MBA',    'Europe/Sarajevo',
+    BG =            '10YCA-BULGARIA-R', 'Bulgaria, ESO BZ / CA / MBA',                  'Europe/Sofia',
+    CZ_DE_SK =      '10YDOM-CZ-DE-SKK', 'BZ CZ+DE+SK BZ / BZA',                         'Europe/Prague',
+    HR =            '10YHR-HEP------M', 'Croatia, HOPS BZ / CA / MBA',                  'Europe/Zagreb',
+    CWE =           '10YDOM-REGION-1V', 'CWE Region',                                   'Europe/Brussels',
+    CY =            '10YCY-1001A0003J', 'Cyprus, Cyprus TSO BZ / CA / MBA',             'Asia/Nicosia',
+    CZ =            '10YCZ-CEPS-----N', 'Czech Republic, CEPS BZ / CA/ MBA',            'Europe/Prague',
+    DE_AT_LU =      '10Y1001A1001A63L', 'DE-AT-LU BZ',                                  'Europe/Berlin',
+    DE_LU =         '10Y1001A1001A82H', 'DE-LU BZ / MBA',                               'Europe/Berlin',
+    DK =            '10Y1001A1001A65H', 'Denmark',                                      'Europe/Copenhagen',
+    DK_1 =          '10YDK-1--------W', 'DK1 BZ / MBA',                                 'Europe/Copenhagen',
+    DK_2 =          '10YDK-2--------M', 'DK2 BZ / MBA',                                 'Europe/Copenhagen',
+    DK_CA =         '10Y1001A1001A796', 'Denmark, Energinet CA',                        'Europe/Copenhagen',
+    EE =            '10Y1001A1001A39I', 'Estonia, Elering BZ / CA / MBA',               'Europe/Tallinn',
+    FI =            '10YFI-1--------U', 'Finland, Fingrid BZ / CA / MBA',               'Europe/Helsinki',
+    MK =            '10YMK-MEPSO----8', 'Former Yugoslav Republic of Macedonia, MEPSO BZ / CA / MBA', 'Europe/Skopje',
+    FR =            '10YFR-RTE------C', 'France, RTE BZ / CA / MBA',                    'Europe/Paris',
+    DE =            '10Y1001A1001A83F', 'Germany',                                      'Europe/Berlin'
+    GR =            '10YGR-HTSO-----Y', 'Greece, IPTO BZ / CA/ MBA',                    'Europe/Athens',
+    HU =            '10YHU-MAVIR----U', 'Hungary, MAVIR CA / BZ / MBA',                 'Europe/Budapest',
+    IS =            'IS',               'Iceland',                                      'Atlantic/Reykjavik',
+    IE_SEM =        '10Y1001A1001A59C', 'Ireland (SEM) BZ / MBA',                       'Europe/Dublin',
+    IE =            '10YIE-1001A00010', 'Ireland, EirGrid CA',                          'Europe/Dublin',
+    IT =            '10YIT-GRTN-----B', 'Italy, IT CA / MBA',                           'Europe/Rome',
+    IT_SACO_AC =    '10Y1001A1001A885', 'Italy_Saco_AC',                                'Europe/Rome',
+    IT_SACO_DC =    '10Y1001A1001A893', 'Italy_Saco_DC',                                'Europe/Rome',
+    IT_BRNN =       '10Y1001A1001A699', 'IT-Brindisi BZ',                               'Europe/Rome',
+    IT_CNOR =       '10Y1001A1001A70O', 'IT-Centre-North BZ',                           'Europe/Rome',
+    IT_CSUD =       '10Y1001A1001A71M', 'IT-Centre-South BZ',                           'Europe/Rome',
+    IT_FOGN =       '10Y1001A1001A72K', 'IT-Foggia BZ',                                 'Europe/Rome',
+    IT_GR =         '10Y1001A1001A66F', 'IT-GR BZ',                                     'Europe/Rome',
+    IT_MACRO_NORTH = '10Y1001A1001A84D', 'IT-MACROZONE NORTH MBA',                      'Europe/Rome',
+    IT_MACRO_SOUTH = '10Y1001A1001A85B', 'IT-MACROZONE SOUTH MBA',                      'Europe/Rome',
+    IT_MALTA =      '10Y1001A1001A877', 'IT-Malta BZ',                                  'Europe/Rome',
+    IT_NORD =       '10Y1001A1001A73I', 'IT-North BZ',                                  'Europe/Rome',
+    IT_NORD_AT =    '10Y1001A1001A80L', 'IT-North-AT BZ',                               'Europe/Rome',
+    IT_NORD_CH =    '10Y1001A1001A68B', 'IT-North-CH BZ',                               'Europe/Rome',
+    IT_NORD_FR =    '10Y1001A1001A81J', 'IT-North-FR BZ',                               'Europe/Rome',
+    IT_NORD_SI =    '10Y1001A1001A67D', 'IT-North-SI BZ',                               'Europe/Rome',
+    IT_PRGP =       '10Y1001A1001A76C', 'IT-Priolo BZ',                                 'Europe/Rome',
+    IT_ROSN =       '10Y1001A1001A77A', 'IT-Rossano BZ',                                'Europe/Rome',
+    IT_SARD =       '10Y1001A1001A74G', 'IT-Sardinia BZ',                               'Europe/Rome',
+    IT_SICI =       '10Y1001A1001A75E', 'IT-Sicily BZ',                                 'Europe/Rome',
+    IT_SUD =        '10Y1001A1001A788', 'IT-South BZ',                                  'Europe/Rome',
+    RU_KGD =        '10Y1001A1001A50U', 'Kaliningrad BZ / CA / MBA',                    'Europe/Kaliningrad',
+    LV =            '10YLV-1001A00074', 'Latvia, AST BZ / CA / MBA',                    'Europe/Riga',
+    LT =            '10YLT-1001A0008Q', 'Lithuania, Litgrid BZ / CA / MBA',             'Europe/Vilnius',
+    LU =            '10YLU-CEGEDEL-NQ', 'Luxembourg, CREOS CA',                         'Europe/Luxembourg',
+    MT =            '10Y1001A1001A93C', 'Malta, Malta BZ / CA / MBA',                   'Europe/Malta',
+    ME =            '10YCS-CG-TSO---S', 'Montenegro, CGES BZ / CA / MBA',               'Europe/Podgorica',
+    GB =            '10YGB----------A', 'National Grid BZ / CA/ MBA',                   'Europe/London',
+    NL =            '10YNL----------L', 'Netherlands, TenneT NL BZ / CA/ MBA',          'Europe/Amsterdam',
+    NO_1 =          '10YNO-1--------2', 'NO1 BZ / MBA',                                 'Europe/Oslo',
+    NO_2 =          '10YNO-2--------T', 'NO2 BZ / MBA',                                 'Europe/Oslo',
+    NO_3 =          '10YNO-3--------J', 'NO3 BZ / MBA',                                 'Europe/Oslo',
+    NO_4 =          '10YNO-4--------9', 'NO4 BZ / MBA',                                 'Europe/Oslo',
+    NO_5 =          '10Y1001A1001A48H', 'NO5 BZ / MBA',                                 'Europe/Oslo',
+    NO =            '10YNO-0--------C', 'Norway, Norway MBA, Stattnet CA',              'Europe/Oslo',
+    PL_CZ =         '10YDOM-1001A082L', 'PL-CZ BZA / CA',                               'Europe/Warsaw',
+    PL =            '10YPL-AREA-----S', 'Poland, PSE SA BZ / BZA / CA / MBA',           'Europe/Warsaw',
+    PT =            '10YPT-REN------W', 'Portugal, REN BZ / CA / MBA',                  'Europe/Lisbon',
+    MD =            '10Y1001A1001A990', 'Republic of Moldova, Moldelectica BZ/CA/MBA',  'Europe/Chisinau',
+    RO =            '10YRO-TEL------P', 'Romania, Transelectrica BZ / CA/ MBA',         'Europe/Bucharest',
+    RU =            '10Y1001A1001A49F', 'Russia BZ / CA / MBA',                         'Europe/Moscow',
+    SE_1 =          '10Y1001A1001A44P', 'SE1 BZ / MBA',                                 'Europe/Stockholm',
+    SE_2 =          '10Y1001A1001A45N', 'SE2 BZ / MBA',                                 'Europe/Stockholm',
+    SE_3 =          '10Y1001A1001A46L', 'SE3 BZ / MBA',                                 'Europe/Stockholm',
+    SE_4 =          '10Y1001A1001A47J', 'SE4 BZ / MBA',                                 'Europe/Stockholm',
+    RS =            '10YCS-SERBIATSOV', 'Serbia, EMS BZ / CA / MBA',                    'Europe/Belgrade',
+    SK =            '10YSK-SEPS-----K', 'Slovakia, SEPS BZ / CA / MBA',                 'Europe/Bratislava',
+    SI =            '10YSI-ELES-----O', 'Slovenia, ELES BZ / CA / MBA',                 'Europe/Ljubljana',
+    GB_NIR =        '10Y1001A1001A016', 'Northern Ireland, SONI CA',                    'Europe/Belfast',
+    ES =            '10YES-REE------0', 'Spain, REE BZ / CA / MBA',                     'Europe/Madrid',
+    SE =            '10YSE-1--------K', 'Sweden, Sweden MBA, SvK CA',                   'Europe/Stockholm',
+    CH =            '10YCH-SWISSGRIDZ', 'Switzerland, Swissgrid BZ / CA / MBA',         'Europe/Zurich',
+    DE_TENNET =     '10YDE-EON------1', 'TenneT GER CA',                                'Europe/Berlin',
+    DE_TRANSNET =   '10YDE-ENBW-----N', 'TransnetBW CA',                                'Europe/Berlin',
+    TR =            '10YTR-TEIAS----W', 'Turkey BZ / CA / MBA',                         'Europe/Istanbul',
+    UA =            '10Y1001C--00003F', 'Ukraine, Ukraine BZ, MBA',                     'Europe/Kiev',
+    UA_DOBTPP =     '10Y1001A1001A869', 'Ukraine-DobTPP CTA',                           'Europe/Kiev',
+    UA_BEI =        '10YUA-WEPS-----0', 'Ukraine BEI CTA',                              'Europe/Kiev',
+    UA_IPS =        '10Y1001C--000182', 'Ukraine IPS CTA',                              'Europe/Kiev'
+
 
 PSRTYPE_MAPPINGS = {
     'A03': 'Mixed',

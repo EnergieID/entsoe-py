@@ -1,11 +1,14 @@
+import zipfile
+from io import BytesIO
+
 import bs4
 import pandas as pd
-from io import BytesIO
-import zipfile
+
 from .mappings import PSRTYPE_MAPPINGS, DOCSTATUS, BSNTYPE, Area
 
 GENERATION_ELEMENT = "inBiddingZone_Domain.mRID"
 CONSUMPTION_ELEMENT = "outBiddingZone_Domain.mRID"
+
 
 def _extract_timeseries(xml_text):
     """
@@ -95,6 +98,7 @@ def parse_generation(xml_text):
     df = pd.DataFrame.from_dict(all_series)
     return df
 
+
 def parse_generation_per_plant(xml_text):
     """
     Parameters
@@ -126,6 +130,7 @@ def parse_generation_per_plant(xml_text):
     df = pd.DataFrame.from_dict(all_series)
     return df
 
+
 def parse_installed_capacity_per_plant(xml_text):
     """
     Parameters
@@ -153,8 +158,9 @@ def parse_installed_capacity_per_plant(xml_text):
 
     df = pd.DataFrame.from_dict(all_series).T
     df['Production Type'] = df['Production Type'].map(PSRTYPE_MAPPINGS)
-#    df['Status'] = df['Status'].map(BSNTYPE)
+    #    df['Status'] = df['Status'].map(BSNTYPE)
     return df
+
 
 def parse_crossborder_flows(xml_text):
     """
@@ -187,7 +193,7 @@ def parse_imbalance_prices(xml_text):
     frames = (_parse_imbalance_prices_timeseries(soup)
               for soup in timeseries_blocks)
     df = pd.concat(frames, axis=1)
-    df = df.stack().unstack() # ad-hoc fix to prevent column splitting by NaNs
+    df = df.stack().unstack()  # ad-hoc fix to prevent column splitting by NaNs
     df.sort_index(inplace=True)
     return df
 
@@ -207,10 +213,10 @@ def parse_contracted_reserve(xml_text, tz, label):
     timeseries_blocks = _extract_timeseries(xml_text)
     frames = (_parse_contracted_reserve_series(soup, tz, label)
               for soup in timeseries_blocks)
-    df = pd.concat(frames, axis = 1)
+    df = pd.concat(frames, axis=1)
     # df = df.stack().unstack() # ad-hoc fix to prevent column splitting by NaNs
-    df = df.groupby(by = df.columns, axis = 1).mean()
-    df.sort_index(inplace = True)
+    df = df.groupby(by=df.columns, axis=1).mean()
+    df.sort_index(inplace=True)
     return df
 
 
@@ -232,10 +238,10 @@ def _parse_contracted_reserve_series(soup, tz, label):
         positions.append(int(point.find('position').text))
         prices.append(float(point.find(label).text))
 
-    df = pd.DataFrame(data = {'position': positions,
+    df = pd.DataFrame(data={'position': positions,
                             label: prices})
     df = df.set_index(['position'])
-    df.sort_index(inplace = True)
+    df.sort_index(inplace=True)
     index = _parse_datetimeindex(soup, tz)
     if len(index) > len(df.index):
         print("Shortening index")
@@ -247,13 +253,13 @@ def _parse_contracted_reserve_series(soup, tz, label):
     df.columns.name = None
     direction_dico = {'A01': 'Up',
                       'A02': 'Down',
-                      'A03' : 'Symmetric'}
+                      'A03': 'Symmetric'}
 
     reserve_type = BSNTYPE[soup.find("businesstype").text]
     direction = direction_dico[soup.find("flowdirection.direction").text]
 
-    df.rename(columns = {label: "%s - %s" % (reserve_type, direction)},
-              inplace = True)
+    df.rename(columns={label: "%s - %s" % (reserve_type, direction)},
+              inplace=True)
     return df
 
 
@@ -287,7 +293,7 @@ def _parse_imbalance_prices_timeseries(soup):
     df.index.name = None
     df.columns.name = None
     df.rename(columns={'A04': 'Long', 'A05': 'Short',
-                       'None' : 'Price for Consumption'}, inplace=True)
+                       'None': 'Price for Consumption'}, inplace=True)
 
     return df
 
@@ -355,7 +361,8 @@ def _parse_generation_forecast_timeseries(soup):
         positions.append(int(point.find('position').text))
         quantity = point.find('quantity')
         if quantity is None:
-            raise LookupError(f'No quantity found in this point, it should have one: {point}')
+            raise LookupError(
+                f'No quantity found in this point, it should have one: {point}')
         quantities.append(float(quantity.text))
 
     series = pd.Series(index=positions, data=quantities)
@@ -371,6 +378,7 @@ def _parse_generation_forecast_timeseries(soup):
         series = -series
 
     return series
+
 
 def _parse_generation_forecast_timeseries_per_plant(soup):
     """
@@ -403,6 +411,7 @@ def _parse_generation_forecast_timeseries_per_plant(soup):
 
     return series
 
+
 def _parse_installed_capacity_per_plant(soup):
     """
     Parameters
@@ -413,7 +422,7 @@ def _parse_installed_capacity_per_plant(soup):
     -------
     pd.Series
     """
-    extract_vals = {'Name':'registeredresource.name',
+    extract_vals = {'Name': 'registeredresource.name',
                     'Production Type': 'psrtype',
                     'Bidding Zone': 'inbiddingzone_domain.mrid',
                     # 'Status': 'businesstype',
@@ -421,7 +430,7 @@ def _parse_installed_capacity_per_plant(soup):
                         'voltage_powersystemresources.highvoltagelimit'}
     series = pd.Series(extract_vals).apply(lambda v: soup.find(v).text)
 
-    #extract only first point
+    # extract only first point
     series['Installed Capacity [MW]'] = \
         soup.find_all('point')[0].find('quantity').text
 
@@ -430,7 +439,7 @@ def _parse_installed_capacity_per_plant(soup):
     return series
 
 
-def _parse_datetimeindex(soup, tz = None):
+def _parse_datetimeindex(soup, tz=None):
     """
     Create a datetimeindex from a parsed beautifulsoup,
     given that it contains the elements 'start', 'end'
@@ -454,7 +463,7 @@ def _parse_datetimeindex(soup, tz = None):
     delta = _resolution_to_timedelta(res_text=soup.find('resolution').text)
     index = pd.date_range(start=start, end=end, freq=delta, closed='left')
     if tz is not None:
-        dst_jump = len(set(index.map(lambda d:d.dst()))) > 1
+        dst_jump = len(set(index.map(lambda d: d.dst()))) > 1
         if dst_jump and delta == "7D":
             # For a weekly granularity, if we jump over the DST date in October,
             # date_range erronously returns an additional index element
@@ -534,20 +543,21 @@ HEADERS_UNAVAIL_GEN = ['created_doc_time',
 
 
 def _unavailability_gen_ts(soup: bs4.BeautifulSoup) -> list:
-    '''
+    """
     Parser for generation unavailibility time-series
     Parameters
     ----------
     soup : bs4.element.tag
-    tz: str
+    tz : str
 
     Returns
     -------
     list
-    '''
+    """
 
     # Avoid attribute errors when some of the fields are void:
-    get_attr = lambda attr: "" if soup.find(attr) is None else soup.find(attr).text
+    get_attr = lambda attr: "" if soup.find(attr) is None else soup.find(
+        attr).text
     # When no nominal power is given, give default numeric value of 0:
     get_float = lambda val: float('NaN') if val == "" else float(val)
 
@@ -560,38 +570,42 @@ def _unavailability_gen_ts(soup: bs4.BeautifulSoup) -> list:
          get_attr('production_registeredresource.location.name'),
          PSRTYPE_MAPPINGS.get(get_attr(
              'production_registeredresource.psrtype.psrtype'), ""),
-         get_float(get_attr('production_registeredresource.psrtype.powersystemresources.nominalp'))]
+         get_float(get_attr(
+             'production_registeredresource.psrtype.powersystemresources.nominalp'))]
     return [f + p for p in _available_period(soup)]
 
+
 HEADERS_UNAVAIL_TRANSM = ['created_doc_time',
-                   'docstatus',
-                   'businesstype',
-                   'in_domain',
-                   'out_domain',
-                   'qty_uom',
-                   'curvetype',
-                   'start',
-                   'end',
-                   'resolution',
-                   'pstn',
-                   'avail_qty'
-                   ]
+                          'docstatus',
+                          'businesstype',
+                          'in_domain',
+                          'out_domain',
+                          'qty_uom',
+                          'curvetype',
+                          'start',
+                          'end',
+                          'resolution',
+                          'pstn',
+                          'avail_qty'
+                          ]
 
 
 def _unavailability_tm_ts(soup: bs4.BeautifulSoup) -> list:
-    '''
+    """
     Parser for transmission unavailibility time-series
+
     Parameters
     ----------
     soup : bs4.element.tag
-    tz: str
+    tz : str
 
     Returns
     -------
     list
-    '''
+    """
     # Avoid attribute errors when some of the fields are void:
-    get_attr = lambda attr: "" if soup.find(attr) is None else soup.find(attr).text
+    get_attr = lambda attr: "" if soup.find(attr) is None else soup.find(
+        attr).text
     # When no nominal power is given, give default numeric value of 0:
 
     f = [BSNTYPE[get_attr('businesstype')],
@@ -603,10 +617,9 @@ def _unavailability_tm_ts(soup: bs4.BeautifulSoup) -> list:
     return [f + p for p in _available_period(soup)]
 
 
-_UNAVAIL_PARSE_CFG = {}
-_UNAVAIL_PARSE_CFG['A77'] = (HEADERS_UNAVAIL_GEN, _unavailability_gen_ts)
-_UNAVAIL_PARSE_CFG['A78'] = (HEADERS_UNAVAIL_TRANSM, _unavailability_tm_ts)
-_UNAVAIL_PARSE_CFG['A80'] = (HEADERS_UNAVAIL_GEN, _unavailability_gen_ts)
+_UNAVAIL_PARSE_CFG = {'A77': (HEADERS_UNAVAIL_GEN, _unavailability_gen_ts),
+                      'A78': (HEADERS_UNAVAIL_TRANSM, _unavailability_tm_ts),
+                      'A80': (HEADERS_UNAVAIL_GEN, _unavailability_gen_ts)}
 
 
 def parse_unavailabilities(response: bytes, doctype: str) -> pd.DataFrame:
@@ -623,9 +636,9 @@ def parse_unavailabilities(response: bytes, doctype: str) -> pd.DataFrame:
             if f.filename.endswith('xml'):
                 frame = _outage_parser(arc.read(f), headers, ts_func)
                 dfs.append(frame)
-    df = pd.concat(dfs, axis = 0)
-    df.set_index('created_doc_time', inplace = True)
-    df.sort_index(inplace = True)
+    df = pd.concat(dfs, axis=0)
+    df.set_index('created_doc_time', inplace=True)
+    df.sort_index(inplace=True)
     return df
 
 
@@ -633,7 +646,8 @@ def _available_period(timeseries: bs4.BeautifulSoup) -> list:
     # if not timeseries:
     #    return
     for period in timeseries.find_all('available_period'):
-        start, end = pd.Timestamp(period.timeinterval.start.text), pd.Timestamp(period.timeinterval.end.text)
+        start, end = pd.Timestamp(period.timeinterval.start.text), pd.Timestamp(
+            period.timeinterval.end.text)
         res = period.resolution.text
         pstn, qty = period.point.position.text, period.point.quantity.text
         yield [start, end, res, pstn, qty]
@@ -658,5 +672,5 @@ def _outage_parser(xml_file: bytes, headers, ts_func) -> pd.DataFrame:
         row = [creation_date, docstatus]
         for t in ts_func(ts):
             d.append(row + t)
-    df = pd.DataFrame.from_records(d, columns = headers)
+    df = pd.DataFrame.from_records(d, columns=headers)
     return df

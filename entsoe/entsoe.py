@@ -64,7 +64,7 @@ class EntsoeRawClient:
     def __init__(
             self, api_key: str, session: Optional[requests.Session] = None,
             retry_count: int = 1, retry_delay: int = 0,
-            proxies: Optional[Dict] = None):
+            proxies: Optional[Dict] = None, timeout: Optional[int] = None):
         """
         Parameters
         ----------
@@ -76,6 +76,7 @@ class EntsoeRawClient:
             amount of seconds to wait between retries
         proxies : dict
             requests proxies
+        timeout : int
         """
         if api_key is None:
             raise TypeError("API key cannot be None")
@@ -86,6 +87,7 @@ class EntsoeRawClient:
         self.proxies = proxies
         self.retry_count = retry_count
         self.retry_delay = retry_delay
+        self.timeout = timeout
 
     @retry
     def _base_request(self, params: Dict, start: pd.Timestamp,
@@ -113,7 +115,7 @@ class EntsoeRawClient:
 
         logging.debug(f'Performing request to {URL} with params {params}')
         response = self.session.get(url=URL, params=params,
-                                    proxies=self.proxies)
+                                    proxies=self.proxies, timeout=self.timeout)
         try:
             response.raise_for_status()
         except requests.HTTPError as e:

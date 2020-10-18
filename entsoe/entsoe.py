@@ -826,7 +826,7 @@ def year_limited(func):
             try:
                 frame = func(*args, start=_start, end=_end, **kwargs)
             except NoMatchingDataError:
-                print(f"NoMatchingDataError: between {_start} and {_end}")
+                logging.debug(f"NoMatchingDataError: between {_start} and {_end}")
                 frame = None
             frames.append(frame)
 

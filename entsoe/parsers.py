@@ -1,5 +1,6 @@
 import zipfile
 from io import BytesIO
+from typing import Union
 
 import bs4
 import pandas as pd
@@ -61,74 +62,78 @@ def parse_loads(xml_text):
     return series
 
 
-def parse_generation(xml_text):
+def parse_generation(
+        xml_text: str,
+        per_plant: bool = False,
+        nett: bool = False) -> Union[pd.DataFrame, pd.Series]:
     """
     Parameters
     ----------
     xml_text : str
+    per_plant : bool
+        Decide if you need the parser that can extract plant info as well.
+    nett : bool
+        If you want to condense generation and consumption of a plant into a
+        nett number
 
     Returns
     -------
-    pd.DataFrame
+    pd.DataFrame | pd.Series
     """
-    all_series = {}
+    all_series = dict()
     for soup in _extract_timeseries(xml_text):
-        ts = _parse_generation_forecast_timeseries(soup)
+        ts = _parse_generation_timeseries(soup, per_plant=per_plant)
+
+        # check if we already have a series of this name
         series = all_series.get(ts.name)
         if series is None:
+            # If not, we just save ts
             all_series[ts.name] = ts
         else:
-            if (series.name == ts.name) & series.index.equals(ts.index):
-                # For some production means the generation and consumption (e.g.
-                # Pumped Storage, wind) are returned separately, with the same
-                # index. The correct sign is ensured in the method
-                # _parse_generation_forecast_timeseries.
-                # Here we simply sum up the series to obtain the net generation,
-                # i.e. generation - consumption.
-                series = series + ts
-            else:
-                series = series.append(ts)
-                series.sort_index()
+            # If yes, we append to it
+            series = series.append(ts)
+            series.sort_index(inplace=True)
             all_series[series.name] = series
 
+    # drop duplicates in all series
     for name in all_series:
         ts = all_series[name]
         all_series[name] = ts[~ts.index.duplicated(keep='first')]
 
     df = pd.DataFrame.from_dict(all_series)
     df.sort_index(inplace=True)
+
+    df = _calc_nett_and_drop_redundant_columns(df, nett=nett)
     return df
 
 
-def parse_generation_per_plant(xml_text):
-    """
-    Parameters
-    ----------
-    xml_text : str
+def _calc_nett_and_drop_redundant_columns(
+        df: pd.DataFrame, nett: bool) -> pd.DataFrame:
+    def _calc_nett(_df):
+        try:
+            _new = _df['Actual Aggregated'].fillna(0) - _df[
+                'Actual Consumption'].fillna(0)
+        except KeyError:
+            _new = _df['Actual Aggregated']
+        return _new
 
-    Returns
-    -------
-    pd.DataFrame
-    """
-    all_series = {}
-    for soup in _extract_timeseries(xml_text):
-        ts = _parse_generation_forecast_timeseries_per_plant(soup)
-        series = all_series.get(ts.name)
-        if series is None:
-            all_series[ts.name] = ts
-        else:
-            if (series.name == ts.name) & series.index.equals(ts.index):
-                series = series + ts
-            else:
-                series = series.append(ts)
-                series.sort_index()
-            all_series[series.name] = series
+    if hasattr(df.columns, 'levels'):
+        if len(df.columns.levels[-1]) == 1:
+            # Drop the extra header, if it is redundant
+            df = df.droplevel(axis=1, level=-1)
+        elif nett:
+            frames = []
+            for column in df.columns.levels[-2]:
+                new = _calc_nett(df[column])
+                new.name = column
+                frames.append(new)
+            df = pd.concat(frames, axis=1)
+    else:
+        if nett:
+            df = _calc_nett(df)
+        elif len(df.columns) == 1:
+            df = df.squeeze()
 
-    for name in all_series:
-        ts = all_series[name]
-        all_series[name] = ts[~ts.index.duplicated(keep='first')]
-
-    df = pd.DataFrame.from_dict(all_series)
     return df
 
 
@@ -368,8 +373,11 @@ def _parse_load_timeseries(soup):
     return series
 
 
-def _parse_generation_forecast_timeseries(soup):
+def _parse_generation_timeseries(soup, per_plant: bool = False) -> pd.Series:
     """
+    Works for generation by type, generation forecast, and wind and solar
+    forecast
+
     Parameters
     ----------
     soup : bs4.element.tag
@@ -378,7 +386,6 @@ def _parse_generation_forecast_timeseries(soup):
     -------
     pd.Series
     """
-    psrtype = soup.find('psrtype').text
     positions = []
     quantities = []
     for point in soup.find_all('point'):
@@ -393,45 +400,40 @@ def _parse_generation_forecast_timeseries(soup):
     series = series.sort_index()
     series.index = _parse_datetimeindex(soup)
 
-    series.name = PSRTYPE_MAPPINGS[psrtype]
+    # Check if there is a psrtype, if so, get it.
+    _psrtype = soup.find('psrtype')
+    if _psrtype is not None:
+        psrtype = _psrtype.text
+    else:
+        psrtype = None
+
+    # Check if the Direction is IN or OUT
+    # If IN, this means Actual Consumption is measured
+    # If OUT, this means Consumption is measured.
+    # OUT means Consumption of a generation plant, eg. charging a pumped hydro plant
     if soup.find(CONSUMPTION_ELEMENT.lower()):
-        # https://entsoe.zendesk.com/hc/en-us/articles/115005485123-Resful-API-How-to-differentiate-TimeSeries-for-Scheduled-Generation-from-Scheduled-Consumption-
-        # For Consumption, we should find the entry "outBiddingZone_Domain.mRID".
-        # This allows to distinguish Hydro Pumped Storage Generation and
-        # Hydro Pumped Storage Load from each other and avoid non-unique index errors.
-        series = -series
+        metric = 'Actual Consumption'
+    else:
+        metric = 'Actual Aggregated'
 
-    return series
+    name = [metric]
 
+    # Set both psrtype and metric as names of the series
+    if psrtype:
+        psrtype_name = PSRTYPE_MAPPINGS[psrtype]
+        name.append(psrtype_name)
 
-def _parse_generation_forecast_timeseries_per_plant(soup):
-    """
-    Parameters
-    ----------
-    soup : bs4.element.tag
+    if per_plant:
+        plantname = soup.find('name').text
+        name.append(plantname)
 
-    Returns
-    -------
-    pd.Series
-    """
-    plantname = soup.find('name').text
-    positions = []
-    quantities = []
-    for point in soup.find_all('point'):
-        positions.append(int(point.find('position').text))
-        quantities.append(float(point.find('quantity').text))
-
-    series = pd.Series(index=positions, data=quantities)
-    series = series.sort_index()
-    series.index = _parse_datetimeindex(soup)
-
-    series.name = plantname
-    if soup.find(CONSUMPTION_ELEMENT.lower()):
-        # https://entsoe.zendesk.com/hc/en-us/articles/115005485123-Resful-API-How-to-differentiate-TimeSeries-for-Scheduled-Generation-from-Scheduled-Consumption-
-        # For Consumption, we should find the entry "outBiddingZone_Domain.mRID".
-        # This allows to distinguish Hydro Pumped Storage Generation and
-        # Hydro Pumped Storage Load from each other and avoid non-unique index errors.
-        series = -series
+    if len(name) == 1:
+        series.name = name[0]
+    else:
+        # We give the series multiple names in a tuple
+        # This will result in a multi-index upon concatenation
+        name.reverse()
+        series.name = tuple(name)
 
     return series
 

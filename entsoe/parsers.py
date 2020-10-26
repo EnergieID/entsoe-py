@@ -206,7 +206,7 @@ def parse_contracted_reserve(xml_text, tz, label):
     xml_text : str
     tz: str
     label: str
-    
+
     Returns
     -------
     pd.DataFrame
@@ -530,6 +530,7 @@ def _resolution_to_timedelta(res_text: str) -> str:
         'P1Y': '12M',
         'PT15M': '15min',
         'PT30M': '30min',
+        'P1D': '1D',
         'P7D': '7D',
         'P1M': '1M',
     }

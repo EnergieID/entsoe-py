@@ -16,12 +16,11 @@ from .exceptions import NoMatchingDataError, PaginationError
 from .mappings import Area, NEIGHBOURS, lookup_area
 from .misc import year_blocks, day_blocks
 from .parsers import parse_prices, parse_loads, parse_generation, \
-    parse_generation_per_plant, parse_installed_capacity_per_plant, \
-    parse_crossborder_flows, parse_unavailabilities, \
-    parse_contracted_reserve, parse_imbalance_prices_zip
+    parse_installed_capacity_per_plant, parse_crossborder_flows, \
+    parse_unavailabilities, parse_contracted_reserve, parse_imbalance_prices_zip
 
 __title__ = "entsoe-py"
-__version__ = "0.3.0"
+__version__ = "0.3.2"
 __author__ = "EnergieID.be"
 __license__ = "MIT"
 
@@ -950,7 +949,8 @@ class EntsoePandasClient(EntsoeRawClient):
     @year_limited
     def query_generation_forecast(
             self, country_code: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp, process_type: str = 'A01') -> pd.Series:
+            end: pd.Timestamp, process_type: str = 'A01',
+            nett: bool = False) -> Union[pd.DataFrame, pd.Series]:
         """
         Parameters
         ----------
@@ -958,18 +958,20 @@ class EntsoePandasClient(EntsoeRawClient):
         start : pd.Timestamp
         end : pd.Timestamp
         process_type : str
+        nett : bool
+            condense generation and consumption into a nett number
 
         Returns
         -------
-        pd.Series
+        pd.DataFrame | pd.Series
         """
         area = lookup_area(country_code)
         text = super(EntsoePandasClient, self).query_generation_forecast(
             country_code=area, start=start, end=end, process_type=process_type)
-        series = parse_loads(text)
-        series = series.tz_convert(area.tz)
-        series = series.truncate(before=start, after=end)
-        return series
+        df = parse_generation(text, nett=nett)
+        df = df.tz_convert(area.tz)
+        df = df.truncate(before=start, after=end)
+        return df
 
     @year_limited
     def query_wind_and_solar_forecast(
@@ -994,7 +996,7 @@ class EntsoePandasClient(EntsoeRawClient):
         text = super(EntsoePandasClient, self).query_wind_and_solar_forecast(
             country_code=area, start=start, end=end, psr_type=psr_type,
             process_type=process_type)
-        df = parse_generation(text)
+        df = parse_generation(text, nett=True)
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df
@@ -1003,7 +1005,7 @@ class EntsoePandasClient(EntsoeRawClient):
     def query_generation(
             self, country_code: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp, psr_type: Optional[str] = None,
-            **kwargs) -> pd.DataFrame:
+            nett: bool = False, **kwargs) -> pd.DataFrame:
         """
         Parameters
         ----------
@@ -1012,6 +1014,8 @@ class EntsoePandasClient(EntsoeRawClient):
         end : pd.Timestamp
         psr_type : str
             filter on a single psr type
+        nett : bool
+            condense generation and consumption into a nett number
 
         Returns
         -------
@@ -1020,7 +1024,7 @@ class EntsoePandasClient(EntsoeRawClient):
         area = lookup_area(country_code)
         text = super(EntsoePandasClient, self).query_generation(
             country_code=area, start=start, end=end, psr_type=psr_type)
-        df = parse_generation(text)
+        df = parse_generation(text, nett=nett)
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df
@@ -1493,7 +1497,7 @@ class EntsoePandasClient(EntsoeRawClient):
     def query_generation_per_plant(
             self, country_code: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp, psr_type: Optional[str] = None,
-            **kwargs) -> pd.DataFrame:
+            nett: bool = False, **kwargs) -> pd.DataFrame:
         """
         Parameters
         ----------
@@ -1502,6 +1506,8 @@ class EntsoePandasClient(EntsoeRawClient):
         end : pd.Timestamp
         psr_type : str
             filter on a single psr type
+        nett : bool
+            condense generation and consumption into a nett number
 
         Returns
         -------
@@ -1510,7 +1516,7 @@ class EntsoePandasClient(EntsoeRawClient):
         area = lookup_area(country_code)
         text = super(EntsoePandasClient, self).query_generation_per_plant(
             country_code=area, start=start, end=end, psr_type=psr_type)
-        df = parse_generation_per_plant(text)
+        df = parse_generation(text, per_plant=True)
         df = df.tz_convert(area.tz)
         # Truncation will fail if data is not sorted along the index in rare
         # cases. Ensure the dataframe is sorted:

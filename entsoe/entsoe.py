@@ -8,6 +8,7 @@ import pandas as pd
 from pandas.tseries.offsets import YearBegin, YearEnd
 import pytz
 import requests
+import requests_cache
 from bs4 import BeautifulSoup
 
 from entsoe.exceptions import InvalidPSRTypeError, InvalidBusinessParameterError
@@ -25,7 +26,6 @@ __author__ = "EnergieID.be"
 __license__ = "MIT"
 
 URL = 'https://transparency.entsoe.eu/api'
-
 
 def retry(func):
     """Catches connection errors, waits and retries"""
@@ -64,7 +64,8 @@ class EntsoeRawClient:
     def __init__(
             self, api_key: str, session: Optional[requests.Session] = None,
             retry_count: int = 1, retry_delay: int = 0,
-            proxies: Optional[Dict] = None, timeout: Optional[int] = None):
+            proxies: Optional[Dict] = None, timeout: Optional[int] = None,
+            cache_expire_after=0):
         """
         Parameters
         ----------
@@ -77,12 +78,17 @@ class EntsoeRawClient:
         proxies : dict
             requests proxies
         timeout : int
+        cache_expire_after: int
+            amount of seconds after cache expires (0 implies no cache)
         """
         if api_key is None:
             raise TypeError("API key cannot be None")
         self.api_key = api_key
         if session is None:
             session = requests.Session()
+        if cache_expire_after > 0:
+            requests_cache.install_cache(cache_name='entsoe-py_cache', backend='sqlite', expire_after=cache_expire_after)
+        self.cache_expire_after = cache_expire_after
         self.session = session
         self.proxies = proxies
         self.retry_count = retry_count
@@ -114,6 +120,8 @@ class EntsoeRawClient:
         params.update(base_params)
 
         logging.debug(f'Performing request to {URL} with params {params}')
+        if self.cache_expire_after > 0:
+            requests_cache.remove_expired_responses()
         response = self.session.get(url=URL, params=params,
                                     proxies=self.proxies, timeout=self.timeout)
         try:

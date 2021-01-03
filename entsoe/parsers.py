@@ -164,6 +164,7 @@ def parse_installed_capacity_per_plant(xml_text):
 
     df = pd.DataFrame.from_dict(all_series).T
     df['Production Type'] = df['Production Type'].map(PSRTYPE_MAPPINGS)
+    df['Name'] = df['Name'].str.encode('latin-1').str.decode('utf-8')
     #    df['Status'] = df['Status'].map(BSNTYPE)
     return df
 

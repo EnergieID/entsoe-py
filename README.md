@@ -114,7 +114,7 @@ DOMAIN_MAPPINGS = {
     'FI': '10YFI-1--------U',
     'FR': '10YFR-RTE------C',
     'GB': '10YGB----------A',
-    'GB-NIR': '10Y1001A1001A016',
+    'GB_NIR': '10Y1001A1001A016',
     'GR': '10YGR-HTSO-----Y',
     'HR': '10YHR-HEP------M',
     'HU': '10YHU-MAVIR----U',
@@ -134,13 +134,13 @@ DOMAIN_MAPPINGS = {
     'RO': '10YRO-TEL------P',
     'RS': '10YCS-SERBIATSOV',
     'RU': '10Y1001A1001A49F',
-    'RU-KGD': '10Y1001A1001A50U',
+    'RU_KGD': '10Y1001A1001A50U',
     'SE': '10YSE-1--------K',
     'SI': '10YSI-ELES-----O',
     'SK': '10YSK-SEPS-----K',
     'TR': '10YTR-TEIAS----W',
     'UA': '10YUA-WEPS-----0',
-    'DE-AT-LU': '10Y1001A1001A63L',
+    'DE_AT_LU': '10Y1001A1001A63L',
 }
 ```
 ### Bidding Zones
@@ -149,27 +149,27 @@ BIDDING_ZONES = DOMAIN_MAPPINGS.copy()
 BIDDING_ZONES.update({
     'DE': '10Y1001A1001A63L',  # DE-AT-LU
     'LU': '10Y1001A1001A63L',  # DE-AT-LU
-    'IT-NORD': '10Y1001A1001A73I',
-    'IT-CNOR': '10Y1001A1001A70O',
-    'IT-CSUD': '10Y1001A1001A71M',
-    'IT-SUD': '10Y1001A1001A788',
-    'IT-FOGN': '10Y1001A1001A72K',
-    'IT-ROSN': '10Y1001A1001A77A',
-    'IT-BRNN': '10Y1001A1001A699',
-    'IT-PRGP': '10Y1001A1001A76C',
-    'IT-SARD': '10Y1001A1001A74G',
-    'IT-SICI': '10Y1001A1001A75E',
-    'NO-1': '10YNO-1--------2',
-    'NO-2': '10YNO-2--------T',
-    'NO-3': '10YNO-3--------J',
-    'NO-4': '10YNO-4--------9',
-    'NO-5': '10Y1001A1001A48H',
-    'SE-1': '10Y1001A1001A44P',
-    'SE-2': '10Y1001A1001A45N',
-    'SE-3': '10Y1001A1001A46L',
-    'SE-4': '10Y1001A1001A47J',
-    'DK-1': '10YDK-1--------W',
-    'DK-2': '10YDK-2--------M'
+    'IT_NORD': '10Y1001A1001A73I',
+    'IT_CNOR': '10Y1001A1001A70O',
+    'IT_CSUD': '10Y1001A1001A71M',
+    'IT_SUD': '10Y1001A1001A788',
+    'IT_FOGN': '10Y1001A1001A72K',
+    'IT_ROSN': '10Y1001A1001A77A',
+    'IT_BRNN': '10Y1001A1001A699',
+    'IT_PRGP': '10Y1001A1001A76C',
+    'IT_SARD': '10Y1001A1001A74G',
+    'IT_SICI': '10Y1001A1001A75E',
+    'NO_1': '10YNO-1--------2',
+    'NO_2': '10YNO-2--------T',
+    'NO_3': '10YNO-3--------J',
+    'NO_4': '10YNO-4--------9',
+    'NO_5': '10Y1001A1001A48H',
+    'SE_1': '10Y1001A1001A44P',
+    'SE_2': '10Y1001A1001A45N',
+    'SE_3': '10Y1001A1001A46L',
+    'SE_4': '10Y1001A1001A47J',
+    'DK_1': '10YDK-1--------W',
+    'DK_2': '10YDK-2--------M'
 })
 ```
 #### PSR-type

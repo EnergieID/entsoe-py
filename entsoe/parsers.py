@@ -121,7 +121,8 @@ def _calc_nett_and_drop_redundant_columns(
                 _new = -_df['Actual Consumption'].fillna(0)    
             
         except KeyError:
-            print ('Netting aggregated and consumption not possible. Column not found')
+            print ('Netting production and consumption not possible. Column not found')
+        return _new
 
     if hasattr(df.columns, 'levels'):
         if len(df.columns.levels[-1]) == 1:

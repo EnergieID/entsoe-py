@@ -111,11 +111,17 @@ def _calc_nett_and_drop_redundant_columns(
         df: pd.DataFrame, nett: bool) -> pd.DataFrame:
     def _calc_nett(_df):
         try:
-            _new = _df['Actual Aggregated'].fillna(0) - _df[
-                'Actual Consumption'].fillna(0)
+            if set(['Actual Aggregated']).issubset(_df):
+                if set(['Actual Consumption']).issubset(_df):
+                    _new = _df['Actual Aggregated'].fillna(0) - _df[
+                        'Actual Consumption'].fillna(0)
+                else:
+                    _new = _df['Actual Aggregated'].fillna(0)
+            else:
+                _new = -_df['Actual Consumption'].fillna(0)    
+            
         except KeyError:
-            _new = _df['Actual Aggregated']
-        return _new
+            print ('Netting aggregated and consumption not possible. Column not found')
 
     if hasattr(df.columns, 'levels'):
         if len(df.columns.levels[-1]) == 1:

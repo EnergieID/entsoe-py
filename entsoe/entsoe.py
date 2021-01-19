@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 import logging
 
 from .exceptions import NoMatchingDataError, PaginationError
-from .mappings import DOMAIN_MAPPINGS, BIDDING_ZONES, TIMEZONE_MAPPINGS, NEIGHBOURS
+from .mappings import DOMAIN_MAPPINGS, BIDDING_ZONES, CONTROL_AREAS, TIMEZONE_MAPPINGS, NEIGHBOURS
 from .misc import year_blocks, day_blocks
 from .parsers import parse_prices, parse_loads, parse_generation, \
     parse_generation_per_plant, parse_installed_capacity_per_plant, \
@@ -161,7 +161,7 @@ class EntsoeRawClient:
         -------
         str
         """
-        domain = BIDDING_ZONES[country_code]
+        domain = ALL_AREA_LOOKUP[country_code]
         params = {
             'documentType': 'A44',
             'in_Domain': domain,
@@ -182,7 +182,7 @@ class EntsoeRawClient:
         -------
         str
         """
-        domain = BIDDING_ZONES[country_code]
+        domain = ALL_AREA_LOOKUP[country_code]
         params = {
             'documentType': 'A65',
             'processType': 'A16',
@@ -203,7 +203,7 @@ class EntsoeRawClient:
         -------
         str
         """
-        domain = BIDDING_ZONES[country_code]
+        domain = ALL_AREA_LOOKUP[country_code]
         params = {
             'documentType': 'A65',
             'processType': process_type,
@@ -225,7 +225,7 @@ class EntsoeRawClient:
         -------
         str
         """
-        domain = BIDDING_ZONES[country_code]
+        domain = ALL_AREA_LOOKUP[country_code]
         params = {
             'documentType': 'A71',
             'processType': process_type,
@@ -254,7 +254,7 @@ class EntsoeRawClient:
         if not lookup_bzones:
             domain = DOMAIN_MAPPINGS[country_code]
         else:
-            domain = BIDDING_ZONES[country_code]
+            domain = ALL_AREA_LOOKUP[country_code]
 
         params = {
             'documentType': 'A69',
@@ -286,7 +286,7 @@ class EntsoeRawClient:
         if not lookup_bzones:
             domain = DOMAIN_MAPPINGS[country_code]
         else:
-            domain = BIDDING_ZONES[country_code]
+            domain = ALL_AREA_LOOKUP[country_code]
 
         params = {
             'documentType': 'A75',
@@ -318,7 +318,7 @@ class EntsoeRawClient:
         if not lookup_bzones:
             domain = DOMAIN_MAPPINGS[country_code]
         else:
-            domain = BIDDING_ZONES[country_code]
+            domain = ALL_AREA_LOOKUP[country_code]
 
         params = {
             'documentType': 'A73',
@@ -458,8 +458,8 @@ class EntsoeRawClient:
             domain_in = DOMAIN_MAPPINGS[country_code_to]
             domain_out = DOMAIN_MAPPINGS[country_code_from]
         else:
-            domain_in = BIDDING_ZONES[country_code_to]
-            domain_out = BIDDING_ZONES[country_code_from]
+            domain_in = ALL_AREA_LOOKUP[country_code_to]
+            domain_out = ALL_AREA_LOOKUP[country_code_from]
 
         params = {
             'documentType': doctype,
@@ -513,7 +513,7 @@ class EntsoeRawClient:
         -------
         str
         """
-        domain = BIDDING_ZONES[country_code]
+        domain = ALL_AREA_LOOKUP[country_code]
         params = {
             'documentType': 'A89',
             'controlArea_Domain': domain,
@@ -541,7 +541,7 @@ class EntsoeRawClient:
         -------
         str
         """
-        domain = BIDDING_ZONES[country_code]
+        domain = ALL_AREA_LOOKUP[country_code]
         params = {
             'documentType': 'A81',
             'controlArea_Domain': domain,
@@ -574,7 +574,7 @@ class EntsoeRawClient:
         -------
         bytes
         """
-        domain = BIDDING_ZONES[country_code]
+        domain = ALL_AREA_LOOKUP[country_code]
         params = {
             'documentType': doctype,
             'biddingZone_domain': domain
@@ -675,8 +675,8 @@ class EntsoeRawClient:
             domain_in = DOMAIN_MAPPINGS[country_code_to]
             domain_out = DOMAIN_MAPPINGS[country_code_from]
         else:
-            domain_in = BIDDING_ZONES[country_code_to]
-            domain_out = BIDDING_ZONES[country_code_from]
+            domain_in = ALL_AREA_LOOKUP[country_code_to]
+            domain_out = ALL_AREA_LOOKUP[country_code_from]
 
         params = {
             'documentType': "A78",
@@ -906,7 +906,8 @@ class EntsoePandasClient(EntsoeRawClient):
             country_code=country_code, start=start, end=end, psr_type=psr_type,
             lookup_bzones=lookup_bzones)
         df = parse_generation(text)
-        df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
+        if country_code in TIMEZONE_MAPPINGS.keys():
+            df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
         df = df.truncate(before=start, after=end)
         return df
 

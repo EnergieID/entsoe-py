@@ -41,8 +41,51 @@ DOMAIN_MAPPINGS = {
     'TR': '10YTR-TEIAS----W',
     'UA': '10YUA-WEPS-----0',
     'DE-AT-LU': '10Y1001A1001A63L',
-    'DE-LU': '10Y1001A1001A82H'
+    'DE-LU': '10Y1001A1001A82H',
+    'TenneT NL CA': '10YNL----------L'
 }
+
+CONTROL_AREAS = DOMAIN_MAPPINGS.copy()
+CONTROL_AREAS.update({
+    'SONI CA': '10Y1001A1001A016',
+    'Elering CA': '10Y1001A1001A39I',
+    'Energinet CA': '10Y1001A1001A796',
+    'GSE CA': '10Y1001A1001B012',
+    'OST CA': '10YAL-KESH-----5',
+    'APG CA': '10YAT-APG------L',
+    'NOS BiH CA': '10YBA-JPCC-----D',
+    'Elia CA': '10YBE----------2',
+    'ESO CA': '10YCA-BULGARIA-R',
+    'swissgrid CA': '10YCH-SWISSGRIDZ',
+    'CGES CA': '10YCS-CG-TSO---S',
+    'EMS CA': '10YCS-SERBIATSOV',
+    'Cyprus TSO CA': '10YCY-1001A0003J',
+    'CEPS CA': '10YCZ-CEPS-----N',
+    'TransnetBW CA': '10YDE-ENBW-----N',
+    'TenneT GER CA': '10YDE-EON------1',
+    'Amprion CA': '10YDE-RWENET---I',
+    '50Hertz CA': '10YDE-VE-------2',
+    'REE CA': '10YES-REE------0',
+    'Fingrid CA': '10YFI-1--------U',
+    'RTE CA': '10YFR-RTE------C',
+    'National Grid CA': '10YGB----------A',
+    'IPTO CA': '10YGR-HTSO-----Y',
+    'HOPS CA': '10YHR-HEP------M',
+    'MAVIR CA': '10YHU-MAVIR----U',
+    'EirGrid CA': '10YIE-1001A00010',
+    'Italy CA': '10YIT-GRTN-----B',
+    'Litgrid CA': '10YLT-1001A0008Q',
+    'CREOS CA': '10YLU-CEGEDEL-NQ',
+    'AST CA': '10YLV-1001A00074',
+    'MEPSO CA': '10YMK-MEPSO----8',
+    'TenneT NL CA': '10YNL----------L',
+    'Statnett CA': '10YNO-0--------C',
+    'PSE SA CA': '10YPL-AREA-----S',
+    'REN CA': '10YPT-REN------W',
+    'Transelectrica CA': '10YRO-TEL------P',
+    'SvK CA': '10YSE-1--------K',
+    'ELES CA': '10YSI-ELES-----O'
+ })
 
 BIDDING_ZONES = DOMAIN_MAPPINGS.copy()
 BIDDING_ZONES.update({
@@ -81,6 +124,8 @@ BIDDING_ZONES.update({
     'IE-SEM': '10Y1001A1001A59C',
     'UA': '10Y1001C--00003F'
 })
+
+ALL_AREA_LOOKUP = {**DOMAIN_MAPPINGS, **BIDDING_ZONES, **CONTROL_AREAS}
 
 TIMEZONE_MAPPINGS = {
     'AL': 'Europe/Tirane',

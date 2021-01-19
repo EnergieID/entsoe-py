@@ -42,7 +42,6 @@ DOMAIN_MAPPINGS = {
     'UA': '10YUA-WEPS-----0',
     'DE-AT-LU': '10Y1001A1001A63L',
     'DE-LU': '10Y1001A1001A82H',
-    'TenneT NL CA': '10YNL----------L'
 }
 
 CONTROL_AREAS = DOMAIN_MAPPINGS.copy()

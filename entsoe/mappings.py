@@ -311,5 +311,6 @@ NEIGHBOURS = {
     'IT_CNOR': ['IT_NORD', 'IT_CSUD', 'IT_SARD'],
     'IT_SARD': ['IT_CNOR', 'IT_CSUD'],
     'IT_SICI': ['IT_CALABRIA', 'IT_ROSN', 'MT'],
+    'IT_CALABRIA': ['IT_SICI', 'IT_SUD'],
     'MT': ['IT_SICI']
 }

@@ -304,12 +304,12 @@ NEIGHBOURS = {
     'NO_3': ['NO_4', 'NO_5', 'SE_2'],
     'IT': ['AT', 'FR', 'GR', 'MT', 'ME', 'SI', 'CH'],
     'IT_BRNN': ['GR', 'IT_SUD'],
-    'IT_SUD': ['IT_BRNN', 'IT_CSUD', 'IT_FOGN', 'IT_ROSN'],
+    'IT_SUD': ['IT_BRNN', 'IT_CSUD', 'IT_FOGN', 'IT_ROSN', 'IT_CALABRIA'],
     'IT_FOGN': ['IT_SUD'],
     'IT_ROSN': ['IT_SICI', 'IT_SUD'],
     'IT_CSUD': ['IT_CNOR', 'IT_SARD', 'IT_SUD'],
     'IT_CNOR': ['IT_NORD', 'IT_CSUD', 'IT_SARD'],
     'IT_SARD': ['IT_CNOR', 'IT_CSUD'],
-    'IT_SICI': ['IT_ROSN', 'MT'],
+    'IT_SICI': ['IT_CALABRIA', 'IT_ROSN', 'MT'],
     'MT': ['IT_SICI']
 }

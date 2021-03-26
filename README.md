@@ -159,6 +159,7 @@ BIDDING_ZONES.update({
     'IT_PRGP': '10Y1001A1001A76C',
     'IT_SARD': '10Y1001A1001A74G',
     'IT_SICI': '10Y1001A1001A75E',
+    'IT_CALA': '10Y1001C--00096J',
     'NO_1': '10YNO-1--------2',
     'NO_2': '10YNO-2--------T',
     'NO_3': '10YNO-3--------J',

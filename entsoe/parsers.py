@@ -526,6 +526,8 @@ def _parse_crossborder_flows_timeseries(soup):
 
     series = pd.Series(index=positions, data=flows)
     series = series.sort_index()
+    # drop duplicates with same indices
+    series = series.groupby(level=0).mean()
     series.index = _parse_datetimeindex(soup)
 
     return series

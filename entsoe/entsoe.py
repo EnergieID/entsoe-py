@@ -1,31 +1,34 @@
+import logging
 from functools import wraps
 from socket import gaierror
 from time import sleep
+from typing import Union, Optional, Dict
 
 import pandas as pd
+from pandas.tseries.offsets import YearBegin, YearEnd
 import pytz
 import requests
 from bs4 import BeautifulSoup
-import logging
 
+from entsoe.exceptions import InvalidPSRTypeError, InvalidBusinessParameterError
 from .exceptions import NoMatchingDataError, PaginationError
-from .mappings import DOMAIN_MAPPINGS, BIDDING_ZONES, TIMEZONE_MAPPINGS, NEIGHBOURS
+from .mappings import Area, NEIGHBOURS, lookup_area
 from .misc import year_blocks, day_blocks
 from .parsers import parse_prices, parse_loads, parse_generation, \
-    parse_generation_per_plant, parse_installed_capacity_per_plant, \
-    parse_crossborder_flows, parse_imbalance_prices, parse_unavailabilities, \
-    parse_contracted_reserve
-from entsoe.exceptions import InvalidPSRTypeError, InvalidBusinessParameterError
+    parse_installed_capacity_per_plant, parse_crossborder_flows, \
+    parse_unavailabilities, parse_contracted_reserve, parse_imbalance_prices_zip
 
 __title__ = "entsoe-py"
-__version__ = "0.2.14"
+__version__ = "0.3.2"
 __author__ = "EnergieID.be"
 __license__ = "MIT"
 
 URL = 'https://transparency.entsoe.eu/api'
 
+
 def retry(func):
     """Catches connection errors, waits and retries"""
+
     @wraps(func)
     def retry_wrapper(*args, **kwargs):
         self = args[0]
@@ -35,27 +38,32 @@ def retry(func):
                 result = func(*args, **kwargs)
             except (requests.ConnectionError, gaierror) as e:
                 error = e
-                print("Connection Error, retrying in {} seconds".format(self.retry_delay))
+                print("Connection Error, retrying in {} seconds".format(
+                    self.retry_delay))
                 sleep(self.retry_delay)
                 continue
             else:
                 return result
         else:
             raise error
+
     return retry_wrapper
 
 
 class EntsoeRawClient:
+    # noinspection LongLine
     """
-    Client to perform API calls and return the raw responses
-    API-documentation: https://transparency.entsoe.eu/content/static_content/Static%20content/web%20api/Guide.html#_request_methods
+        Client to perform API calls and return the raw responses API-documentation:
+        https://transparency.entsoe.eu/content/static_content/Static%20content/web%20api/Guide.html#_request_methods
 
-    Attributions: Parts of the code for parsing Entsoe responses were copied
-    from https://github.com/tmrowco/electricitymap
-    """
+        Attributions: Parts of the code for parsing Entsoe responses were copied
+        from https://github.com/tmrowco/electricitymap
+        """
 
-    def __init__(self, api_key, session=None, retry_count=1, retry_delay=0,
-                 proxies=None):
+    def __init__(
+            self, api_key: str, session: Optional[requests.Session] = None,
+            retry_count: int = 1, retry_delay: int = 0,
+            proxies: Optional[Dict] = None, timeout: Optional[int] = None):
         """
         Parameters
         ----------
@@ -67,6 +75,7 @@ class EntsoeRawClient:
             amount of seconds to wait between retries
         proxies : dict
             requests proxies
+        timeout : int
         """
         if api_key is None:
             raise TypeError("API key cannot be None")
@@ -77,9 +86,11 @@ class EntsoeRawClient:
         self.proxies = proxies
         self.retry_count = retry_count
         self.retry_delay = retry_delay
+        self.timeout = timeout
 
     @retry
-    def base_request(self, params, start, end):
+    def _base_request(self, params: Dict, start: pd.Timestamp,
+                      end: pd.Timestamp) -> requests.Response:
         """
         Parameters
         ----------
@@ -103,7 +114,7 @@ class EntsoeRawClient:
 
         logging.debug(f'Performing request to {URL} with params {params}')
         response = self.session.get(url=URL, params=params,
-                                    proxies=self.proxies)
+                                    proxies=self.proxies, timeout=self.timeout)
         try:
             response.raise_for_status()
         except requests.HTTPError as e:
@@ -121,14 +132,15 @@ class EntsoeRawClient:
                     requested = error_text.split(' ')[-2]
                     allowed = error_text.split(' ')[-5]
                     raise PaginationError(
-                        f"The API is limited to {allowed} elements per request. This query requested for {requested} documents and cannot be fulfilled as is.")
+                        f"The API is limited to {allowed} elements per "
+                        f"request. This query requested for {requested} "
+                        f"documents and cannot be fulfilled as is.")
             raise e
         else:
             return response
 
-
     @staticmethod
-    def _datetime_to_str(dtm):
+    def _datetime_to_str(dtm: pd.Timestamp) -> str:
         """
         Convert a datetime object to a string in UTC
         of the form YYYYMMDDhh00
@@ -149,11 +161,12 @@ class EntsoeRawClient:
         ret_str = dtm.strftime(fmt)
         return ret_str
 
-    def query_day_ahead_prices(self, country_code, start, end):
+    def query_day_ahead_prices(self, country_code: Union[Area, str],
+                               start: pd.Timestamp, end: pd.Timestamp) -> str:
         """
         Parameters
         ----------
-        country_code : str
+        country_code : Area|str
         start : pd.Timestamp
         end : pd.Timestamp
 
@@ -161,20 +174,21 @@ class EntsoeRawClient:
         -------
         str
         """
-        domain = BIDDING_ZONES[country_code]
+        area = lookup_area(country_code)
         params = {
             'documentType': 'A44',
-            'in_Domain': domain,
-            'out_Domain': domain
+            'in_Domain': area.code,
+            'out_Domain': area.code
         }
-        response = self.base_request(params=params, start=start, end=end)
+        response = self._base_request(params=params, start=start, end=end)
         return response.text
 
-    def query_load(self, country_code, start, end):
+    def query_load(self, country_code: Union[Area, str], start: pd.Timestamp,
+                   end: pd.Timestamp) -> str:
         """
         Parameters
         ----------
-        country_code : str
+        country_code : Area|str
         start : pd.Timestamp
         end : pd.Timestamp
 
@@ -182,160 +196,155 @@ class EntsoeRawClient:
         -------
         str
         """
-        domain = BIDDING_ZONES[country_code]
+        area = lookup_area(country_code)
         params = {
             'documentType': 'A65',
             'processType': 'A16',
-            'outBiddingZone_Domain': domain,
-            'out_Domain': domain
+            'outBiddingZone_Domain': area.code,
+            'out_Domain': area.code
         }
-        response = self.base_request(params=params, start=start, end=end)
+        response = self._base_request(params=params, start=start, end=end)
         return response.text
 
-    def query_load_forecast(self, country_code, start, end, process_type = 'A01'):
+    def query_load_forecast(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, process_type: str = 'A01') -> str:
         """
         Parameters
         ----------
-        country_code : str
+        country_code : Area|str
         start : pd.Timestamp
         end : pd.Timestamp
+        process_type : str
+
         Returns
         -------
         str
         """
-        domain = BIDDING_ZONES[country_code]
+        area = lookup_area(country_code)
         params = {
             'documentType': 'A65',
             'processType': process_type,
-            'outBiddingZone_Domain': domain,
+            'outBiddingZone_Domain': area.code,
             # 'out_Domain': domain
         }
-        response = self.base_request(params=params, start=start, end=end)
+        response = self._base_request(params=params, start=start, end=end)
         return response.text
 
-    def query_generation_forecast(self, country_code, start, end, process_type = 'A01'):
+    def query_generation_forecast(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, process_type: str = 'A01') -> str:
         """
         Parameters
         ----------
-        country_code : str
+        country_code : Area|str
         start : pd.Timestamp
         end : pd.Timestamp
+        process_type : str
 
         Returns
         -------
         str
         """
-        domain = BIDDING_ZONES[country_code]
+        area = lookup_area(country_code)
         params = {
             'documentType': 'A71',
             'processType': process_type,
-            'in_Domain': domain,
+            'in_Domain': area.code,
         }
-
-        response = self.base_request(params=params, start=start, end=end)
+        response = self._base_request(params=params, start=start, end=end)
         return response.text
 
-    def query_wind_and_solar_forecast(self, country_code, start, end, psr_type=None, process_type = 'A01', lookup_bzones=False):
+    def query_wind_and_solar_forecast(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, psr_type: Optional[str] = None,
+            process_type: str = 'A01', **kwargs) -> str:
         """
         Parameters
         ----------
-        country_code : str
+        country_code : Area|str
         start : pd.Timestamp
         end : pd.Timestamp
         psr_type : str
             filter on a single psr type
-        lookup_bzones : bool
-            if True, country_code is expected to be a bidding zone
+        process_type : str
 
         Returns
         -------
         str
         """
-        if not lookup_bzones:
-            domain = DOMAIN_MAPPINGS[country_code]
-        else:
-            domain = BIDDING_ZONES[country_code]
-
+        area = lookup_area(country_code)
         params = {
             'documentType': 'A69',
             'processType': process_type,
-            'in_Domain': domain,
+            'in_Domain': area.code,
         }
         if psr_type:
             params.update({'psrType': psr_type})
-
-        response = self.base_request(params=params, start=start, end=end)
+        response = self._base_request(params=params, start=start, end=end)
         return response.text
 
-    def query_generation(self, country_code, start, end, psr_type=None, lookup_bzones=False):
+    def query_generation(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, psr_type: Optional[str] = None, **kwargs) -> str:
         """
         Parameters
         ----------
-        country_code : str
+        country_code : Area|str
         start : pd.Timestamp
         end : pd.Timestamp
         psr_type : str
             filter on a single psr type
-        lookup_bzones : bool
-            if True, country_code is expected to be a bidding zone
 
         Returns
         -------
         str
         """
-        if not lookup_bzones:
-            domain = DOMAIN_MAPPINGS[country_code]
-        else:
-            domain = BIDDING_ZONES[country_code]
-
+        area = lookup_area(country_code)
         params = {
             'documentType': 'A75',
             'processType': 'A16',
-            'in_Domain': domain,
+            'in_Domain': area.code,
         }
         if psr_type:
             params.update({'psrType': psr_type})
-
-        response = self.base_request(params=params, start=start, end=end)
+        response = self._base_request(params=params, start=start, end=end)
         return response.text
 
-    def query_generation_per_plant(self, country_code, start, end, psr_type=None, lookup_bzones=False):
+    def query_generation_per_plant(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, psr_type: Optional[str] = None, **kwargs) -> str:
         """
         Parameters
         ----------
-        country_code : str
+        country_code : Area|str
         start : pd.Timestamp
         end : pd.Timestamp
         psr_type : str
             filter on a single psr type
-        lookup_bzones : bool
-            if True, country_code is expected to be a bidding zone
 
         Returns
         -------
         str
         """
-        if not lookup_bzones:
-            domain = DOMAIN_MAPPINGS[country_code]
-        else:
-            domain = BIDDING_ZONES[country_code]
-
+        area = lookup_area(country_code)
         params = {
             'documentType': 'A73',
             'processType': 'A16',
-            'in_Domain': domain,
+            'in_Domain': area.code,
         }
         if psr_type:
             params.update({'psrType': psr_type})
-
-        response = self.base_request(params=params, start=start, end=end)
+        response = self._base_request(params=params, start=start, end=end)
         return response.text
 
-    def query_installed_generation_capacity(self, country_code, start, end, psr_type=None):
+    def query_installed_generation_capacity(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, psr_type: Optional[str] = None) -> str:
         """
         Parameters
         ----------
-        country_code : str
+        country_code : Area|str
         start : pd.Timestamp
         end : pd.Timestamp
         psr_type : str
@@ -345,24 +354,24 @@ class EntsoeRawClient:
         -------
         str
         """
-        domain = DOMAIN_MAPPINGS[country_code]
+        area = lookup_area(country_code)
         params = {
             'documentType': 'A68',
             'processType': 'A33',
-            'in_Domain': domain,
+            'in_Domain': area.code,
         }
         if psr_type:
             params.update({'psrType': psr_type})
-
-        response = self.base_request(params=params, start=start, end=end)
+        response = self._base_request(params=params, start=start, end=end)
         return response.text
 
-    def query_installed_generation_capacity_per_unit(self, country_code,
-                                                      start, end, psr_type=None):
+    def query_installed_generation_capacity_per_unit(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, psr_type: Optional[str] = None) -> str:
         """
         Parameters
         ----------
-        country_code : str
+        country_code : Area|str
         start : pd.Timestamp
         end : pd.Timestamp
         psr_type : str
@@ -372,111 +381,187 @@ class EntsoeRawClient:
         -------
         str
         """
-        domain = DOMAIN_MAPPINGS[country_code]
+        area = lookup_area(country_code)
         params = {
             'documentType': 'A71',
             'processType': 'A33',
-            'in_Domain': domain,
+            'in_Domain': area.code,
         }
         if psr_type:
             params.update({'psrType': psr_type})
-
-        response = self.base_request(params=params, start=start, end=end)
+        response = self._base_request(params=params, start=start, end=end)
         return response.text
 
-    def query_crossborder_flows(self, country_code_from, country_code_to,
-                                start, end, lookup_bzones = False):
+    def query_crossborder_flows(
+            self, country_code_from: Union[Area, str],
+            country_code_to: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, **kwargs) -> str:
         """
         Parameters
         ----------
-        country_code_from : str
-        country_code_to : str
+        country_code_from : Area|str
+        country_code_to : Area|str
         start : pd.Timestamp
         end : pd.Timestamp
-        lookup_bzones : bool
-            if True, country_code is expected to be a bidding zone
 
         Returns
         -------
         str
         """
-        return self.query_crossborder(country_code_from = country_code_from,
-                                      country_code_to = country_code_to,
-                                      start = start,
-                                      end = end,
-                                      doctype = "A11",
-                                      contract_marketagreement_type = None,
-                                      lookup_bzones = lookup_bzones)
+        return self._query_crossborder(
+            country_code_from=country_code_from,
+            country_code_to=country_code_to, start=start, end=end,
+            doctype="A11", contract_marketagreement_type=None)
 
-    def query_scheduled_exchanges(self, country_code_from, country_code_to,
-                                start, end, lookup_bzones = False):
+    def query_scheduled_exchanges(
+            self, country_code_from: Union[Area, str],
+            country_code_to: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, **kwargs) -> str:
         """
         Parameters
         ----------
-        country_code_from : str
-        country_code_to : str
+        country_code_from : Area|str
+        country_code_to : Area|str
         start : pd.Timestamp
         end : pd.Timestamp
-        lookup_bzones : bool
-            if True, country_code is expected to be a bidding zone
 
         Returns
         -------
         str
         """
-        return self.query_crossborder(country_code_from = country_code_from,
-                                      country_code_to = country_code_to,
-                                      start = start,
-                                      end = end,
-                                      doctype = "A09",
-                                      contract_marketagreement_type = "A05",
-                                      lookup_bzones = lookup_bzones)
+        return self._query_crossborder(
+            country_code_from=country_code_from,
+            country_code_to=country_code_to, start=start, end=end,
+            doctype="A09", contract_marketagreement_type="A05")
 
-    def query_crossborder(self, country_code_from, country_code_to,
-                          start, end, doctype,
-                          contract_marketagreement_type = None,
-                          lookup_bzones = False):
+    def query_net_transfer_capacity_dayahead(
+            self, country_code_from: Union[Area, str],
+            country_code_to: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp) -> str:
+        """
+        Parameters
+        ----------
+        country_code_from : Area|str
+        country_code_to : Area|str
+        start : pd.Timestamp
+        end : pd.Timestamp
+
+        Returns
+        -------
+        str
+        """
+        return self._query_crossborder(
+            country_code_from=country_code_from,
+            country_code_to=country_code_to, start=start, end=end,
+            doctype="A61", contract_marketagreement_type="A01")
+
+    def query_net_transfer_capacity_weekahead(
+            self, country_code_from: Union[Area, str],
+            country_code_to: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp) -> str:
+        """
+        Parameters
+        ----------
+        country_code_from : Area|str
+        country_code_to : Area|str
+        start : pd.Timestamp
+        end : pd.Timestamp
+
+        Returns
+        -------
+        str
+        """
+        return self._query_crossborder(
+            country_code_from=country_code_from,
+            country_code_to=country_code_to, start=start, end=end,
+            doctype="A61", contract_marketagreement_type="A02")
+
+    def query_net_transfer_capacity_monthahead(
+            self, country_code_from: Union[Area, str],
+            country_code_to: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp) -> str:
+        """
+        Parameters
+        ----------
+        country_code_from : Area|str
+        country_code_to : Area|str
+        start : pd.Timestamp
+        end : pd.Timestamp
+
+        Returns
+        -------
+        str
+        """
+        return self._query_crossborder(
+            country_code_from=country_code_from,
+            country_code_to=country_code_to, start=start, end=end,
+            doctype="A61", contract_marketagreement_type="A03")
+
+    def query_net_transfer_capacity_yearahead(
+            self, country_code_from: Union[Area, str],
+            country_code_to: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp) -> str:
+        """
+        Parameters
+        ----------
+        country_code_from : Area|str
+        country_code_to : Area|str
+        start : pd.Timestamp
+        end : pd.Timestamp
+
+        Returns
+        -------
+        str
+        """
+        return self._query_crossborder(
+            country_code_from=country_code_from,
+            country_code_to=country_code_to, start=start, end=end,
+            doctype="A61", contract_marketagreement_type="A04")
+
+    def _query_crossborder(
+            self, country_code_from: Union[Area, str],
+            country_code_to: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, doctype: str,
+            contract_marketagreement_type: Optional[str] = None) -> str:
         """
         Generic function called by query_crossborder_flows and
         query_scheduled_exchanges.
+
         Parameters
         ----------
-        country_code_from : str
-        country_code_to : str
+        country_code_from : Area|str
+        country_code_to : Area|str
         start : pd.Timestamp
         end : pd.Timestamp
         doctype: str
         contract_marketagreement_type: str
-        lookup_bzones : bool
-            if True, country_code is expected to be a bidding zone
 
         Returns
         -------
         str
         """
-        if not lookup_bzones:
-            domain_in = DOMAIN_MAPPINGS[country_code_to]
-            domain_out = DOMAIN_MAPPINGS[country_code_from]
-        else:
-            domain_in = BIDDING_ZONES[country_code_to]
-            domain_out = BIDDING_ZONES[country_code_from]
+        area_in = lookup_area(country_code_to)
+        area_out = lookup_area(country_code_from)
 
         params = {
             'documentType': doctype,
-            'in_Domain': domain_in,
-            'out_Domain': domain_out
+            'in_Domain': area_in.code,
+            'out_Domain': area_out.code
         }
         if contract_marketagreement_type is not None:
-            params['contract_MarketAgreement.Type'] = contract_marketagreement_type,
+            params[
+                'contract_MarketAgreement.Type'] = contract_marketagreement_type
 
-        response = self.base_request(params=params, start=start, end=end)
+        response = self._base_request(params=params, start=start, end=end)
         return response.text
 
-    def query_imbalance_prices(self, country_code, start, end, psr_type=None):
+    def query_imbalance_prices(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, psr_type: Optional[str] = None) -> bytes:
         """
         Parameters
         ----------
-        country_code : str
+        country_code : Area|str
         start : pd.Timestamp
         end : pd.Timestamp
         psr_type : str
@@ -484,173 +569,83 @@ class EntsoeRawClient:
 
         Returns
         -------
-        str
+        bytes
         """
-        domain = DOMAIN_MAPPINGS[country_code]
+        area = lookup_area(country_code)
         params = {
             'documentType': 'A85',
-            'controlArea_Domain': domain,
+            'controlArea_Domain': area.code,
         }
         if psr_type:
             params.update({'psrType': psr_type})
-        response = self.base_request(params=params, start=start, end=end)
-        return response.text
-
-    def query_contracted_reserve_prices(self, country_code, start, end,
-                                        type_marketagreement_type, psr_type = None):
-        """
-        Parameters
-        ----------
-        country_code : str
-        start : pd.Timestamp
-        end : pd.Timestamp
-        type_marketagreement_type : str
-            type of contract (see mappings.MARKETAGREEMENTTYPE)
-        psr_type : str
-            filter query for a specific psr type
-
-        Returns
-        -------
-        str
-        """
-        domain = BIDDING_ZONES[country_code]
-        params = {
-            'documentType': 'A89',
-            'controlArea_Domain': domain,
-            'type_MarketAgreement.Type': type_marketagreement_type,
-        }
-        if psr_type:
-            params.update({'psrType': psr_type})
-        response = self.base_request(params = params, start = start, end = end)
-        return response.text
-
-    def query_contracted_reserve_amount(self, country_code, start, end,
-                                        type_marketagreement_type, psr_type = None):
-        """
-        Parameters
-        ----------
-        country_code : str
-        start : pd.Timestamp
-        end : pd.Timestamp
-        type_marketagreement_type : str
-            type of contract (see mappings.MARKETAGREEMENTTYPE)
-        psr_type : str
-            filter query for a specific psr type
-
-        Returns
-        -------
-        str
-        """
-        domain = BIDDING_ZONES[country_code]
-        params = {
-            'documentType': 'A81',
-            'controlArea_Domain': domain,
-            'type_MarketAgreement.Type': type_marketagreement_type,
-        }
-        if psr_type:
-            params.update({'psrType': psr_type})
-        response = self.base_request(params = params, start = start, end = end)
-        return response.text
-
-    def query_unavailability(self, country_code, start, end,
-                            doctype, docstatus=None, periodstartupdate = None,
-                            periodendupdate = None) -> bytes:
-        """
-        Generic unavailibility query method.
-        This endpoint serves ZIP files.
-        The query is limited to 200 items per request.
-
-        Parameters
-        ----------
-        country_code : str
-        start : pd.Timestamp
-        end : pd.Timestamp
-        doctype : str
-        docstatus : str, optional
-        periodStartUpdate : pd.Timestamp, optional
-        periodEndUpdate : pd.Timestamp, optional
-
-        Returns
-        -------
-        bytes
-        """
-        domain = BIDDING_ZONES[country_code]
-        params = {
-            'documentType': doctype,
-            'biddingZone_domain': domain
-            # ,'businessType': 'A53 (unplanned) | A54 (planned)'
-        }
-
-        if docstatus:
-            params['docStatus'] = docstatus
-        if periodstartupdate and periodendupdate:
-            params['periodStartUpdate'] = self._datetime_to_str(periodstartupdate)
-            params['periodEndUpdate'] = self._datetime_to_str(periodendupdate)
-
-        response = self.base_request(params=params, start=start, end=end)
-
+        response = self._base_request(params=params, start=start, end=end)
         return response.content
 
-    def query_unavailability_of_generation_units(self, country_code, start, end,
-                                     docstatus=None, periodstartupdate = None,
-                                     periodendupdate = None) -> bytes:
+    def query_contracted_reserve_prices(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, type_marketagreement_type: str,
+            psr_type: Optional[str] = None) -> str:
         """
-        This endpoint serves ZIP files.
-        The query is limited to 200 items per request.
-
         Parameters
         ----------
-        country_code : str
+        country_code : Area|str
         start : pd.Timestamp
         end : pd.Timestamp
-        docstatus : str, optional
-        periodStartUpdate : pd.Timestamp, optional
-        periodEndUpdate : pd.Timestamp, optional
+        type_marketagreement_type : str
+            type of contract (see mappings.MARKETAGREEMENTTYPE)
+        psr_type : str
+            filter query for a specific psr type
 
         Returns
         -------
-        bytes
+        str
         """
-        content = self.query_unavailability(
-            country_code=country_code, start=start, end=end,
-            doctype="A80", docstatus=docstatus,
-            periodstartupdate = periodstartupdate,
-            periodendupdate = periodendupdate)
-        return content
+        area = lookup_area(country_code)
+        params = {
+            'documentType': 'A89',
+            'controlArea_Domain': area.code,
+            'type_MarketAgreement.Type': type_marketagreement_type,
+        }
+        if psr_type:
+            params.update({'psrType': psr_type})
+        response = self._base_request(params=params, start=start, end=end)
+        return response.text
 
-    def query_unavailability_of_production_units(self, country_code, start, end,
-                                     docstatus=None, periodstartupdate = None,
-                                     periodendupdate = None) -> bytes:
+    def query_contracted_reserve_amount(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, type_marketagreement_type: str,
+            psr_type: Optional[str] = None) -> str:
         """
-        This endpoint serves ZIP files.
-        The query is limited to 200 items per request.
-
         Parameters
         ----------
-        country_code : str
+        country_code : Area|str
         start : pd.Timestamp
         end : pd.Timestamp
-        docstatus : str, optional
-        periodStartUpdate : pd.Timestamp, optional
-        periodEndUpdate : pd.Timestamp, optional
+        type_marketagreement_type : str
+            type of contract (see mappings.MARKETAGREEMENTTYPE)
+        psr_type : str
+            filter query for a specific psr type
 
         Returns
         -------
-        bytes
+        str
         """
-        content = self.query_unavailability(
-            country_code=country_code, start=start, end=end,
-            doctype="A77", docstatus=docstatus,
-            periodstartupdate = periodstartupdate,
-            periodendupdate = periodendupdate)
-        return content
+        area = lookup_area(country_code)
+        params = {
+            'documentType': 'A81',
+            'controlArea_Domain': area.code,
+            'type_MarketAgreement.Type': type_marketagreement_type,
+        }
+        if psr_type:
+            params.update({'psrType': psr_type})
+        response = self._base_request(params=params, start=start, end=end)
+        return response.text
 
-    def query_unavailability_transmission(self, country_code_from,
-                                          country_code_to, start, end,
-                                          docstatus = None,
-                                          periodstartupdate = None,
-                                          periodendupdate = None,
-                                          lookup_bzones = False) -> bytes:
+    def _query_unavailability(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, doctype: str, docstatus: Optional[str] = None,
+            periodstartupdate: Optional[pd.Timestamp] = None,
+            periodendupdate: Optional[pd.Timestamp] = None) -> bytes:
         """
         Generic unavailibility query method.
         This endpoint serves ZIP files.
@@ -658,52 +653,145 @@ class EntsoeRawClient:
 
         Parameters
         ----------
-        country_code : str
+        country_code : Area|str
         start : pd.Timestamp
         end : pd.Timestamp
         doctype : str
         docstatus : str, optional
-        periodStartUpdate : pd.Timestamp, optional
-        periodEndUpdate : pd.Timestamp, optional
+        periodstartupdate : pd.Timestamp, optional
+        periodendupdate : pd.Timestamp, optional
 
         Returns
         -------
         bytes
         """
-
-        if not lookup_bzones:
-            domain_in = DOMAIN_MAPPINGS[country_code_to]
-            domain_out = DOMAIN_MAPPINGS[country_code_from]
-        else:
-            domain_in = BIDDING_ZONES[country_code_to]
-            domain_out = BIDDING_ZONES[country_code_from]
-
+        area = lookup_area(country_code)
         params = {
-            'documentType': "A78",
-            'in_Domain': domain_in,
-            'out_Domain': domain_out
+            'documentType': doctype,
+            'biddingZone_domain': area.code
+            # ,'businessType': 'A53 (unplanned) | A54 (planned)'
         }
-
         if docstatus:
             params['docStatus'] = docstatus
         if periodstartupdate and periodendupdate:
-            params['periodStartUpdate'] = self._datetime_to_str(periodstartupdate)
+            params['periodStartUpdate'] = self._datetime_to_str(
+                periodstartupdate)
             params['periodEndUpdate'] = self._datetime_to_str(periodendupdate)
+        response = self._base_request(params=params, start=start, end=end)
+        return response.content
 
-        response = self.base_request(params = params, start = start, end = end)
+    def query_unavailability_of_generation_units(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, docstatus: Optional[str] = None,
+            periodstartupdate: Optional[pd.Timestamp] = None,
+            periodendupdate: Optional[pd.Timestamp] = None) -> bytes:
+        """
+        This endpoint serves ZIP files.
+        The query is limited to 200 items per request.
 
+        Parameters
+        ----------
+        country_code : Area|str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        docstatus : str, optional
+        periodstartupdate : pd.Timestamp, optional
+        periodendupdate : pd.Timestamp, optional
+
+        Returns
+        -------
+        bytes
+        """
+        content = self._query_unavailability(
+            country_code=country_code, start=start, end=end, doctype="A80",
+            docstatus=docstatus, periodstartupdate=periodstartupdate,
+            periodendupdate=periodendupdate)
+        return content
+
+    def query_unavailability_of_production_units(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, docstatus: Optional[str] = None,
+            periodstartupdate: Optional[pd.Timestamp] = None,
+            periodendupdate: Optional[pd.Timestamp] = None) -> bytes:
+        """
+        This endpoint serves ZIP files.
+        The query is limited to 200 items per request.
+
+        Parameters
+        ----------
+        country_code : Area|str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        docstatus : str, optional
+        periodstartupdate : pd.Timestamp, optional
+        periodendupdate : pd.Timestamp, optional
+
+        Returns
+        -------
+        bytes
+        """
+        content = self._query_unavailability(
+            country_code=country_code, start=start, end=end, doctype="A77",
+            docstatus=docstatus, periodstartupdate=periodstartupdate,
+            periodendupdate=periodendupdate)
+        return content
+
+    def query_unavailability_transmission(
+            self, country_code_from: Union[Area, str],
+            country_code_to: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, docstatus: Optional[str] = None,
+            periodstartupdate: Optional[pd.Timestamp] = None,
+            periodendupdate: Optional[pd.Timestamp] = None, **kwargs) -> bytes:
+        """
+        Generic unavailibility query method.
+        This endpoint serves ZIP files.
+        The query is limited to 200 items per request.
+
+        Parameters
+        ----------
+        country_code_from : Area|str
+        country_code_to : Area|str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        docstatus : str, optional
+        periodstartupdate : pd.Timestamp, optional
+        periodendupdate : pd.Timestamp, optional
+
+        Returns
+        -------
+        bytes
+        """
+        area_in = lookup_area(country_code_to)
+        area_out = lookup_area(country_code_from)
+        params = {
+            'documentType': "A78",
+            'in_Domain': area_in.code,
+            'out_Domain': area_out.code
+        }
+        if docstatus:
+            params['docStatus'] = docstatus
+        if periodstartupdate and periodendupdate:
+            params['periodStartUpdate'] = self._datetime_to_str(
+                periodstartupdate)
+            params['periodEndUpdate'] = self._datetime_to_str(periodendupdate)
+        response = self._base_request(params=params, start=start, end=end)
         return response.content
 
     def query_withdrawn_unavailability_of_generation_units(
-            self, country_code, start, end):
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp) -> bytes:
         """
         Parameters
         ----------
-        country_code : str
+        country_code : Area|str
         start : pd.Timestamp
         end : pd.Timestamp
+
+        Returns
+        -------
+        bytes
         """
-        content = self.query_unavailability(
+        content = self._query_unavailability(
             country_code=country_code, start=start, end=end,
             doctype="A80", docstatus='A13')
         return content
@@ -739,7 +827,7 @@ def year_limited(func):
             try:
                 frame = func(*args, start=_start, end=_end, **kwargs)
             except NoMatchingDataError:
-                print(f"NoMatchingDataError: between {_start} and {_end}")
+                logging.debug(f"NoMatchingDataError: between {_start} and {_end}")
                 frame = None
             frames.append(frame)
 
@@ -779,13 +867,16 @@ def day_limited(func):
 
     return day_wrapper
 
+
 class EntsoePandasClient(EntsoeRawClient):
     @year_limited
-    def query_day_ahead_prices(self, country_code, start, end) -> pd.Series:
+    def query_day_ahead_prices(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp) -> pd.Series:
         """
         Parameters
         ----------
-        country_code : str
+        country_code : Area|str
         start : pd.Timestamp
         end : pd.Timestamp
 
@@ -793,19 +884,21 @@ class EntsoePandasClient(EntsoeRawClient):
         -------
         pd.Series
         """
+        area = lookup_area(country_code)
         text = super(EntsoePandasClient, self).query_day_ahead_prices(
-            country_code=country_code, start=start, end=end)
+            country_code=area, start=start, end=end)
         series = parse_prices(text)
-        series = series.tz_convert(TIMEZONE_MAPPINGS[country_code])
+        series = series.tz_convert(area.tz)
         series = series.truncate(before=start, after=end)
         return series
 
     @year_limited
-    def query_load(self, country_code, start, end) -> pd.Series:
+    def query_load(self, country_code: Union[Area, str], start: pd.Timestamp,
+                   end: pd.Timestamp) -> pd.Series:
         """
         Parameters
         ----------
-        country_code : str
+        country_code : Area|str
         start : pd.Timestamp
         end : pd.Timestamp
 
@@ -813,110 +906,129 @@ class EntsoePandasClient(EntsoeRawClient):
         -------
         pd.Series
         """
+        area = lookup_area(country_code)
         text = super(EntsoePandasClient, self).query_load(
-            country_code=country_code, start=start, end=end)
+            country_code=area, start=start, end=end)
         series = parse_loads(text)
-        series = series.tz_convert(TIMEZONE_MAPPINGS[country_code])
+        series = series.tz_convert(area.tz)
         series = series.truncate(before=start, after=end)
         return series
 
     @year_limited
-    def query_load_forecast(self, country_code, start, end, process_type='A01') -> pd.Series:
+    def query_load_forecast(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, process_type: str = 'A01') -> pd.Series:
         """
         Parameters
         ----------
-        country_code : str
+        country_code : Area|str
         start : pd.Timestamp
         end : pd.Timestamp
+        process_type : str
+
         Returns
         -------
         pd.Series
         """
+        area = lookup_area(country_code)
         text = super(EntsoePandasClient, self).query_load_forecast(
-            country_code=country_code, start=start, end=end, process_type=process_type)
+            country_code=area, start=start, end=end, process_type=process_type)
         series = parse_loads(text)
-        series = series.tz_convert(TIMEZONE_MAPPINGS[country_code])
+        series = series.tz_convert(area.tz)
         series = series.truncate(before=start, after=end)
         return series
 
     @year_limited
-    def query_generation_forecast(self, country_code, start, end, process_type='A01') -> pd.Series:
+    def query_generation_forecast(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, process_type: str = 'A01',
+            nett: bool = False) -> Union[pd.DataFrame, pd.Series]:
         """
         Parameters
         ----------
-        country_code : str
+        country_code : Area|str
         start : pd.Timestamp
         end : pd.Timestamp
+        process_type : str
+        nett : bool
+            condense generation and consumption into a nett number
+
         Returns
         -------
-        pd.Series
+        pd.DataFrame | pd.Series
         """
+        area = lookup_area(country_code)
         text = super(EntsoePandasClient, self).query_generation_forecast(
-            country_code=country_code, start=start, end=end, process_type=process_type)
-        series = parse_loads(text)
-        series = series.tz_convert(TIMEZONE_MAPPINGS[country_code])
-        series = series.truncate(before=start, after=end)
-        return series
+            country_code=area, start=start, end=end, process_type=process_type)
+        df = parse_generation(text, nett=nett)
+        df = df.tz_convert(area.tz)
+        df = df.truncate(before=start, after=end)
+        return df
 
     @year_limited
-    def query_wind_and_solar_forecast(self, country_code, start, end, psr_type=None,
-                                      process_type='A01', lookup_bzones=False):
+    def query_wind_and_solar_forecast(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, psr_type: Optional[str] = None,
+            process_type: str = 'A01', **kwargs) -> pd.DataFrame:
         """
         Parameters
         ----------
-        country_code : str
+        country_code : Area|str
         start : pd.Timestamp
         end : pd.Timestamp
         psr_type : str
             filter on a single psr type
-        lookup_bzones : bool
-            if True, country_code is expected to be a bidding zone
+        process_type : str
 
         Returns
         -------
         pd.DataFrame
         """
+        area = lookup_area(country_code)
         text = super(EntsoePandasClient, self).query_wind_and_solar_forecast(
-            country_code=country_code, start=start, end=end, psr_type=psr_type,
-            process_type=process_type, lookup_bzones=lookup_bzones)
-        df = parse_generation(text)
-        df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
+            country_code=area, start=start, end=end, psr_type=psr_type,
+            process_type=process_type)
+        df = parse_generation(text, nett=True)
+        df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df
 
     @year_limited
-    def query_generation(self, country_code, start, end, psr_type=None,
-                         lookup_bzones=False):
+    def query_generation(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, psr_type: Optional[str] = None,
+            nett: bool = False, **kwargs) -> pd.DataFrame:
         """
         Parameters
         ----------
-        country_code : str
+        country_code : Area|str
         start : pd.Timestamp
         end : pd.Timestamp
         psr_type : str
             filter on a single psr type
-        lookup_bzones : bool
-            if True, country_code is expected to be a bidding zone
+        nett : bool
+            condense generation and consumption into a nett number
 
         Returns
         -------
         pd.DataFrame
         """
+        area = lookup_area(country_code)
         text = super(EntsoePandasClient, self).query_generation(
-            country_code=country_code, start=start, end=end, psr_type=psr_type,
-            lookup_bzones=lookup_bzones)
-        df = parse_generation(text)
-        df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
+            country_code=area, start=start, end=end, psr_type=psr_type)
+        df = parse_generation(text, nett=nett)
+        df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df
 
     @year_limited
-    def query_installed_generation_capacity(self, country_code, start, end,
-                                            psr_type=None):
+    def query_installed_generation_capacity(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, psr_type: Optional[str] = None) -> pd.DataFrame:
         """
         Parameters
         ----------
-        country_code : str
+        country_code : Area|str
         start : pd.Timestamp
         end : pd.Timestamp
         psr_type : str
@@ -926,21 +1038,24 @@ class EntsoePandasClient(EntsoeRawClient):
         -------
         pd.DataFrame
         """
+        area = lookup_area(country_code)
         text = super(
             EntsoePandasClient, self).query_installed_generation_capacity(
-            country_code=country_code, start=start, end=end, psr_type=psr_type)
+            country_code=area, start=start, end=end, psr_type=psr_type)
         df = parse_generation(text)
-        df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
-        df = df.truncate(before=start, after=end)
+        df = df.tz_convert(area.tz)
+        # Truncate to YearBegin and YearEnd, because answer is always year-based
+        df = df.truncate(before=start - YearBegin(), after=end + YearEnd())
         return df
 
     @year_limited
-    def query_installed_generation_capacity_per_unit(self, country_code,
-                                                     start, end, psr_type=None):
+    def query_installed_generation_capacity_per_unit(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, psr_type: Optional[str] = None) -> pd.DataFrame:
         """
         Parameters
         ----------
-        country_code : str
+        country_code : Area|str
         start : pd.Timestamp
         end : pd.Timestamp
         psr_type : str
@@ -950,21 +1065,26 @@ class EntsoePandasClient(EntsoeRawClient):
         -------
         pd.DataFrame
         """
+        area = lookup_area(country_code)
         text = super(
-            EntsoePandasClient, self).query_installed_generation_capacity_per_unit(
-            country_code=country_code, start=start, end=end, psr_type=psr_type)
+            EntsoePandasClient,
+            self).query_installed_generation_capacity_per_unit(
+            country_code=area, start=start, end=end, psr_type=psr_type)
         df = parse_installed_capacity_per_plant(text)
         return df
 
     @year_limited
-    def query_crossborder_flows(self, country_code_from, country_code_to, start, end, lookup_bzones=False):
+    def query_crossborder_flows(
+            self, country_code_from: Union[Area, str],
+            country_code_to: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, **kwargs) -> pd.Series:
         """
         Note: Result will be in the timezone of the origin country
 
         Parameters
         ----------
-        country_code_from : str
-        country_code_to : str
+        country_code_from : Area|str
+        country_code_to : Area|str
         start : pd.Timestamp
         end : pd.Timestamp
 
@@ -972,26 +1092,30 @@ class EntsoePandasClient(EntsoeRawClient):
         -------
         pd.Series
         """
+        area_to = lookup_area(country_code_to)
+        area_from = lookup_area(country_code_from)
         text = super(EntsoePandasClient, self).query_crossborder_flows(
-            country_code_from = country_code_from,
-            country_code_to = country_code_to,
-            start = start,
-            end = end,
-            lookup_bzones = lookup_bzones)
+            country_code_from=area_from,
+            country_code_to=area_to,
+            start=start,
+            end=end)
         ts = parse_crossborder_flows(text)
-        ts = ts.tz_convert(TIMEZONE_MAPPINGS[country_code_from])
+        ts = ts.tz_convert(area_from.tz)
         ts = ts.truncate(before=start, after=end)
         return ts
 
     @year_limited
-    def query_scheduled_exchanges(self, country_code_from, country_code_to, start, end, lookup_bzones = False):
+    def query_scheduled_exchanges(
+            self, country_code_from: Union[Area, str],
+            country_code_to: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, **kwargs) -> pd.Series:
         """
         Note: Result will be in the timezone of the origin country
 
         Parameters
         ----------
-        country_code_from : str
-        country_code_to : str
+        country_code_from : Area|str
+        country_code_to : Area|str
         start : pd.Timestamp
         end : pd.Timestamp
 
@@ -999,23 +1123,150 @@ class EntsoePandasClient(EntsoeRawClient):
         -------
         pd.Series
         """
+        area_to = lookup_area(country_code_to)
+        area_from = lookup_area(country_code_from)
         text = super(EntsoePandasClient, self).query_scheduled_exchanges(
-            country_code_from = country_code_from,
-            country_code_to = country_code_to,
-            start = start,
-            end = end,
-            lookup_bzones = lookup_bzones)
+            country_code_from=area_from,
+            country_code_to=area_to,
+            start=start,
+            end=end)
         ts = parse_crossborder_flows(text)
-        ts = ts.tz_convert(TIMEZONE_MAPPINGS[country_code_from])
-        ts = ts.truncate(before = start, after = end)
+        ts = ts.tz_convert(area_from.tz)
+        ts = ts.truncate(before=start, after=end)
         return ts
 
     @year_limited
-    def query_imbalance_prices(self, country_code, start, end, psr_type=None):
+    def query_net_transfer_capacity_dayahead(
+            self, country_code_from: Union[Area, str],
+            country_code_to: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, **kwargs) -> pd.Series:
+        """
+        Note: Result will be in the timezone of the origin country
+
+        Parameters
+        ----------
+        country_code_from : Area|str
+        country_code_to : Area|str
+        start : pd.Timestamp
+        end : pd.Timestamp
+
+        Returns
+        -------
+        pd.Series
+        """
+        area_to = lookup_area(country_code_to)
+        area_from = lookup_area(country_code_from)
+        text = super(EntsoePandasClient, self).query_net_transfer_capacity_dayahead(
+            country_code_from=area_from,
+            country_code_to=area_to,
+            start=start,
+            end=end)
+        ts = parse_crossborder_flows(text)
+        ts = ts.tz_convert(area_from.tz)
+        ts = ts.truncate(before=start, after=end)
+        return ts
+
+    @year_limited
+    def query_net_transfer_capacity_weekahead(
+            self, country_code_from: Union[Area, str],
+            country_code_to: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, **kwargs) -> pd.Series:
+        """
+        Note: Result will be in the timezone of the origin country
+
+        Parameters
+        ----------
+        country_code_from : Area|str
+        country_code_to : Area|str
+        start : pd.Timestamp
+        end : pd.Timestamp
+
+        Returns
+        -------
+        pd.Series
+        """
+        area_to = lookup_area(country_code_to)
+        area_from = lookup_area(country_code_from)
+        text = super(EntsoePandasClient, self).query_net_transfer_capacity_weekahead(
+            country_code_from=area_from,
+            country_code_to=area_to,
+            start=start,
+            end=end)
+        ts = parse_crossborder_flows(text)
+        ts = ts.tz_convert(area_from.tz)
+        ts = ts.truncate(before=start, after=end)
+        return ts
+
+    @year_limited
+    def query_net_transfer_capacity_monthahead(
+            self, country_code_from: Union[Area, str],
+            country_code_to: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, **kwargs) -> pd.Series:
+        """
+        Note: Result will be in the timezone of the origin country
+
+        Parameters
+        ----------
+        country_code_from : Area|str
+        country_code_to : Area|str
+        start : pd.Timestamp
+        end : pd.Timestamp
+
+        Returns
+        -------
+        pd.Series
+        """
+        area_to = lookup_area(country_code_to)
+        area_from = lookup_area(country_code_from)
+        text = super(EntsoePandasClient, self).query_net_transfer_capacity_monthahead(
+            country_code_from=area_from,
+            country_code_to=area_to,
+            start=start,
+            end=end)
+        ts = parse_crossborder_flows(text)
+        ts = ts.tz_convert(area_from.tz)
+        ts = ts.truncate(before=start, after=end)
+        return ts
+
+    @year_limited
+    def query_net_transfer_capacity_yearahead(
+            self, country_code_from: Union[Area, str],
+            country_code_to: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, **kwargs) -> pd.Series:
+        """
+        Note: Result will be in the timezone of the origin country
+
+        Parameters
+        ----------
+        country_code_from : Area|str
+        country_code_to : Area|str
+        start : pd.Timestamp
+        end : pd.Timestamp
+
+        Returns
+        -------
+        pd.Series
+        """
+        area_to = lookup_area(country_code_to)
+        area_from = lookup_area(country_code_from)
+        text = super(EntsoePandasClient, self).query_net_transfer_capacity_yearahead(
+            country_code_from=area_from,
+            country_code_to=area_to,
+            start=start,
+            end=end)
+        ts = parse_crossborder_flows(text)
+        ts = ts.tz_convert(area_from.tz)
+        ts = ts.truncate(before=start, after=end)
+        return ts
+
+    @year_limited
+    def query_imbalance_prices(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, psr_type: Optional[str] = None) -> pd.DataFrame:
         """
         Parameters
         ----------
-        country_code : str
+        country_code : Area|str
         start : pd.Timestamp
         end : pd.Timestamp
         psr_type : str
@@ -1025,21 +1276,24 @@ class EntsoePandasClient(EntsoeRawClient):
         -------
         pd.DataFrame
         """
-        text = super(EntsoePandasClient, self).query_imbalance_prices(
-            country_code=country_code, start=start, end=end, psr_type=psr_type)
-        df = parse_imbalance_prices(text)
-        df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
+        area = lookup_area(country_code)
+        archive = super(EntsoePandasClient, self).query_imbalance_prices(
+            country_code=area, start=start, end=end, psr_type=psr_type)
+        df = parse_imbalance_prices_zip(zip_contents=archive)
+        df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df
 
     @year_limited
     @paginated
-    def query_contracted_reserve_prices(self, country_code, start, end,
-                                        type_marketagreement_type, psr_type = None):
+    def query_contracted_reserve_prices(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, type_marketagreement_type: str,
+            psr_type: Optional[str] = None) -> pd.DataFrame:
         """
         Parameters
         ----------
-        country_code : str
+        country_code : Area, str
         start : pd.Timestamp
         end : pd.Timestamp
         type_marketagreement_type : str
@@ -1051,22 +1305,26 @@ class EntsoePandasClient(EntsoeRawClient):
         -------
         pd.DataFrame
         """
+        area = lookup_area(country_code)
         text = super(EntsoePandasClient, self).query_contracted_reserve_prices(
-            country_code = country_code, start = start, end = end,
-            type_marketagreement_type = type_marketagreement_type, psr_type = psr_type)
-        df = parse_contracted_reserve(text, TIMEZONE_MAPPINGS[country_code], "procurement_price.amount")
-        df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
-        df = df.truncate(before = start, after = end)
+            country_code=area, start=start, end=end,
+            type_marketagreement_type=type_marketagreement_type,
+            psr_type=psr_type)
+        df = parse_contracted_reserve(text, area.tz, "procurement_price.amount")
+        df = df.tz_convert(area.tz)
+        df = df.truncate(before=start, after=end)
         return df
 
     @year_limited
     @paginated
-    def query_contracted_reserve_amount(self, country_code, start, end,
-                                        type_marketagreement_type, psr_type = None):
+    def query_contracted_reserve_amount(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, type_marketagreement_type: str,
+            psr_type: Optional[str] = None) -> pd.DataFrame:
         """
         Parameters
         ----------
-        country_code : str
+        country_code : Area|str
         start : pd.Timestamp
         end : pd.Timestamp
         type_marketagreement_type : str
@@ -1078,131 +1336,143 @@ class EntsoePandasClient(EntsoeRawClient):
         -------
         pd.DataFrame
         """
+        area = lookup_area(country_code)
         text = super(EntsoePandasClient, self).query_contracted_reserve_amount(
-            country_code = country_code, start = start, end = end,
-            type_marketagreement_type = type_marketagreement_type, psr_type = psr_type)
-        df = parse_contracted_reserve(text, TIMEZONE_MAPPINGS[country_code], "quantity")
-        df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
-        df = df.truncate(before = start, after = end)
+            country_code=area, start=start, end=end,
+            type_marketagreement_type=type_marketagreement_type,
+            psr_type=psr_type)
+        df = parse_contracted_reserve(text, area.tz, "quantity")
+        df = df.tz_convert(area.tz)
+        df = df.truncate(before=start, after=end)
         return df
 
     @year_limited
     @paginated
-    def query_unavailability(self, country_code, start, end, doctype,
-                                     docstatus=None, periodstartupdate = None,
-                                     periodendupdate = None):
+    def _query_unavailability(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, doctype: str, docstatus: Optional[str] = None,
+            periodstartupdate: Optional[pd.Timestamp] = None,
+            periodendupdate: Optional[pd.Timestamp] = None) -> pd.DataFrame:
         """
         Parameters
         ----------
-        country_code : str
+        country_code : Area|str
         start : pd.Timestamp
         end : pd.Timestamp
         doctype : str
         docstatus : str, optional
-        periodStartUpdate : pd.Timestamp, optional
-        periodEndUpdate : pd.Timestamp, optional
+        periodstartupdate : pd.Timestamp, optional
+        periodendupdate : pd.Timestamp, optional
 
         Returns
         -------
         pd.DataFrame
         """
-        content = super(EntsoePandasClient,
-                        self).query_unavailability(
-            country_code=country_code, start=start, end=end, doctype = doctype,
-            docstatus=docstatus,  periodstartupdate = periodstartupdate,
-            periodendupdate = periodendupdate)
+        area = lookup_area(country_code)
+        content = super(EntsoePandasClient, self)._query_unavailability(
+            country_code=area, start=start, end=end, doctype=doctype,
+            docstatus=docstatus, periodstartupdate=periodstartupdate,
+            periodendupdate=periodendupdate)
         df = parse_unavailabilities(content, doctype)
-        df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
-        df['start'] = df['start'].apply(lambda x: x.tz_convert(TIMEZONE_MAPPINGS[country_code]))
-        df['end'] = df['end'].apply(lambda x: x.tz_convert(TIMEZONE_MAPPINGS[country_code]))
+        df = df.tz_convert(area.tz)
+        df['start'] = df['start'].apply(lambda x: x.tz_convert(area.tz))
+        df['end'] = df['end'].apply(lambda x: x.tz_convert(area.tz))
         df = df.truncate(before=start, after=end)
         return df
 
-    def query_unavailability_of_generation_units(self, country_code, start, end,
-                                     docstatus=None, periodstartupdate = None,
-                                     periodendupdate = None):
+    def query_unavailability_of_generation_units(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, docstatus: Optional[str] = None,
+            periodstartupdate: Optional[pd.Timestamp] = None,
+            periodendupdate: Optional[pd.Timestamp] = None) -> pd.DataFrame:
         """
         Parameters
         ----------
-        country_code : str
+        country_code : Area|str
         start : pd.Timestamp
         end : pd.Timestamp
         docstatus : str, optional
-        periodStartUpdate : pd.Timestamp, optional
-        periodEndUpdate : pd.Timestamp, optional
+        periodstartupdate : pd.Timestamp, optional
+        periodendupdate : pd.Timestamp, optional
 
         Returns
         -------
         pd.DataFrame
         """
-
-        df = self.query_unavailability(country_code=country_code, start=start, end=end,
-                                       doctype="A80", docstatus=docstatus, periodstartupdate=periodstartupdate,
-                                       periodendupdate=periodendupdate)
+        df = self._query_unavailability(
+            country_code=country_code, start=start, end=end, doctype="A80",
+            docstatus=docstatus, periodstartupdate=periodstartupdate,
+            periodendupdate=periodendupdate)
         return df
 
-    def query_unavailability_of_production_units(self, country_code, start, end,
-                                     docstatus=None, periodstartupdate = None,
-                                     periodendupdate = None):
+    def query_unavailability_of_production_units(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, docstatus: Optional[str] = None,
+            periodstartupdate: Optional[pd.Timestamp] = None,
+            periodendupdate: Optional[pd.Timestamp] = None) -> pd.DataFrame:
         """
         Parameters
         ----------
-        country_code : str
+        country_code : Area|str
         start : pd.Timestamp
         end : pd.Timestamp
         docstatus : str, optional
-        periodStartUpdate : pd.Timestamp, optional
-        periodEndUpdate : pd.Timestamp, optional
+        periodstartupdate : pd.Timestamp, optional
+        periodendupdate : pd.Timestamp, optional
 
         Returns
         -------
         pd.DataFrame
         """
-        df = self.query_unavailability(country_code=country_code, start=start, end=end,
-                                       doctype="A77", docstatus=docstatus, periodstartupdate=periodstartupdate,
-                                       periodendupdate=periodendupdate)
+        df = self._query_unavailability(
+            country_code=country_code, start=start, end=end, doctype="A77",
+            docstatus=docstatus, periodstartupdate=periodstartupdate,
+            periodendupdate=periodendupdate)
         return df
 
     @paginated
-    def query_unavailability_transmission(self, country_code_from,
-                                          country_code_to, start, end,
-                                          docstatus = None,
-                                          periodstartupdate = None,
-                                          periodendupdate = None,
-                                          lookup_bzones = False):
+    def query_unavailability_transmission(
+            self, country_code_from: Union[Area, str],
+            country_code_to: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, docstatus: Optional[str] = None,
+            periodstartupdate: Optional[pd.Timestamp] = None,
+            periodendupdate: Optional[pd.Timestamp] = None,
+            **kwargs) -> pd.DataFrame:
         """
         Parameters
         ----------
-        country_code : str
+        country_code_from : Area|str
+        country_code_to : Area|str
         start : pd.Timestamp
         end : pd.Timestamp
         docstatus : str, optional
-        periodStartUpdate : pd.Timestamp, optional
-        periodEndUpdate : pd.Timestamp, optional
+        periodstartupdate : pd.Timestamp, optional
+        periodendupdate : pd.Timestamp, optional
 
         Returns
         -------
         pd.DataFrame
         """
-        content = super(EntsoePandasClient, self).query_unavailability_transmission(country_code_from,
-                                                    country_code_to,
-                                                    start, end, docstatus,
-                                                    periodstartupdate,
-                                                    periodendupdate,
-                                                    lookup_bzones)
+        area_to = lookup_area(country_code_to)
+        area_from = lookup_area(country_code_from)
+        content = super(EntsoePandasClient,
+                        self).query_unavailability_transmission(
+            area_from, area_to, start, end, docstatus, periodstartupdate,
+            periodendupdate)
         df = parse_unavailabilities(content, "A78")
-        df = df.tz_convert(TIMEZONE_MAPPINGS[country_code_from])
-        df['start'] = df['start'].apply(lambda x: x.tz_convert(TIMEZONE_MAPPINGS[country_code_from]))
-        df['end'] = df['end'].apply(lambda x: x.tz_convert(TIMEZONE_MAPPINGS[country_code_from]))
-        df = df.truncate(before = start, after = end)
+        df = df.tz_convert(area_from.tz)
+        df['start'] = df['start'].apply(lambda x: x.tz_convert(area_from.tz))
+        df['end'] = df['end'].apply(lambda x: x.tz_convert(area_from.tz))
+        df = df.truncate(before=start, after=end)
         return df
 
     def query_withdrawn_unavailability_of_generation_units(
-            self, country_code, start, end):
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp) -> pd.DataFrame:
         """
         Parameters
         ----------
-        country_code : str
+        country_code : Area|str
         start : pd.Timestamp
         end : pd.Timestamp
 
@@ -1216,59 +1486,74 @@ class EntsoePandasClient(EntsoeRawClient):
         return df
 
     @day_limited
-    def query_generation_per_plant(self, country_code, start, end, psr_type=None,lookup_bzones=False):
+    def query_generation_per_plant(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, psr_type: Optional[str] = None,
+            nett: bool = False, **kwargs) -> pd.DataFrame:
         """
         Parameters
         ----------
-        country_code : str
+        country_code : Area|str
         start : pd.Timestamp
         end : pd.Timestamp
         psr_type : str
             filter on a single psr type
-        lookup_bzones : bool
-            if True, country_code is expected to be a bidding zone
+        nett : bool
+            condense generation and consumption into a nett number
 
         Returns
         -------
         pd.DataFrame
         """
+        area = lookup_area(country_code)
         text = super(EntsoePandasClient, self).query_generation_per_plant(
-            country_code=country_code, start=start, end=end, psr_type=psr_type,
-            lookup_bzones=lookup_bzones)
-        df = parse_generation_per_plant(text)
-        df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
+            country_code=area, start=start, end=end, psr_type=psr_type)
+        df = parse_generation(text, per_plant=True)
+        df.columns = df.columns.set_levels(df.columns.levels[0].str.encode('latin-1').str.decode('utf-8'), level=0)
+        df = df.tz_convert(area.tz)
         # Truncation will fail if data is not sorted along the index in rare
         # cases. Ensure the dataframe is sorted:
         df = df.sort_index(0)
-        df = df.truncate(before = start, after = end)
+        df = df.truncate(before=start, after=end)
         return df
 
-    def query_import(self, country_code: str, start: pd.Timestamp, end: pd.Timestamp) -> pd.DataFrame:
+    def query_import(self, country_code: Union[Area, str], start: pd.Timestamp,
+                     end: pd.Timestamp) -> pd.DataFrame:
         """
         Adds together all incoming cross-border flows to a country
         The neighbours of a country are given by the NEIGHBOURS mapping
         """
+        area = lookup_area(country_code)
         imports = []
-        for neighbour in NEIGHBOURS[country_code]:
+        for neighbour in NEIGHBOURS[area.name]:
             try:
-                im = self.query_crossborder_flows(country_code_from=neighbour, country_code_to=country_code, end=end,
-                                                  start=start, lookup_bzones=True)
+                im = self.query_crossborder_flows(country_code_from=neighbour,
+                                                  country_code_to=country_code,
+                                                  end=end,
+                                                  start=start,
+                                                  lookup_bzones=True)
             except NoMatchingDataError:
                 continue
             im.name = neighbour
             imports.append(im)
         df = pd.concat(imports, axis=1)
-        df = df.loc[:, (df != 0).any(axis=0)]  # drop columns that contain only zero's
-        df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
+        # drop columns that contain only zero's
+        df = df.loc[:, (df != 0).any(axis=0)]
+        df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df
 
-    def query_generation_import(self, country_code: str, start: pd.Timestamp, end: pd.Timestamp) -> pd.DataFrame:
+    def query_generation_import(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp) -> pd.DataFrame:
         """Query the combination of both domestic generation and imports"""
-        generation = self.query_generation(country_code=country_code, end=end, start=start, lookup_bzones=True)
-        generation = generation.loc[:, (generation != 0).any(axis=0)]  # drop columns that contain only zero's
+        generation = self.query_generation(country_code=country_code, end=end,
+                                           start=start, lookup_bzones=True)
+        generation = generation.loc[:, (generation != 0).any(
+            axis=0)]  # drop columns that contain only zero's
         generation = generation.resample('H').sum()
-        imports = self.query_import(country_code=country_code, start=start, end=end)
+        imports = self.query_import(country_code=country_code, start=start,
+                                    end=end)
 
         data = {f'Generation': generation, f'Import': imports}
         df = pd.concat(data.values(), axis=1, keys=data.keys())

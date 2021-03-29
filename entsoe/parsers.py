@@ -1,11 +1,15 @@
+import zipfile
+from io import BytesIO
+from typing import Union
+
 import bs4
 import pandas as pd
-from io import BytesIO
-import zipfile
-from .mappings import PSRTYPE_MAPPINGS, DOCSTATUS, BSNTYPE, BIDDING_ZONES
+
+from .mappings import PSRTYPE_MAPPINGS, DOCSTATUS, BSNTYPE, Area
 
 GENERATION_ELEMENT = "inBiddingZone_Domain.mRID"
 CONSUMPTION_ELEMENT = "outBiddingZone_Domain.mRID"
+
 
 def _extract_timeseries(xml_text):
     """
@@ -58,73 +62,87 @@ def parse_loads(xml_text):
     return series
 
 
-def parse_generation(xml_text):
+def parse_generation(
+        xml_text: str,
+        per_plant: bool = False,
+        nett: bool = False) -> Union[pd.DataFrame, pd.Series]:
     """
     Parameters
     ----------
     xml_text : str
+    per_plant : bool
+        Decide if you need the parser that can extract plant info as well.
+    nett : bool
+        If you want to condense generation and consumption of a plant into a
+        nett number
 
     Returns
     -------
-    pd.DataFrame
+    pd.DataFrame | pd.Series
     """
-    all_series = {}
+    all_series = dict()
     for soup in _extract_timeseries(xml_text):
-        ts = _parse_generation_forecast_timeseries(soup)
+        ts = _parse_generation_timeseries(soup, per_plant=per_plant)
+
+        # check if we already have a series of this name
         series = all_series.get(ts.name)
         if series is None:
+            # If not, we just save ts
             all_series[ts.name] = ts
         else:
-            if (series.name == ts.name) & series.index.equals(ts.index):
-                # For some production means the generation and consumption (e.g.
-                # Pumped Storage, wind) are returned separately, with the same
-                # index. The correct sign is ensured in the method
-                # _parse_generation_forecast_timeseries.
-                # Here we simply sum up the series to obtain the net generation,
-                # i.e. generation - consumption.
-                series = series + ts
-            else:
-                series = series.append(ts)
-                series.sort_index()
+            # If yes, we append to it
+            series = series.append(ts)
+            series.sort_index(inplace=True)
             all_series[series.name] = series
 
+    # drop duplicates in all series
     for name in all_series:
         ts = all_series[name]
         all_series[name] = ts[~ts.index.duplicated(keep='first')]
 
     df = pd.DataFrame.from_dict(all_series)
+    df.sort_index(inplace=True)
+
+    df = _calc_nett_and_drop_redundant_columns(df, nett=nett)
     return df
 
-def parse_generation_per_plant(xml_text):
-    """
-    Parameters
-    ----------
-    xml_text : str
 
-    Returns
-    -------
-    pd.DataFrame
-    """
-    all_series = {}
-    for soup in _extract_timeseries(xml_text):
-        ts = _parse_generation_forecast_timeseries_per_plant(soup)
-        series = all_series.get(ts.name)
-        if series is None:
-            all_series[ts.name] = ts
-        else:
-            if (series.name == ts.name) & series.index.equals(ts.index):
-                series = series + ts
+def _calc_nett_and_drop_redundant_columns(
+        df: pd.DataFrame, nett: bool) -> pd.DataFrame:
+    def _calc_nett(_df):
+        try:
+            if set(['Actual Aggregated']).issubset(_df):
+                if set(['Actual Consumption']).issubset(_df):
+                    _new = _df['Actual Aggregated'].fillna(0) - _df[
+                        'Actual Consumption'].fillna(0)
+                else:
+                    _new = _df['Actual Aggregated'].fillna(0)
             else:
-                series = series.append(ts)
-                series.sort_index()
-            all_series[series.name] = series
+                _new = -_df['Actual Consumption'].fillna(0)    
+            
+        except KeyError:
+            print ('Netting production and consumption not possible. Column not found')
+        return _new
 
-    for name in all_series:
-        ts = all_series[name]
-        all_series[name] = ts[~ts.index.duplicated(keep='first')]
+    if hasattr(df.columns, 'levels'):
+        if len(df.columns.levels[-1]) == 1:
+            # Drop the extra header, if it is redundant
+            df = df.droplevel(axis=1, level=-1)
+        elif nett:
+            frames = []
+            for column in df.columns.levels[-2]:
+                new = _calc_nett(df[column])
+                new.name = column
+                frames.append(new)
+            df = pd.concat(frames, axis=1)
+    else:
+        if nett:
+            df = _calc_nett(df)
+        elif len(df.columns) == 1:
+            df = df.squeeze()
 
-    df = pd.DataFrame.from_dict(all_series)
     return df
+
 
 def parse_installed_capacity_per_plant(xml_text):
     """
@@ -153,8 +171,10 @@ def parse_installed_capacity_per_plant(xml_text):
 
     df = pd.DataFrame.from_dict(all_series).T
     df['Production Type'] = df['Production Type'].map(PSRTYPE_MAPPINGS)
-#    df['Status'] = df['Status'].map(BSNTYPE)
+    df['Name'] = df['Name'].str.encode('latin-1').str.decode('utf-8')
+    #    df['Status'] = df['Status'].map(BSNTYPE)
     return df
+
 
 def parse_crossborder_flows(xml_text):
     """
@@ -187,7 +207,7 @@ def parse_imbalance_prices(xml_text):
     frames = (_parse_imbalance_prices_timeseries(soup)
               for soup in timeseries_blocks)
     df = pd.concat(frames, axis=1)
-    df = df.stack().unstack() # ad-hoc fix to prevent column splitting by NaNs
+    df = df.stack().unstack()  # ad-hoc fix to prevent column splitting by NaNs
     df.sort_index(inplace=True)
     return df
 
@@ -199,7 +219,7 @@ def parse_contracted_reserve(xml_text, tz, label):
     xml_text : str
     tz: str
     label: str
-    
+
     Returns
     -------
     pd.DataFrame
@@ -207,10 +227,10 @@ def parse_contracted_reserve(xml_text, tz, label):
     timeseries_blocks = _extract_timeseries(xml_text)
     frames = (_parse_contracted_reserve_series(soup, tz, label)
               for soup in timeseries_blocks)
-    df = pd.concat(frames, axis = 1)
+    df = pd.concat(frames, axis=1)
     # df = df.stack().unstack() # ad-hoc fix to prevent column splitting by NaNs
-    df = df.groupby(by = df.columns, axis = 1).mean()
-    df.sort_index(inplace = True)
+    df = df.groupby(by=df.columns, axis=1).mean()
+    df.sort_index(inplace=True)
     return df
 
 
@@ -232,10 +252,10 @@ def _parse_contracted_reserve_series(soup, tz, label):
         positions.append(int(point.find('position').text))
         prices.append(float(point.find(label).text))
 
-    df = pd.DataFrame(data = {'position': positions,
+    df = pd.DataFrame(data={'position': positions,
                             label: prices})
     df = df.set_index(['position'])
-    df.sort_index(inplace = True)
+    df.sort_index(inplace=True)
     index = _parse_datetimeindex(soup, tz)
     if len(index) > len(df.index):
         print("Shortening index")
@@ -247,17 +267,40 @@ def _parse_contracted_reserve_series(soup, tz, label):
     df.columns.name = None
     direction_dico = {'A01': 'Up',
                       'A02': 'Down',
-                      'A03' : 'Symmetric'}
+                      'A03': 'Symmetric'}
 
     reserve_type = BSNTYPE[soup.find("businesstype").text]
     direction = direction_dico[soup.find("flowdirection.direction").text]
 
-    df.rename(columns = {label: "%s - %s" % (reserve_type, direction)},
-              inplace = True)
+    df.rename(columns={label: "%s - %s" % (reserve_type, direction)},
+              inplace=True)
     return df
 
 
-def _parse_imbalance_prices_timeseries(soup):
+def parse_imbalance_prices_zip(zip_contents: bytes) -> pd.DataFrame:
+    """
+    Parameters
+    ----------
+    zip_contents : bytes
+
+    Returns
+    -------
+    pd.DataFrame
+    """
+    def gen_frames(archive):
+        with zipfile.ZipFile(BytesIO(archive), 'r') as arc:
+            for f in arc.infolist():
+                if f.filename.endswith('xml'):
+                    frame = parse_imbalance_prices(xml_text=arc.read(f))
+                    yield frame
+
+    frames = gen_frames(zip_contents)
+    df = pd.concat(frames)
+    df.sort_index(inplace=True)
+    return df
+
+
+def _parse_imbalance_prices_timeseries(soup) -> pd.DataFrame:
     """
     Parameters
     ----------
@@ -265,7 +308,7 @@ def _parse_imbalance_prices_timeseries(soup):
 
     Returns
     -------
-    pd.Series
+    pd.DataFrame
     """
     positions = []
     amounts = []
@@ -287,7 +330,7 @@ def _parse_imbalance_prices_timeseries(soup):
     df.index.name = None
     df.columns.name = None
     df.rename(columns={'A04': 'Long', 'A05': 'Short',
-                       'None' : 'Price for Consumption'}, inplace=True)
+                       'None': 'Price for Consumption'}, inplace=True)
 
     return df
 
@@ -338,8 +381,11 @@ def _parse_load_timeseries(soup):
     return series
 
 
-def _parse_generation_forecast_timeseries(soup):
+def _parse_generation_timeseries(soup, per_plant: bool = False) -> pd.Series:
     """
+    Works for generation by type, generation forecast, and wind and solar
+    forecast
+
     Parameters
     ----------
     soup : bs4.element.tag
@@ -348,60 +394,57 @@ def _parse_generation_forecast_timeseries(soup):
     -------
     pd.Series
     """
-    psrtype = soup.find('psrtype').text
     positions = []
     quantities = []
     for point in soup.find_all('point'):
         positions.append(int(point.find('position').text))
         quantity = point.find('quantity')
         if quantity is None:
-            raise LookupError(f'No quantity found in this point, it should have one: {point}')
+            raise LookupError(
+                f'No quantity found in this point, it should have one: {point}')
         quantities.append(float(quantity.text))
 
     series = pd.Series(index=positions, data=quantities)
     series = series.sort_index()
     series.index = _parse_datetimeindex(soup)
 
-    series.name = PSRTYPE_MAPPINGS[psrtype]
+    # Check if there is a psrtype, if so, get it.
+    _psrtype = soup.find('psrtype')
+    if _psrtype is not None:
+        psrtype = _psrtype.text
+    else:
+        psrtype = None
+
+    # Check if the Direction is IN or OUT
+    # If IN, this means Actual Consumption is measured
+    # If OUT, this means Consumption is measured.
+    # OUT means Consumption of a generation plant, eg. charging a pumped hydro plant
     if soup.find(CONSUMPTION_ELEMENT.lower()):
-        # https://entsoe.zendesk.com/hc/en-us/articles/115005485123-Resful-API-How-to-differentiate-TimeSeries-for-Scheduled-Generation-from-Scheduled-Consumption-
-        # For Consumption, we should find the entry "outBiddingZone_Domain.mRID".
-        # This allows to distinguish Hydro Pumped Storage Generation and
-        # Hydro Pumped Storage Load from each other and avoid non-unique index errors.
-        series = -series
+        metric = 'Actual Consumption'
+    else:
+        metric = 'Actual Aggregated'
+
+    name = [metric]
+
+    # Set both psrtype and metric as names of the series
+    if psrtype:
+        psrtype_name = PSRTYPE_MAPPINGS[psrtype]
+        name.append(psrtype_name)
+
+    if per_plant:
+        plantname = soup.find('name').text
+        name.append(plantname)
+
+    if len(name) == 1:
+        series.name = name[0]
+    else:
+        # We give the series multiple names in a tuple
+        # This will result in a multi-index upon concatenation
+        name.reverse()
+        series.name = tuple(name)
 
     return series
 
-def _parse_generation_forecast_timeseries_per_plant(soup):
-    """
-    Parameters
-    ----------
-    soup : bs4.element.tag
-
-    Returns
-    -------
-    pd.Series
-    """
-    plantname = soup.find('name').text
-    positions = []
-    quantities = []
-    for point in soup.find_all('point'):
-        positions.append(int(point.find('position').text))
-        quantities.append(float(point.find('quantity').text))
-
-    series = pd.Series(index=positions, data=quantities)
-    series = series.sort_index()
-    series.index = _parse_datetimeindex(soup)
-
-    series.name = plantname
-    if soup.find(CONSUMPTION_ELEMENT.lower()):
-        # https://entsoe.zendesk.com/hc/en-us/articles/115005485123-Resful-API-How-to-differentiate-TimeSeries-for-Scheduled-Generation-from-Scheduled-Consumption-
-        # For Consumption, we should find the entry "outBiddingZone_Domain.mRID".
-        # This allows to distinguish Hydro Pumped Storage Generation and
-        # Hydro Pumped Storage Load from each other and avoid non-unique index errors.
-        series = -series
-
-    return series
 
 def _parse_installed_capacity_per_plant(soup):
     """
@@ -413,7 +456,7 @@ def _parse_installed_capacity_per_plant(soup):
     -------
     pd.Series
     """
-    extract_vals = {'Name':'registeredresource.name',
+    extract_vals = {'Name': 'registeredresource.name',
                     'Production Type': 'psrtype',
                     'Bidding Zone': 'inbiddingzone_domain.mrid',
                     # 'Status': 'businesstype',
@@ -421,7 +464,7 @@ def _parse_installed_capacity_per_plant(soup):
                         'voltage_powersystemresources.highvoltagelimit'}
     series = pd.Series(extract_vals).apply(lambda v: soup.find(v).text)
 
-    #extract only first point
+    # extract only first point
     series['Installed Capacity [MW]'] = \
         soup.find_all('point')[0].find('quantity').text
 
@@ -430,7 +473,7 @@ def _parse_installed_capacity_per_plant(soup):
     return series
 
 
-def _parse_datetimeindex(soup, tz = None):
+def _parse_datetimeindex(soup, tz=None):
     """
     Create a datetimeindex from a parsed beautifulsoup,
     given that it contains the elements 'start', 'end'
@@ -446,7 +489,7 @@ def _parse_datetimeindex(soup, tz = None):
     pd.DatetimeIndex
     """
     start = pd.Timestamp(soup.find('start').text)
-    end = pd.Timestamp(soup.find('end').text)
+    end = pd.Timestamp(soup.find_all('end')[-1].text)
     if tz is not None:
         start = start.tz_convert(tz)
         end = end.tz_convert(tz)
@@ -454,7 +497,7 @@ def _parse_datetimeindex(soup, tz = None):
     delta = _resolution_to_timedelta(res_text=soup.find('resolution').text)
     index = pd.date_range(start=start, end=end, freq=delta, closed='left')
     if tz is not None:
-        dst_jump = len(set(index.map(lambda d:d.dst()))) > 1
+        dst_jump = len(set(index.map(lambda d: d.dst()))) > 1
         if dst_jump and delta == "7D":
             # For a weekly granularity, if we jump over the DST date in October,
             # date_range erronously returns an additional index element
@@ -497,6 +540,7 @@ def _resolution_to_timedelta(res_text: str) -> str:
         'P1Y': '12M',
         'PT15M': '15min',
         'PT30M': '30min',
+        'P1D': '1D',
         'P7D': '7D',
         'P1M': '1M',
     }
@@ -512,7 +556,7 @@ def _resolution_to_timedelta(res_text: str) -> str:
 
 # Define inverse bidding zone dico to look up bidding zone labels from the
 # domain code in the unavailibility parsers:
-_INV_BIDDING_ZONE_DICO = {k: v for (v, k) in BIDDING_ZONES.items()}
+_INV_BIDDING_ZONE_DICO = {area.code: area.name for area in Area}
 
 HEADERS_UNAVAIL_GEN = ['created_doc_time',
                        'docstatus',
@@ -534,20 +578,21 @@ HEADERS_UNAVAIL_GEN = ['created_doc_time',
 
 
 def _unavailability_gen_ts(soup: bs4.BeautifulSoup) -> list:
-    '''
+    """
     Parser for generation unavailibility time-series
     Parameters
     ----------
     soup : bs4.element.tag
-    tz: str
+    tz : str
 
     Returns
     -------
     list
-    '''
+    """
 
     # Avoid attribute errors when some of the fields are void:
-    get_attr = lambda attr: "" if soup.find(attr) is None else soup.find(attr).text
+    get_attr = lambda attr: "" if soup.find(attr) is None else soup.find(
+        attr).text
     # When no nominal power is given, give default numeric value of 0:
     get_float = lambda val: float('NaN') if val == "" else float(val)
 
@@ -560,38 +605,42 @@ def _unavailability_gen_ts(soup: bs4.BeautifulSoup) -> list:
          get_attr('production_registeredresource.location.name'),
          PSRTYPE_MAPPINGS.get(get_attr(
              'production_registeredresource.psrtype.psrtype'), ""),
-         get_float(get_attr('production_registeredresource.psrtype.powersystemresources.nominalp'))]
+         get_float(get_attr(
+             'production_registeredresource.psrtype.powersystemresources.nominalp'))]
     return [f + p for p in _available_period(soup)]
 
+
 HEADERS_UNAVAIL_TRANSM = ['created_doc_time',
-                   'docstatus',
-                   'businesstype',
-                   'in_domain',
-                   'out_domain',
-                   'qty_uom',
-                   'curvetype',
-                   'start',
-                   'end',
-                   'resolution',
-                   'pstn',
-                   'avail_qty'
-                   ]
+                          'docstatus',
+                          'businesstype',
+                          'in_domain',
+                          'out_domain',
+                          'qty_uom',
+                          'curvetype',
+                          'start',
+                          'end',
+                          'resolution',
+                          'pstn',
+                          'avail_qty'
+                          ]
 
 
 def _unavailability_tm_ts(soup: bs4.BeautifulSoup) -> list:
-    '''
+    """
     Parser for transmission unavailibility time-series
+
     Parameters
     ----------
     soup : bs4.element.tag
-    tz: str
+    tz : str
 
     Returns
     -------
     list
-    '''
+    """
     # Avoid attribute errors when some of the fields are void:
-    get_attr = lambda attr: "" if soup.find(attr) is None else soup.find(attr).text
+    get_attr = lambda attr: "" if soup.find(attr) is None else soup.find(
+        attr).text
     # When no nominal power is given, give default numeric value of 0:
 
     f = [BSNTYPE[get_attr('businesstype')],
@@ -603,10 +652,9 @@ def _unavailability_tm_ts(soup: bs4.BeautifulSoup) -> list:
     return [f + p for p in _available_period(soup)]
 
 
-_UNAVAIL_PARSE_CFG = {}
-_UNAVAIL_PARSE_CFG['A77'] = (HEADERS_UNAVAIL_GEN, _unavailability_gen_ts)
-_UNAVAIL_PARSE_CFG['A78'] = (HEADERS_UNAVAIL_TRANSM, _unavailability_tm_ts)
-_UNAVAIL_PARSE_CFG['A80'] = (HEADERS_UNAVAIL_GEN, _unavailability_gen_ts)
+_UNAVAIL_PARSE_CFG = {'A77': (HEADERS_UNAVAIL_GEN, _unavailability_gen_ts),
+                      'A78': (HEADERS_UNAVAIL_TRANSM, _unavailability_tm_ts),
+                      'A80': (HEADERS_UNAVAIL_GEN, _unavailability_gen_ts)}
 
 
 def parse_unavailabilities(response: bytes, doctype: str) -> pd.DataFrame:
@@ -623,9 +671,9 @@ def parse_unavailabilities(response: bytes, doctype: str) -> pd.DataFrame:
             if f.filename.endswith('xml'):
                 frame = _outage_parser(arc.read(f), headers, ts_func)
                 dfs.append(frame)
-    df = pd.concat(dfs, axis = 0)
-    df.set_index('created_doc_time', inplace = True)
-    df.sort_index(inplace = True)
+    df = pd.concat(dfs, axis=0)
+    df.set_index('created_doc_time', inplace=True)
+    df.sort_index(inplace=True)
     return df
 
 
@@ -633,7 +681,8 @@ def _available_period(timeseries: bs4.BeautifulSoup) -> list:
     # if not timeseries:
     #    return
     for period in timeseries.find_all('available_period'):
-        start, end = pd.Timestamp(period.timeinterval.start.text), pd.Timestamp(period.timeinterval.end.text)
+        start, end = pd.Timestamp(period.timeinterval.start.text), pd.Timestamp(
+            period.timeinterval.end.text)
         res = period.resolution.text
         pstn, qty = period.point.position.text, period.point.quantity.text
         yield [start, end, res, pstn, qty]
@@ -658,5 +707,5 @@ def _outage_parser(xml_file: bytes, headers, ts_func) -> pd.DataFrame:
         row = [creation_date, docstatus]
         for t in ts_func(ts):
             d.append(row + t)
-    df = pd.DataFrame.from_records(d, columns = headers)
+    df = pd.DataFrame.from_records(d, columns=headers)
     return df

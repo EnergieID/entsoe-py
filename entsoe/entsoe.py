@@ -550,7 +550,7 @@ class EntsoeRawClient:
             auction_type: Optional[str] = None) -> str:
         """
         Generic function called by query_crossborder_flows, 
-        query_scheduled_exchanges, query_net_transfer_capacity_DA/WA/MA/YA and query_.
+        query_scheduled_exchanges, query_net_transfer_capacity_DA/WA/MA/YA and query_intraday_offered_capacity.
 
         Parameters
         ----------

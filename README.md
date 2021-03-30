@@ -40,7 +40,7 @@ client.query_net_transfer_capacity_dayahead(country_code_from, country_code_to, 
 client.query_net_transfer_capacity_weekahead(country_code_from, country_code_to, start, end)
 client.query_net_transfer_capacity_monthahead(country_code_from, country_code_to, start, end)
 client.query_net_transfer_capacity_yearahead(country_code_from, country_code_to, start, end)
-client.query_intraday_offered_capacity(country_code_from, country_code_to, start, end)
+client.query_intraday_offered_capacity(country_code_from, country_code_to, start, end, implicit=True)
 client.query_contracted_reserve_prices(country_code, start, end, type_marketagreement_type, psr_type=None)
 client.query_contracted_reserve_amount(country_code, start, end, type_marketagreement_type, psr_type=None)
 
@@ -101,7 +101,7 @@ client.query_net_transfer_capacity_dayahead(country_code_from, country_code_to, 
 client.query_net_transfer_capacity_weekahead(country_code_from, country_code_to, start, end)
 client.query_net_transfer_capacity_monthahead(country_code_from, country_code_to, start, end)
 client.query_net_transfer_capacity_yearahead(country_code_from, country_code_to, start, end)
-client.query_intraday_offered_capacity(country_code_from, country_code_to, start, end)
+client.query_intraday_offered_capacity(country_code_from, country_code_to, start, end,implicit=True)
 
 # methods that return Pandas DataFrames
 client.query_generation_forecast(country_code, start=start,end=end)

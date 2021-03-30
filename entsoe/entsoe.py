@@ -521,7 +521,7 @@ class EntsoeRawClient:
     def query_intraday_offered_capacity(
         self, country_code_from: Union[Area, str],
             country_code_to: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp, **kwargs) -> str:
+            end: pd.Timestamp, implicit:bool = True,**kwargs) -> str:
         """
         Parameters
         ----------
@@ -529,7 +529,7 @@ class EntsoeRawClient:
         country_code_to : Area|str
         start : pd.Timestamp
         end : pd.Timestamp
-
+        implicit: bool (True = implicit - default for most borders. False = explicit - for instance BE-GB)
 
         Returns
         -------
@@ -539,7 +539,7 @@ class EntsoeRawClient:
             country_code_from=country_code_from,
             country_code_to=country_code_to, start=start, end=end,
             doctype="A31", contract_marketagreement_type="A07",
-            auction_type="A01")
+            auction_type=("A01" if implicit==True else "A02"))
 
 
     def _query_crossborder(
@@ -550,7 +550,7 @@ class EntsoeRawClient:
             auction_type: Optional[str] = None) -> str:
         """
         Generic function called by query_crossborder_flows, 
-        query_scheduled_exchanges, query_net_transfer_capacity_DA/WA/MA/YA and query_intraday_offered_capacity.
+        query_scheduled_exchanges, query_net_transfer_capacity_DA/WA/MA/YA and query_.
 
         Parameters
         ----------
@@ -1292,7 +1292,7 @@ class EntsoePandasClient(EntsoeRawClient):
     def query_intraday_offered_capacity(
         self, country_code_from: Union[Area, str],
             country_code_to: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp, **kwargs) -> pd.Series:
+            end: pd.Timestamp, implicit:bool = True, **kwargs) -> pd.Series:
         """
         Note: Result will be in the timezone of the origin country  --> to check
 
@@ -1302,7 +1302,7 @@ class EntsoePandasClient(EntsoeRawClient):
         country_code_to : Area|str
         start : pd.Timestamp
         end : pd.Timestamp
-
+        implicit: bool (True = implicit - default for most borders. False = explicit - for instance BE-GB)
         Returns
         -------
         pd.Series
@@ -1313,7 +1313,8 @@ class EntsoePandasClient(EntsoeRawClient):
             country_code_from=area_from,
             country_code_to=area_to,
             start=start,
-            end=end)
+            end=end,
+            implicit=implicit)
         ts = parse_crossborder_flows(text)
         ts = ts.tz_convert(area_from.tz)
         ts = ts.truncate(before=start, after=end)

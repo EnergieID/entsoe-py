@@ -23,6 +23,7 @@ country_code = 'BE'  # Belgium
 
 # methods that return XML
 client.query_day_ahead_prices(country_code, start, end)
+client.query_net_position_dayahead(country_code, start, end)
 client.query_load(country_code, start, end)
 client.query_load_forecast(country_code, start, end)
 client.query_wind_and_solar_forecast(country_code, start, end, psr_type=None)
@@ -74,6 +75,7 @@ country_code = 'BE'  # Belgium
 
 # methods that return Pandas Series
 client.query_day_ahead_prices(country_code, start=start,end=end)
+client.query_net_position_dayahead(country_code, start=start, end=end)
 client.query_load(country_code, start=start,end=end)
 client.query_load_forecast(country_code, start=start,end=end)
 client.query_generation_forecast(country_code, start=start,end=end)

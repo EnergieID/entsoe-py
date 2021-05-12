@@ -365,9 +365,13 @@ def _parse_netposition_timeseries(soup):
     """
     positions = []
     quantities = []
+    if 'REGION' in soup.find('out_domain.mrid').text:
+        factor = -1 # flow is import so negative
+    else:
+        factor = 1
     for point in soup.find_all('point'):
         positions.append(int(point.find('position').text))
-        quantities.append(float(point.find('quantity').text))
+        quantities.append(factor * float(point.find('quantity').text))
 
     series = pd.Series(index=positions, data=quantities)
     series = series.sort_index()

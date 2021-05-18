@@ -16,7 +16,8 @@ from .mappings import Area, NEIGHBOURS, lookup_area
 from .misc import year_blocks, day_blocks
 from .parsers import parse_prices, parse_loads, parse_generation, \
     parse_installed_capacity_per_plant, parse_crossborder_flows, \
-    parse_unavailabilities, parse_contracted_reserve, parse_imbalance_prices_zip
+    parse_unavailabilities, parse_contracted_reserve, parse_imbalance_prices_zip, \
+    parse_netpositions
 
 __title__ = "entsoe-py"
 __version__ = "0.3.3"
@@ -177,6 +178,30 @@ class EntsoeRawClient:
         area = lookup_area(country_code)
         params = {
             'documentType': 'A44',
+            'in_Domain': area.code,
+            'out_Domain': area.code
+        }
+        response = self._base_request(params=params, start=start, end=end)
+        return response.text
+    
+    def query_net_position_dayahead(self, country_code: Union[Area, str],
+                            start: pd.Timestamp, end: pd.Timestamp) -> str:
+        """
+        Parameters
+        ----------
+        country_code : Area|str
+        start : pd.Timestamp
+        end : pd.Timestamp
+
+        Returns
+        -------
+        str
+        """
+        area = lookup_area(country_code)
+        params = {
+            'documentType': 'A25',  # Allocation result document
+            'businessType': 'B09',  # net position
+            'Contract_MarketAgreement.Type': 'A01',  # daily
             'in_Domain': area.code,
             'out_Domain': area.code
         }
@@ -869,6 +894,29 @@ def day_limited(func):
 
 
 class EntsoePandasClient(EntsoeRawClient):
+    @year_limited
+    def query_net_position_dayahead(self, country_code: Union[Area, str],
+                            start: pd.Timestamp, end: pd.Timestamp) -> pd.Series:
+        """
+
+        Parameters
+        ----------
+        country_code
+        start
+        end
+
+        Returns
+        -------
+
+        """
+        area = lookup_area(country_code)
+        text = super(EntsoePandasClient, self).query_net_position_dayahead(
+            country_code=area, start=start, end=end)
+        series = parse_netpositions(text)
+        series = series.tz_convert(area.tz)
+        series = series.truncate(before=start, after=end)
+        return series
+
     @year_limited
     def query_day_ahead_prices(
             self, country_code: Union[Area, str], start: pd.Timestamp,

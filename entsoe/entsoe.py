@@ -634,6 +634,37 @@ class EntsoeRawClient:
         response = self._base_request(params=params, start=start, end=end)
         return response.content
 
+    def query_activated_balancing_energy(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, business_type: str, 
+            psr_type: Optional[str] = None) -> bytes:
+        """
+        Activated Balancing Energy [17.1.E]
+        Parameters
+        ----------
+        country_code : Area|str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        business_type : str
+            type of contract (see mappings.BSNTYPE)
+        psr_type : str
+            filter query for a specific psr type
+
+        Returns
+        -------
+        bytes
+        """
+        area = lookup_area(country_code)
+        params = {
+            'documentType': 'A83',
+            'controlArea_Domain': area.code,
+            'businessType': business_type
+        }
+        if psr_type:
+            params.update({'psrType': psr_type})
+        response = self._base_request(params=params, start=start, end=end)
+        return response.content
+
     def query_contracted_reserve_prices(
             self, country_code: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp, type_marketagreement_type: str,
@@ -1393,6 +1424,36 @@ class EntsoePandasClient(EntsoeRawClient):
         df = df.truncate(before=start, after=end)
         return df
 
+    @year_limited
+    def query_activated_balancing_energy(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, business_type: str, 
+            psr_type: Optional[str] = None) -> pd.DataFrame:
+        """
+        Activated Balancing Energy [17.1.E]
+        Parameters
+        ----------
+        country_code : Area|str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        business_type: str
+            type of contract (see mappings.BSNTYPE)
+        psr_type : str
+            filter query for a specific psr type
+
+        Returns
+        -------
+        pd.DataFrame
+        """
+        area = lookup_area(country_code)
+        text = super(EntsoePandasClient, self).query_activated_balancing_energy(
+            country_code=area, start=start, end=end, 
+            business_type=business_type, psr_type=psr_type)
+        df = parse_contracted_reserve(text, area.tz, "quantity")
+        df = df.tz_convert(area.tz)
+        df = df.truncate(before=start, after=end)
+        return df
+    
     @year_limited
     @paginated
     def query_contracted_reserve_prices(

@@ -246,8 +246,8 @@ def parse_contracted_reserve(xml_text, tz, label):
     frames = (_parse_contracted_reserve_series(soup, tz, label)
               for soup in timeseries_blocks)
     df = pd.concat(frames, axis=1)
-    # df = df.stack().unstack() # ad-hoc fix to prevent column splitting by NaNs
-    df = df.groupby(by=df.columns, axis=1).mean()
+    # Ad-hoc fix to prevent that columns are split by NaNs:
+    df = df.groupby(axis=1, level = [0,1]).mean()
     df.sort_index(inplace=True)
     return df
 
@@ -287,11 +287,13 @@ def _parse_contracted_reserve_series(soup, tz, label):
                       'A02': 'Down',
                       'A03': 'Symmetric'}
 
+    # First column level: the type of reserve
     reserve_type = BSNTYPE[soup.find("businesstype").text]
-    direction = direction_dico[soup.find("flowdirection.direction").text]
+    df.rename(columns={label: reserve_type}, inplace=True)
 
-    df.rename(columns={label: "%s - %s" % (reserve_type, direction)},
-              inplace=True)
+    # Second column level: the flow direction 
+    direction = direction_dico[soup.find("flowdirection.direction").text]
+    df.columns = pd.MultiIndex.from_product([df.columns, [direction]])
     return df
 
 

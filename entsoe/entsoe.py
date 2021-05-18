@@ -20,7 +20,7 @@ from .parsers import parse_prices, parse_loads, parse_generation, \
     parse_netpositions
 
 __title__ = "entsoe-py"
-__version__ = "0.3.3"
+__version__ = "0.3.4"
 __author__ = "EnergieID.be"
 __license__ = "MIT"
 

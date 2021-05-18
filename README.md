@@ -20,6 +20,9 @@ client = EntsoeRawClient(api_key=<YOUR API KEY>)
 start = pd.Timestamp('20171201', tz='Europe/Brussels')
 end = pd.Timestamp('20180101', tz='Europe/Brussels')
 country_code = 'BE'  # Belgium
+country_code_from = 'FR'  # France
+country_code_to = 'DE_LU' # Germany-Luxembourg
+type_marketagreement_type = 'A01'
 
 # methods that return XML
 client.query_day_ahead_prices(country_code, start, end)
@@ -29,12 +32,25 @@ client.query_load_forecast(country_code, start, end)
 client.query_wind_and_solar_forecast(country_code, start, end, psr_type=None)
 client.query_generation_forecast(country_code, start, end)
 client.query_generation(country_code, start, end, psr_type=None)
+client.query_generation_per_plant(country_code, start, end, psr_type=None)
 client.query_installed_generation_capacity(country_code, start, end, psr_type=None)
+client.query_installed_generation_capacity_per_unit(country_code, start, end, psr_type=None)
 client.query_crossborder_flows(country_code_from, country_code_to, start, end)
-client.query_imbalance_prices(country_code, start, end, psr_type=None)
+client.query_scheduled_exchanges(country_code_from, country_code_to, start, end)
+client.query_net_transfer_capacity_dayahead(country_code_from, country_code_to, start, end)
+client.query_net_transfer_capacity_weekahead(country_code_from, country_code_to, start, end)
+client.query_net_transfer_capacity_monthahead(country_code_from, country_code_to, start, end)
+client.query_net_transfer_capacity_yearahead(country_code_from, country_code_to, start, end)
+client.query_intraday_offered_capacity(country_code_from, country_code_to, start, end, implicit=True)
+client.query_contracted_reserve_prices(country_code, start, end, type_marketagreement_type, psr_type=None)
+client.query_contracted_reserve_amount(country_code, start, end, type_marketagreement_type, psr_type=None)
 
-# methods that return ZIP
-client.query_unavailability_of_generation_units(country_code, start, end, docstatus=None)
+
+# methods that return ZIP (bytes)
+client.query_imbalance_prices(country_code, start, end, psr_type=None)
+client.query_unavailability_of_generation_units(country_code, start, end, docstatus=None, periodstartupdate=None, periodendupdate=None)
+client.query_unavailability_of_production_units(country_code, start, end, docstatus=None, periodstartupdate=None, periodendupdate=None)
+client.query_unavailability_transmission(country_code_from, country_code_to, start, end, docstatus=None, periodstartupdate=None, periodendupdate=None)
 client.query_withdrawn_unavailability_of_generation_units(country_code, start, end)
 ```
 #### Dump result to file
@@ -72,22 +88,40 @@ client = EntsoePandasClient(api_key=<YOUR API KEY>)
 start = pd.Timestamp('20171201', tz='Europe/Brussels')
 end = pd.Timestamp('20180101', tz='Europe/Brussels')
 country_code = 'BE'  # Belgium
+country_code_from = 'FR'  # France
+country_code_to = 'DE_LU' # Germany-Luxembourg
+type_marketagreement_type = 'A01'
 
 # methods that return Pandas Series
 client.query_day_ahead_prices(country_code, start=start,end=end)
 client.query_net_position_dayahead(country_code, start=start, end=end)
 client.query_load(country_code, start=start,end=end)
 client.query_load_forecast(country_code, start=start,end=end)
-client.query_generation_forecast(country_code, start=start,end=end)
+client.query_crossborder_flows(country_code_from, country_code_to, start, end)
+client.query_scheduled_exchanges(country_code_from, country_code_to, start, end)
+client.query_net_transfer_capacity_dayahead(country_code_from, country_code_to, start, end)
+client.query_net_transfer_capacity_weekahead(country_code_from, country_code_to, start, end)
+client.query_net_transfer_capacity_monthahead(country_code_from, country_code_to, start, end)
+client.query_net_transfer_capacity_yearahead(country_code_from, country_code_to, start, end)
+client.query_intraday_offered_capacity(country_code_from, country_code_to, start, end,implicit=True)
 
 # methods that return Pandas DataFrames
+client.query_generation_forecast(country_code, start=start,end=end)
 client.query_wind_and_solar_forecast(country_code, start=start,end=end, psr_type=None)
 client.query_generation(country_code, start=start,end=end, psr_type=None)
+client.query_generation_per_plant(country_code, start=start,end=end, psr_type=None)
 client.query_installed_generation_capacity(country_code, start=start,end=end, psr_type=None)
-client.query_crossborder_flows('DE', 'DK', start=start,end=end)
+client.query_installed_generation_capacity_per_unit(country_code, start=start,end=end, psr_type=None)
 client.query_imbalance_prices(country_code, start=start,end=end, psr_type=None)
-client.query_unavailability_of_generation_units(country_code, start=start,end=end, docstatus=None)
-client.query_withdrawn_unavailability_of_generation_units('DE', start=start,end=end)
+client.query_contracted_reserve_prices(country_code, start, end, type_marketagreement_type, psr_type=None)
+client.query_contracted_reserve_amount(country_code, start, end, type_marketagreement_type, psr_type=None)
+client.query_unavailability_of_generation_units(country_code, start=start,end=end, docstatus=None, periodstartupdate=None, periodendupdate=None)
+client.query_unavailability_of_production_units(country_code, start, end, docstatus=None, periodstartupdate=None, periodendupdate=None)
+client.query_unavailability_transmission(country_code_from, country_code_to, start, end, docstatus=None, periodstartupdate=None, periodendupdate=None)
+client.query_withdrawn_unavailability_of_generation_units(country_code, start, end)
+client.query_import(country_code, start, end)
+client.query_generation_import(country_code, start, end)
+
 ```
 #### Dump result to file
 See a list of all IO-methods on https://pandas.pydata.org/pandas-docs/stable/io.html
@@ -143,6 +177,7 @@ DOMAIN_MAPPINGS = {
     'TR': '10YTR-TEIAS----W',
     'UA': '10YUA-WEPS-----0',
     'DE_AT_LU': '10Y1001A1001A63L',
+    'DE_LU':'10Y1001A1001A82H',
 }
 ```
 ### Bidding Zones

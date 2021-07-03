@@ -359,7 +359,34 @@ class EntsoeRawClient:
             'in_Domain': area.code,
         }
         if psr_type:
-            params.update({'psrType': psr_type})
+            params.update({"psrType": psr_type})
+        response = self._base_request(params=params, start=start, end=end)
+        return response.text
+
+    def query_generation_per_type(
+        self, country_code: Union[Area, str], start: pd.Timestamp,
+        end: pd.Timestamp, psr_type: Optional[str] = None, **kwargs,) -> str:
+        """
+        Parameters
+        ----------
+        country_code : Area|str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        psr_type : str
+            filter on a single psr type
+
+        Returns
+        -------
+        str
+        """
+        area = lookup_area(country_code)
+        params = {
+            "documentType": "A75",
+            "processType": "A16",
+            "in_Domain": area.code,
+        }
+        if psr_type:
+            params.update({"psrType": psr_type})
         response = self._base_request(params=params, start=start, end=end)
         return response.text
 
@@ -1684,6 +1711,37 @@ class EntsoePandasClient(EntsoeRawClient):
         # Truncation will fail if data is not sorted along the index in rare
         # cases. Ensure the dataframe is sorted:
         df = df.sort_index(0)
+        df = df.truncate(before=start, after=end)
+        return df
+
+    @day_limited
+    def query_generation_per_type( self, country_code: Union[Area, str], start: pd.Timestamp,
+        end: pd.Timestamp, psr_type: Optional[str] = None,
+        nett: bool = False, **kwargs,) -> pd.DataFrame:
+        """
+        Parameters
+        ----------
+        country_code : Area|str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        psr_type : str
+            filter on a single psr type
+        nett : bool
+            condense generation and consumption into a nett number
+
+        Returns
+        -------
+        pd.DataFrame
+        """
+        area = lookup_area(country_code)
+        text = super(EntsoePandasClient, self).query_generation_per_type(
+            country_code=area, start=start, end=end, psr_type=psr_type
+        )
+        df = parse_generation(text)
+        df.columns = df.columns.set_levels(
+            df.columns.levels[0].str.encode("latin-1").str.decode("utf-8"), level=0
+        )
+        df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df
 

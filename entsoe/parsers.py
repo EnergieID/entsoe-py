@@ -10,6 +10,9 @@ from .mappings import PSRTYPE_MAPPINGS, DOCSTATUS, BSNTYPE, Area
 GENERATION_ELEMENT = "inBiddingZone_Domain.mRID"
 CONSUMPTION_ELEMENT = "outBiddingZone_Domain.mRID"
 
+CONSUMPTION = 'Actual Consumption'
+GENERATION = 'Actual Aggregated'
+
 
 def _extract_timeseries(xml_text):
     """
@@ -107,39 +110,52 @@ def parse_generation(
     return df
 
 
+def _get_aggregation_level(df: pd.DataFrame) -> int:
+    """
+    Returns the dataframe's column level corresponding to the aggregation.
+    Parameters
+    ----------
+    df : pd.DataFrame
+
+    Returns
+    -------
+    int
+    """
+    for ind, level in enumerate(df.columns.levels):
+        if set(level) <= set([CONSUMPTION, GENERATION]):
+            return ind
+    return -1
+        
+    
 def _calc_nett_and_drop_redundant_columns(
         df: pd.DataFrame, nett: bool) -> pd.DataFrame:
-    def _calc_nett(_df):
-        try:
-            if set(['Actual Aggregated']).issubset(_df):
-                if set(['Actual Consumption']).issubset(_df):
-                    _new = _df['Actual Aggregated'].fillna(0) - _df[
-                        'Actual Consumption'].fillna(0)
-                else:
-                    _new = _df['Actual Aggregated'].fillna(0)
-            else:
-                _new = -_df['Actual Consumption'].fillna(0)    
-            
-        except KeyError:
-            print ('Netting production and consumption not possible. Column not found')
-        return _new
+    """
+    Calculates the net generation if needed.
+    Parameters
+    ----------
+    df : pd.DataFrame
+    nett: bool
+        whether or not to net
 
-    if hasattr(df.columns, 'levels'):
-        if len(df.columns.levels[-1]) == 1:
-            # Drop the extra header, if it is redundant
-            df = df.droplevel(axis=1, level=-1)
-        elif nett:
-            frames = []
-            for column in df.columns.levels[-2]:
-                new = _calc_nett(df[column])
-                new.name = column
-                frames.append(new)
-            df = pd.concat(frames, axis=1)
-    else:
-        if nett:
-            df = _calc_nett(df)
-        elif len(df.columns) == 1:
-            df = df.squeeze()
+    Returns
+    -------
+    df : pd.DataFrame
+    """
+    aggr_level = _get_aggregation_level(df)
+    if aggr_level >= 0 and nett:
+        gen = df.xs(GENERATION, 1, aggr_level).fillna(0) \
+                if GENERATION in df.columns.levels[aggr_level] \
+                    else None
+        cons = df.xs(CONSUMPTION, 1, aggr_level).fillna(0) \
+                if CONSUMPTION in df.columns.levels[aggr_level] \
+                    else 0
+
+        if gen is None:
+            # No generation is defined, only consumption (eg PSP in ES)
+            df = -cons
+        else:
+            # Net generation = generation - consumption
+            df = gen.add(-cons, fill_value = 0)
 
     return df
 
@@ -422,9 +438,9 @@ def _parse_generation_timeseries(soup, per_plant: bool = False) -> pd.Series:
     # If OUT, this means Consumption is measured.
     # OUT means Consumption of a generation plant, eg. charging a pumped hydro plant
     if soup.find(CONSUMPTION_ELEMENT.lower()):
-        metric = 'Actual Consumption'
+        metric = CONSUMPTION
     else:
-        metric = 'Actual Aggregated'
+        metric = GENERATION
 
     name = [metric]
 

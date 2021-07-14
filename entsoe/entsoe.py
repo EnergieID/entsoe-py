@@ -1569,7 +1569,7 @@ class EntsoePandasClient(EntsoeRawClient):
         area = lookup_area(country_code)
         text = super(EntsoePandasClient, self).query_generation_per_plant(
             country_code=area, start=start, end=end, psr_type=psr_type)
-        df = parse_generation(text, per_plant=True)
+        df = parse_generation(text, per_plant=True, nett = nett)
         df.columns = df.columns.set_levels(df.columns.levels[0].str.encode('latin-1').str.decode('utf-8'), level=0)
         df = df.tz_convert(area.tz)
         # Truncation will fail if data is not sorted along the index in rare

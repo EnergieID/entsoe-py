@@ -48,6 +48,7 @@ class Area(enum.Enum):
     # List taken directly from the API Docs
     DE_50HZ =       '10YDE-VE-------2', '50Hertz CA, DE(50HzT) BZA',                    'Europe/Berlin',
     AL =            '10YAL-KESH-----5', 'Albania, OST BZ / CA / MBA',                   'Europe/Tirane',
+    AZ =            '10Y1001A1001B05V', 'Azerbaijan',                                   'Asia/Baku',
     DE_AMPRION =    '10YDE-RWENET---I', 'Amprion CA',                                   'Europe/Berlin',
     AT =            '10YAT-APG------L', 'Austria, APG BZ / CA / MBA',                   'Europe/Vienna',
     BY =            '10Y1001A1001A51S', 'Belarus BZ / CA / MBA',                        'Europe/Minsk',
@@ -70,6 +71,7 @@ class Area(enum.Enum):
     MK =            '10YMK-MEPSO----8', 'Former Yugoslav Republic of Macedonia, MEPSO BZ / CA / MBA', 'Europe/Skopje',
     FR =            '10YFR-RTE------C', 'France, RTE BZ / CA / MBA',                    'Europe/Paris',
     DE =            '10Y1001A1001A83F', 'Germany',                                      'Europe/Berlin'
+    GE =            '10Y1001A1001B012', 'Georgia',                                      'Asia/Tbilisi',
     GR =            '10YGR-HTSO-----Y', 'Greece, IPTO BZ / CA/ MBA',                    'Europe/Athens',
     HU =            '10YHU-MAVIR----U', 'Hungary, MAVIR CA / BZ / MBA',                 'Europe/Budapest',
     IS =            'IS',               'Iceland',                                      'Atlantic/Reykjavik',

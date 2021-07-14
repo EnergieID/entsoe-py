@@ -16,10 +16,11 @@ from .mappings import Area, NEIGHBOURS, lookup_area
 from .misc import year_blocks, day_blocks
 from .parsers import parse_prices, parse_loads, parse_generation, \
     parse_installed_capacity_per_plant, parse_crossborder_flows, \
-    parse_unavailabilities, parse_contracted_reserve, parse_imbalance_prices_zip
+    parse_unavailabilities, parse_contracted_reserve, parse_imbalance_prices_zip, \
+    parse_netpositions
 
 __title__ = "entsoe-py"
-__version__ = "0.3.2"
+__version__ = "0.3.4"
 __author__ = "EnergieID.be"
 __license__ = "MIT"
 
@@ -177,6 +178,30 @@ class EntsoeRawClient:
         area = lookup_area(country_code)
         params = {
             'documentType': 'A44',
+            'in_Domain': area.code,
+            'out_Domain': area.code
+        }
+        response = self._base_request(params=params, start=start, end=end)
+        return response.text
+    
+    def query_net_position_dayahead(self, country_code: Union[Area, str],
+                            start: pd.Timestamp, end: pd.Timestamp) -> str:
+        """
+        Parameters
+        ----------
+        country_code : Area|str
+        start : pd.Timestamp
+        end : pd.Timestamp
+
+        Returns
+        -------
+        str
+        """
+        area = lookup_area(country_code)
+        params = {
+            'documentType': 'A25',  # Allocation result document
+            'businessType': 'B09',  # net position
+            'Contract_MarketAgreement.Type': 'A01',  # daily
             'in_Domain': area.code,
             'out_Domain': area.code
         }
@@ -517,15 +542,40 @@ class EntsoeRawClient:
             country_code_from=country_code_from,
             country_code_to=country_code_to, start=start, end=end,
             doctype="A61", contract_marketagreement_type="A04")
+    
+    def query_intraday_offered_capacity(
+        self, country_code_from: Union[Area, str],
+            country_code_to: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, implicit:bool = True,**kwargs) -> str:
+        """
+        Parameters
+        ----------
+        country_code_from : Area|str
+        country_code_to : Area|str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        implicit: bool (True = implicit - default for most borders. False = explicit - for instance BE-GB)
+
+        Returns
+        -------
+        str
+        """
+        return self._query_crossborder(
+            country_code_from=country_code_from,
+            country_code_to=country_code_to, start=start, end=end,
+            doctype="A31", contract_marketagreement_type="A07",
+            auction_type=("A01" if implicit==True else "A02"))
+
 
     def _query_crossborder(
             self, country_code_from: Union[Area, str],
             country_code_to: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp, doctype: str,
-            contract_marketagreement_type: Optional[str] = None) -> str:
+            contract_marketagreement_type: Optional[str] = None,
+            auction_type: Optional[str] = None) -> str:
         """
-        Generic function called by query_crossborder_flows and
-        query_scheduled_exchanges.
+        Generic function called by query_crossborder_flows, 
+        query_scheduled_exchanges, query_net_transfer_capacity_DA/WA/MA/YA and query_.
 
         Parameters
         ----------
@@ -551,6 +601,9 @@ class EntsoeRawClient:
         if contract_marketagreement_type is not None:
             params[
                 'contract_MarketAgreement.Type'] = contract_marketagreement_type
+        if auction_type is not None:
+            params[
+                'Auction.Type'] = auction_type
 
         response = self._base_request(params=params, start=start, end=end)
         return response.text
@@ -826,6 +879,7 @@ class EntsoeRawClient:
             country_code=country_code, start=start, end=end,
             doctype="A80", docstatus='A13')
         return content
+    
 
 
 def paginated(func):
@@ -900,6 +954,29 @@ def day_limited(func):
 
 
 class EntsoePandasClient(EntsoeRawClient):
+    @year_limited
+    def query_net_position_dayahead(self, country_code: Union[Area, str],
+                            start: pd.Timestamp, end: pd.Timestamp) -> pd.Series:
+        """
+
+        Parameters
+        ----------
+        country_code
+        start
+        end
+
+        Returns
+        -------
+
+        """
+        area = lookup_area(country_code)
+        text = super(EntsoePandasClient, self).query_net_position_dayahead(
+            country_code=area, start=start, end=end)
+        series = parse_netpositions(text)
+        series = series.tz_convert(area.tz)
+        series = series.truncate(before=start, after=end)
+        return series
+
     @year_limited
     def query_day_ahead_prices(
             self, country_code: Union[Area, str], start: pd.Timestamp,
@@ -1258,7 +1335,7 @@ class EntsoePandasClient(EntsoeRawClient):
         ts = ts.tz_convert(area_from.tz)
         ts = ts.truncate(before=start, after=end)
         return ts
-
+    
     @year_limited
     def query_net_transfer_capacity_yearahead(
             self, country_code_from: Union[Area, str],
@@ -1290,6 +1367,38 @@ class EntsoePandasClient(EntsoeRawClient):
         ts = ts.truncate(before=start, after=end)
         return ts
 
+    @year_limited
+    def query_intraday_offered_capacity(
+        self, country_code_from: Union[Area, str],
+            country_code_to: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, implicit:bool = True, **kwargs) -> pd.Series:
+        """
+        Note: Result will be in the timezone of the origin country  --> to check
+
+        Parameters
+        ----------
+        country_code_from : Area|str
+        country_code_to : Area|str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        implicit: bool (True = implicit - default for most borders. False = explicit - for instance BE-GB)
+        Returns
+        -------
+        pd.Series
+        """
+        area_to = lookup_area(country_code_to)
+        area_from = lookup_area(country_code_from)
+        text = super(EntsoePandasClient, self).query_intraday_offered_capacity(
+            country_code_from=area_from,
+            country_code_to=area_to,
+            start=start,
+            end=end,
+            implicit=implicit)
+        ts = parse_crossborder_flows(text)
+        ts = ts.tz_convert(area_from.tz)
+        ts = ts.truncate(before=start, after=end)
+        return ts
+    
     @year_limited
     def query_imbalance_prices(
             self, country_code: Union[Area, str], start: pd.Timestamp,
@@ -1620,3 +1729,4 @@ class EntsoePandasClient(EntsoeRawClient):
         df = pd.concat(data.values(), axis=1, keys=data.keys())
         df = df.truncate(before=start, after=end)
         return df
+

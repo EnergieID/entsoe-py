@@ -1,11 +1,19 @@
 import pandas as pd
+import datetime as dt
 from dateutil import rrule
 from itertools import tee
+from functools import partial
+from typing import Union, Iterable, Tuple
 
 
-def year_blocks(start, end):
+get_distinct_sorted_pairs = lambda list: pairwise(sorted(set(list)))
+
+def _blocks(rrule_freq: int,
+            start: Union[pd.Timestamp, dt.datetime], end: Union[pd.Timestamp, dt.datetime]
+            ) -> Iterable[Tuple[pd.Timestamp, pd.Timestamp]]:
     """
-    Create pairs of start and end with max a year in between, to deal with usage restrictions on the API
+    Create pairs of start and end with max `rrule_freq` in between, to deal with usage
+    restrictions on the API
 
     Parameters
     ----------
@@ -16,66 +24,16 @@ def year_blocks(start, end):
     -------
     ((pd.Timestamp, pd.Timestamp))
     """
-    rule = rrule.YEARLY
+    rule = rrule_freq
 
-    res = []
-    for day in rrule.rrule(rule, dtstart=start, until=end):
-        res.append(pd.Timestamp(day))
-    res.append(end)
-    res = sorted(set(res))
-    res = pairwise(res)
-    return res
+    res = [start] + list(map(pd.Timestamp, rrule.rrule(rule, dtstart=start, until=end))) + [end]
+    return get_distinct_sorted_pairs(res)
 
+year_blocks = partial(_blocks, rrule_freq = rrule.YEARLY)
+month_blocks = partial(_blocks, rrule_freq = rrule.MONTHLY)
+day_blocks = partial(_blocks, rrule_freq = rrule.DAILY)
 
-def month_blocks(start, end):
-    """
-    Create pairs of start and end with max a month in between, to deal with usage restrictions on the API
-
-    Parameters
-    ----------
-    start : dt.datetime | pd.Timestamp
-    end : dt.datetime | pd.Timestamp
-
-    Returns
-    -------
-    ((pd.Timestamp, pd.Timestamp))
-    """
-    rule = rrule.MONTHLY
-
-    res = []
-    for day in rrule.rrule(rule, dtstart=start, until=end):
-        res.append(pd.Timestamp(day))
-    res.append(end)
-    res = sorted(set(res))
-    res = pairwise(res)
-    return res
-
-
-def day_blocks(start, end):
-    """
-    Create pairs of start and end with max a day in between, to deal with usage restrictions on the API
-
-    Parameters
-    ----------
-    start : dt.datetime | pd.Timestamp
-    end : dt.datetime | pd.Timestamp
-
-    Returns
-    -------
-    ((pd.Timestamp, pd.Timestamp))
-    """
-    rule = rrule.DAILY
-
-    res = []
-    for day in rrule.rrule(rule, dtstart=start, until=end):
-        res.append(pd.Timestamp(day))
-    res.append(end)
-    res = sorted(set(res))
-    res = pairwise(res)
-    return res
-
-
-def pairwise(iterable):
+def pairwise(iterable: Iterable) -> zip:
     """
     Create pairs to iterate over
     eg. [A, B, C, D] -> ([A, B], [B, C], [C, D])

@@ -4,6 +4,7 @@ import pandas as pd
 from bs4 import BeautifulSoup
 
 from entsoe import EntsoeRawClient, EntsoePandasClient
+from entsoe import misc
 from entsoe.exceptions import NoMatchingDataError
 from settings import *
 
@@ -109,6 +110,31 @@ class EntsoePandasClientTest(EntsoeRawClientTest):
 
     def test_query_unavailability_of_generation_units(self):
         pass
+
+class MiscTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.start = pd.Timestamp('20180101', tz='Europe/Brussels')
+        cls.end = pd.Timestamp('20180107', tz='Europe/Brussels')
+
+    def test_year_blocks(self):
+        blocks = list(misc.year_blocks(start=self.start, end=self.end))
+        self.assertEqual(self.start, blocks[0][0])
+        self.assertEqual(self.end, blocks[-1][1])
+        self.assertTrue((pd.Series([b-a for a,b in blocks]) <= pd.Timedelta(weeks=53)).all())
+
+
+    def test_month_blocks(self):
+        blocks = list(misc.month_blocks(start=self.start, end=self.end))
+        self.assertEqual(self.start, blocks[0][0])
+        self.assertEqual(self.end, blocks[-1][1])
+        self.assertTrue((pd.Series([b - a for a, b in blocks]) <= pd.Timedelta(days=31)).all())
+
+    def test_day_blocks(self):
+        blocks = list(misc.day_blocks(start=self.start, end=self.end))
+        self.assertEqual(self.start, blocks[0][0])
+        self.assertEqual(self.end, blocks[-1][1])
+        self.assertTrue((pd.Series([b - a for a, b in blocks]) <= pd.Timedelta(days=1)).all())
 
 if __name__ == '__main__':
     unittest.main()

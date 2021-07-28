@@ -38,7 +38,7 @@ def parse_prices(xml_text):
     -------
     pd.Series
     """
-    series = pd.Series()
+    series = pd.Series(dtype = 'object')
     for soup in _extract_timeseries(xml_text):
         series = series.append(_parse_price_timeseries(soup))
     series = series.sort_index()
@@ -56,7 +56,7 @@ def parse_netpositions(xml_text):
     -------
     pd.Series
     """
-    series = pd.Series()
+    series = pd.Series(dtype = 'object')
     for soup in _extract_timeseries(xml_text):
         series = series.append(_parse_netposition_timeseries(soup))
     series = series.sort_index()
@@ -73,7 +73,7 @@ def parse_loads(xml_text):
     -------
     pd.Series
     """
-    series = pd.Series()
+    series = pd.Series(dtype = 'object')
     for soup in _extract_timeseries(xml_text):
         series = series.append(_parse_load_timeseries(soup))
     series = series.sort_index()
@@ -204,7 +204,7 @@ def parse_crossborder_flows(xml_text):
     -------
     pd.Series
     """
-    series = pd.Series()
+    series = pd.Series(dtype = 'object')
     for soup in _extract_timeseries(xml_text):
         series = series.append(_parse_crossborder_flows_timeseries(soup))
     series = series.sort_index()

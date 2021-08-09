@@ -83,6 +83,7 @@ def parse_loads(xml_text):
 def parse_generation(
         xml_text: str,
         per_plant: bool = False,
+        include_eic: bool = False,
         nett: bool = False) -> Union[pd.DataFrame, pd.Series]:
     """
     Parameters
@@ -93,6 +94,8 @@ def parse_generation(
     nett : bool
         If you want to condense generation and consumption of a plant into a
         nett number
+    include_eic: bool
+        If you want to include the eic code of a plan in the output
 
     Returns
     -------
@@ -100,7 +103,7 @@ def parse_generation(
     """
     all_series = dict()
     for soup in _extract_timeseries(xml_text):
-        ts = _parse_generation_timeseries(soup, per_plant=per_plant)
+        ts = _parse_generation_timeseries(soup, per_plant=per_plant, include_eic=include_eic)
 
         # check if we already have a series of this name
         series = all_series.get(ts.name)
@@ -487,7 +490,7 @@ def _parse_load_timeseries(soup):
     return series
 
 
-def _parse_generation_timeseries(soup, per_plant: bool = False) -> pd.Series:
+def _parse_generation_timeseries(soup, per_plant: bool = False, include_eic: bool = False) -> pd.Series:
     """
     Works for generation by type, generation forecast, and wind and solar
     forecast
@@ -540,6 +543,10 @@ def _parse_generation_timeseries(soup, per_plant: bool = False) -> pd.Series:
     if per_plant:
         plantname = soup.find('name').text
         name.append(plantname)
+        if include_eic:
+            eic = soup.find("mrid", codingscheme="A01").text
+            name.insert(0, eic)
+
 
     if len(name) == 1:
         series.name = name[0]

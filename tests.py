@@ -7,6 +7,7 @@ from entsoe import EntsoeRawClient, EntsoePandasClient
 from entsoe.exceptions import NoMatchingDataError
 from settings import *
 
+
 class EntsoeRawClientTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -63,6 +64,19 @@ class EntsoeRawClientTest(unittest.TestCase):
             self.client.query_withdrawn_unavailability_of_generation_units(
                 country_code='BE', start=self.start, end=self.end)
 
+    def test_query_procured_balancing_capacity(self):
+        text = self.client.query_procured_balancing_capacity(
+            country_code='CZ',
+            start=pd.Timestamp('20210101', tz='Europe/Prague'),
+            end=pd.Timestamp('20210102', tz='Europe/Prague'),
+            process_type='A51'
+        )
+        self.assertIsInstance(text, bytes)
+        try:
+            BeautifulSoup(text, 'html.parser')
+        except Exception as e:
+            self.fail(f'Parsing of response failed with exception: {e}')
+
 
 class EntsoePandasClientTest(EntsoeRawClientTest):
     @classmethod
@@ -109,6 +123,16 @@ class EntsoePandasClientTest(EntsoeRawClientTest):
 
     def test_query_unavailability_of_generation_units(self):
         pass
+
+    def test_query_procured_balancing_capacity(self):
+        ts = self.client.query_procured_balancing_capacity(
+            country_code='CZ',
+            start=pd.Timestamp('20210101', tz='Europe/Prague'),
+            end=pd.Timestamp('20210102', tz='Europe/Prague'),
+            process_type='A51'
+        )
+        self.assertIsInstance(ts, pd.DataFrame)
+
 
 if __name__ == '__main__':
     unittest.main()

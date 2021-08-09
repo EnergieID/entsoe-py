@@ -230,6 +230,65 @@ def parse_imbalance_prices(xml_text):
     return df
 
 
+def parse_procured_balancing_capacity(xml_text, tz):
+    """
+    Parameters
+    ----------
+    xml_text : str
+    tz: str
+
+    Returns
+    -------
+    pd.DataFrame
+    """
+    timeseries_blocks = _extract_timeseries(xml_text)
+    frames = (_parse_procured_balancing_capacity(soup, tz)
+              for soup in timeseries_blocks)
+    df = pd.concat(frames, axis=1)
+
+    df.sort_index(axis=0, inplace=True)
+    df.sort_index(axis=1, inplace=True)
+    return df
+
+
+def _parse_procured_balancing_capacity(soup, tz):
+    """
+    Parameters
+    ----------
+    soup : bs4.element.tag
+    tz: str
+
+    Returns
+    -------
+    pd.DataFrame
+    """
+    direction = {
+        'A01': 'Up',
+        'A02': 'Down'
+    }
+
+    flow_direction = direction[soup.find('flowdirection.direction').text]
+    period = soup.find('period')
+    start = pd.to_datetime(period.find('timeinterval').find('start').text)
+    end = pd.to_datetime(period.find('timeinterval').find('end').text)
+    resolution = _resolution_to_timedelta(period.find('resolution').text)
+    tx = pd.date_range(start=start, end=end, freq=resolution, closed='left')
+    points = period.find_all('point')
+    df = pd.DataFrame(index=tx, columns=['Price', 'Volume'])
+
+    for dt, point in zip(tx, points):
+        df.loc[dt, 'Price'] = float(point.find('procurement_price.amount').text)
+        df.loc[dt, 'Volume'] = float(point.find('quantity').text)
+
+    mr_id = int(soup.find('mrid').text)
+    df.columns = pd.MultiIndex.from_product(
+        [[flow_direction], [mr_id], df.columns],
+        names=('direction', 'mrid', 'unit')
+    )
+
+    return df
+
+
 def parse_contracted_reserve(xml_text, tz, label):
     """
     Parameters

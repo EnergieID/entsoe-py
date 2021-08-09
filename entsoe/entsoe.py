@@ -17,7 +17,7 @@ from .misc import year_blocks, day_blocks
 from .parsers import parse_prices, parse_loads, parse_generation, \
     parse_installed_capacity_per_plant, parse_crossborder_flows, \
     parse_unavailabilities, parse_contracted_reserve, parse_imbalance_prices_zip, \
-    parse_netpositions
+    parse_netpositions, parse_procured_balancing_capacity
 
 __title__ = "entsoe-py"
 __version__ = "0.3.4"
@@ -639,6 +639,40 @@ class EntsoeRawClient:
         }
         if psr_type:
             params.update({'psrType': psr_type})
+        response = self._base_request(params=params, start=start, end=end)
+        return response.content
+
+    def query_procured_balancing_capacity(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, process_type: str,
+            type_marketagreement_type: Optional[str] = None) -> bytes:
+        """
+        Activated Balancing Energy [17.1.E]
+        Parameters
+        ----------
+        country_code : Area|str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        process_type : str
+            A51 ... aFRR; A47 ... mFRR
+        type_marketagreement_type : str
+            type of contract (see mappings.MARKETAGREEMENTTYPE)
+
+        Returns
+        -------
+        bytes
+        """
+        if process_type not in ['A51', 'A47']:
+            raise ValueError('processType allowed values: A51, A47')
+
+        area = lookup_area(country_code)
+        params = {
+            'documentType': 'A15',
+            'area_Domain': area.code,
+            'processType': process_type
+        }
+        if type_marketagreement_type:
+            params.update({'type_MarketAgreement.Type': type_marketagreement_type})
         response = self._base_request(params=params, start=start, end=end)
         return response.content
 
@@ -1433,6 +1467,37 @@ class EntsoePandasClient(EntsoeRawClient):
         archive = super(EntsoePandasClient, self).query_imbalance_prices(
             country_code=area, start=start, end=end, psr_type=psr_type)
         df = parse_imbalance_prices_zip(zip_contents=archive)
+        df = df.tz_convert(area.tz)
+        df = df.truncate(before=start, after=end)
+        return df
+
+    @year_limited
+    @paginated
+    def query_procured_balancing_capacity(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, process_type: str,
+            type_marketagreement_type: Optional[str] = None) -> bytes:
+        """
+        Activated Balancing Energy [17.1.E]
+        Parameters
+        ----------
+        country_code : Area|str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        process_type : str
+            A51 ... aFRR; A47 ... mFRR
+        type_marketagreement_type : str
+            type of contract (see mappings.MARKETAGREEMENTTYPE)
+
+        Returns
+        -------
+        pd.DataFrame
+        """
+        area = lookup_area(country_code)
+        text = super(EntsoePandasClient, self).query_procured_balancing_capacity(
+            country_code=area, start=start, end=end,
+            process_type=process_type, type_marketagreement_type=type_marketagreement_type)
+        df = parse_procured_balancing_capacity(text, area.tz)
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df

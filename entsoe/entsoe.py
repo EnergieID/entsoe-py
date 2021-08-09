@@ -440,13 +440,17 @@ class EntsoeRawClient:
 
     def query_scheduled_exchanges(
             self, country_code_from: Union[Area, str],
-            country_code_to: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp, **kwargs) -> str:
+            country_code_to: Union[Area, str],
+            start: pd.Timestamp,
+            end: pd.Timestamp,
+            dayahead: bool = False,
+            **kwargs) -> str:
         """
         Parameters
         ----------
         country_code_from : Area|str
         country_code_to : Area|str
+        dayahead : bool
         start : pd.Timestamp
         end : pd.Timestamp
 
@@ -454,10 +458,14 @@ class EntsoeRawClient:
         -------
         str
         """
+        if dayahead:
+            contract_marketagreement_type = "A01"
+        else:
+            contract_marketagreement_type = "A05"
         return self._query_crossborder(
             country_code_from=country_code_from,
             country_code_to=country_code_to, start=start, end=end,
-            doctype="A09", contract_marketagreement_type="A05")
+            doctype="A09", contract_marketagreement_type=contract_marketagreement_type)
 
     def query_net_transfer_capacity_dayahead(
             self, country_code_from: Union[Area, str],
@@ -1215,8 +1223,11 @@ class EntsoePandasClient(EntsoeRawClient):
     @year_limited
     def query_scheduled_exchanges(
             self, country_code_from: Union[Area, str],
-            country_code_to: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp, **kwargs) -> pd.Series:
+            country_code_to: Union[Area, str],
+            start: pd.Timestamp,
+            end: pd.Timestamp,
+            dayahead: bool = False,
+            **kwargs) -> pd.Series:
         """
         Note: Result will be in the timezone of the origin country
 
@@ -1224,6 +1235,7 @@ class EntsoePandasClient(EntsoeRawClient):
         ----------
         country_code_from : Area|str
         country_code_to : Area|str
+        dayahead : bool
         start : pd.Timestamp
         end : pd.Timestamp
 
@@ -1236,6 +1248,7 @@ class EntsoePandasClient(EntsoeRawClient):
         text = super(EntsoePandasClient, self).query_scheduled_exchanges(
             country_code_from=area_from,
             country_code_to=area_to,
+            dayahead=dayahead,
             start=start,
             end=end)
         ts = parse_crossborder_flows(text)

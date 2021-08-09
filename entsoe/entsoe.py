@@ -1737,6 +1737,7 @@ class EntsoePandasClient(EntsoeRawClient):
     def query_generation_per_plant(
             self, country_code: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp, psr_type: Optional[str] = None,
+            include_eic: bool = False,
             nett: bool = False, **kwargs) -> pd.DataFrame:
         """
         Parameters
@@ -1748,6 +1749,8 @@ class EntsoePandasClient(EntsoeRawClient):
             filter on a single psr type
         nett : bool
             condense generation and consumption into a nett number
+        include_eic: bool
+            if True also include the eic code in the output
 
         Returns
         -------
@@ -1756,7 +1759,7 @@ class EntsoePandasClient(EntsoeRawClient):
         area = lookup_area(country_code)
         text = super(EntsoePandasClient, self).query_generation_per_plant(
             country_code=area, start=start, end=end, psr_type=psr_type)
-        df = parse_generation(text, per_plant=True)
+        df = parse_generation(text, per_plant=True, include_eic=include_eic)
         df.columns = df.columns.set_levels(df.columns.levels[0].str.encode('latin-1').str.decode('utf-8'), level=0)
         df = df.tz_convert(area.tz)
         # Truncation will fail if data is not sorted along the index in rare

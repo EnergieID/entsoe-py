@@ -104,3 +104,6 @@ test.ipynb
 settings.py
 /.project
 /.pydevproject
+
+# user settings, for example to store api key
+secret.py

@@ -63,7 +63,7 @@ def parse_netpositions(xml_text):
     return series
 
 
-def parse_loads(xml_text):
+def parse_loads(xml_text, process_type='A01'):
     """
     Parameters
     ----------
@@ -71,13 +71,32 @@ def parse_loads(xml_text):
 
     Returns
     -------
-    pd.Series
+    pd.DataFrame
     """
-    series = pd.Series(dtype = 'object')
-    for soup in _extract_timeseries(xml_text):
-        series = series.append(_parse_load_timeseries(soup))
-    series = series.sort_index()
-    return series
+    if process_type == 'A01' or process_type == 'A16':
+        series = pd.Series(dtype = 'object')
+        for soup in _extract_timeseries(xml_text):
+                series = series.append(_parse_load_timeseries(soup))
+        series = series.sort_index()
+        return pd.DataFrame({
+            'Forecasted Load' if process_type == 'A01' else 'Actual Load': series
+        })
+    else:
+        series_min = pd.Series(dtype='object')
+        series_max = pd.Series(dtype='object')
+        for soup in _extract_timeseries(xml_text):
+            t = _parse_load_timeseries(soup)
+            if soup.find('businesstype').text == 'A60':
+                series_min = series_min.append(t)
+            elif soup.find('businesstype').text == 'A61':
+                series_max = series_max.append(t)
+            else:
+                continue
+        return pd.DataFrame({
+            'Min Forecasted Load': series_min,
+            'Max Forecasted Load': series_max
+        })
+
 
 
 def parse_generation(

@@ -1067,7 +1067,7 @@ class EntsoePandasClient(EntsoeRawClient):
     @year_limited
     def query_load_forecast(
             self, country_code: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp, process_type: str = 'A01') -> pd.Series:
+            end: pd.Timestamp, process_type: str = 'A01') -> pd.DataFrame:
         """
         Parameters
         ----------
@@ -1078,15 +1078,17 @@ class EntsoePandasClient(EntsoeRawClient):
 
         Returns
         -------
-        pd.Series
+        pd.DataFrame
         """
         area = lookup_area(country_code)
         text = super(EntsoePandasClient, self).query_load_forecast(
             country_code=area, start=start, end=end, process_type=process_type)
-        series = parse_loads(text)
-        series = series.tz_convert(area.tz)
-        series = series.truncate(before=start, after=end)
-        return series
+
+        df = parse_loads(text, process_type=process_type)
+        df = df.tz_convert(area.tz)
+        df = df.truncate(before=start, after=end)
+        return df
+
 
     @year_limited
     def query_generation_forecast(

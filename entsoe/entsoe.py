@@ -20,7 +20,7 @@ from .parsers import parse_prices, parse_loads, parse_generation, \
     parse_netpositions, parse_procured_balancing_capacity
 
 __title__ = "entsoe-py"
-__version__ = "0.3.8"
+__version__ = "0.4"
 __author__ = "EnergieID.be"
 __license__ = "MIT"
 
@@ -138,6 +138,13 @@ class EntsoeRawClient:
                         f"documents and cannot be fulfilled as is.")
             raise e
         else:
+            # ENTSO-E has changed their server to also respond with 200 if there is no data but all parameters are valid
+            # this means we need to check the contents for this error even when status code 200 is returned
+            # to prevent parsing the full response do a text matching instead of full parsing
+            # also only do this when response type content is text and not for example a zip file
+            if response.headers.get('content-type', '') == 'application/xml':
+                if 'No matching data found' in response.text:
+                    raise NoMatchingDataError
             return response
 
     @staticmethod

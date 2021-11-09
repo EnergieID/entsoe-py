@@ -1,6 +1,6 @@
 import pandas as pd
 from settings import api_key
-from entsoe import Entsoe
+from entsoe import EntsoePandasClient as Entsoe
 e = Entsoe(api_key=api_key, retry_count=20, retry_delay=30)
 
 start = pd.Timestamp('20170601', tz='Europe/Brussels')
@@ -36,7 +36,7 @@ domains = [["10YCZ-CEPS-----N","Czech bidding zone"]]
 lst = list()
 for bzn in domains:
     s = e.query_unavailability_of_production_units(
-        domain=bzn[0], docstatus=None, start=start, end=end)
+        country_code=bzn[0], docstatus=None, start=start, end=end)
     if s is not None:
         lst.append(s)
 

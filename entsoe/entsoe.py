@@ -966,7 +966,7 @@ class EntsoePandasClient(EntsoeRawClient):
         area = lookup_area(country_code)
         text = super(EntsoePandasClient, self).query_load(
             country_code=area, start=start, end=end)
-        series = parse_loads(text)
+        series = parse_loads(text, process_type='A16')
         series = series.tz_convert(area.tz)
         series = series.truncate(before=start, after=end)
         return series
@@ -995,6 +995,27 @@ class EntsoePandasClient(EntsoeRawClient):
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df
+
+    def query_load_and_forecast(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp) -> pd.DataFrame:
+        """
+        utility function to combina query realised load and forecasted day ahead load.
+        this mimics the html view on the page Total Load - Day Ahead / Actual
+
+        Parameters
+        ----------
+        country_code : Area|str
+        start : pd.Timestamp
+        end : pd.Timestamp
+
+        Returns
+        -------
+        pd.DataFrame
+        """
+        df_load_forecast_da = self.query_load_forecast(country_code, start=start, end=end)
+        df_load = self.query_load(country_code, start=start, end=end)
+        return df_load_forecast_da.join(df_load, sort=True, how='inner')
 
 
     @year_limited

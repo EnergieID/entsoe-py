@@ -951,7 +951,7 @@ class EntsoePandasClient(EntsoeRawClient):
 
     @year_limited
     def query_load(self, country_code: Union[Area, str], start: pd.Timestamp,
-                   end: pd.Timestamp) -> pd.Series:
+                   end: pd.Timestamp) -> pd.DataFrame:
         """
         Parameters
         ----------

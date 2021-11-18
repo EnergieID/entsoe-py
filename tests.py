@@ -92,8 +92,6 @@ class EntsoePandasClientTest(EntsoeRawClientTest):
     def test_basic_series(self):
         queries = [
             self.client.query_day_ahead_prices,
-            self.client.query_load,
-            self.client.query_load_forecast,
             self.client.query_generation_forecast,
             self.client.query_net_position_dayahead
         ]
@@ -110,6 +108,8 @@ class EntsoePandasClientTest(EntsoeRawClientTest):
 
     def test_basic_dataframes(self):
         queries = [
+            self.client.query_load,
+            self.client.query_load_forecast,
             self.client.query_wind_and_solar_forecast,
             self.client.query_generation,
             self.client.query_installed_generation_capacity,

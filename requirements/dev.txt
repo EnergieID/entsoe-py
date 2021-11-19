@@ -1,0 +1,6 @@
+-r requirements.txt
+
+nox
+black
+isort
+pytest-cov

@@ -3,4 +3,6 @@
 nox
 black
 isort
+pytest-mock
 pytest-cov
+requests_mock

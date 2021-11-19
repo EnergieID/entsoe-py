@@ -14,10 +14,10 @@ type_marketagreement_type = "A01"
 URL = "https://transparency.entsoe.eu/api"
 
 
-def test_invalid_rawclient(mocker):
+def test_invalid_rawclient():
     """Will initiate RawClient without API key."""
     with pytest.raises(TypeError):
-        client = EntsoeRawClient()
+        EntsoeRawClient()
 
 
 def test_rawclient_get_exception():

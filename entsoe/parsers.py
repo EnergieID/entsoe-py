@@ -1,3 +1,4 @@
+import sys
 import zipfile
 from io import BytesIO
 from typing import Union
@@ -357,7 +358,7 @@ def _parse_contracted_reserve_series(soup, tz, label):
     df.sort_index(inplace=True)
     index = _parse_datetimeindex(soup, tz)
     if len(index) > len(df.index):
-        print("Shortening index")
+        print("Shortening index", file=sys.stderr)
         df.index = index[:len(df.index)]
     else:
         df.index = index

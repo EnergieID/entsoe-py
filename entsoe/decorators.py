@@ -1,3 +1,4 @@
+import sys
 from socket import gaierror
 from time import sleep
 import requests
@@ -22,7 +23,7 @@ def retry(func):
             except (requests.ConnectionError, gaierror) as e:
                 error = e
                 print("Connection Error, retrying in {} seconds".format(
-                    self.retry_delay))
+                    self.retry_delay), file=sys.stderr)
                 sleep(self.retry_delay)
                 continue
             else:
@@ -90,7 +91,7 @@ def day_limited(func):
             try:
                 frame = func(*args, start=_start, end=_end, **kwargs)
             except NoMatchingDataError:
-                print(f"NoMatchingDataError: between {_start} and {_end}")
+                print(f"NoMatchingDataError: between {_start} and {_end}", file=sys.stderr)
                 frame = None
             frames.append(frame)
 

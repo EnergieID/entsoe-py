@@ -5,9 +5,9 @@ import nox
 @nox.session()
 def formatting(session):
     """Will tests current codebase for formatting."""
-    session.install("black", "flake8", "isort")
+    session.install("black", "flake8", "isort", "flake8-docstrings")
     session.run("isort", "entsoe/", "tests/", "--check-only")
-    session.run("flake8", "entsoe/", "tests/", "--max-line-length=88")
+    session.run("flake8", "entsoe/", "tests/", "--max-line-length=88", "--docstring-convention", "numpy")
     session.run("black", "entsoe/", "tests/", "--check")
 
 

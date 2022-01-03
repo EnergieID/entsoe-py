@@ -51,6 +51,31 @@ def paginated(func):
 
     return pagination_wrapper
 
+def documents_limited(n):
+    def decorator(func):
+        """Deals with calls where you cannot query more than n documents at a time, by offsetting per n documents"""
+
+        @wraps(func)
+        def documents_wrapper(*args, **kwargs):
+            frames = []
+            for offset in range(0, 4800 + n, n):
+                try:
+                    frame = func(*args, offset=offset, **kwargs)
+                    frames.append(frame)
+                except NoMatchingDataError:
+                    logging.debug(f"NoMatchingDataError: for offset {offset}")
+                    break
+
+            if len(frames) == 0:
+                # All the data returned are void
+                raise NoMatchingDataError
+
+            df = pd.concat(frames, sort=True)
+            df = df.loc[~df.duplicated(keep='first')]
+            return df
+        return documents_wrapper
+    return decorator
+
 
 def year_limited(func):
     """Deals with calls where you cannot query more than a year, by splitting

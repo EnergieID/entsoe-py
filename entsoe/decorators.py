@@ -98,7 +98,7 @@ def year_limited(func):
             raise NoMatchingDataError
 
         df = pd.concat(frames, sort=True)
-        df = df.loc[~df.index.duplicated(keep='first')]
+        df = df.loc[~df.duplicated(keep='first')]
         return df
 
     return year_wrapper

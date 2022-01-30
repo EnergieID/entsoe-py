@@ -804,7 +804,10 @@ def parse_unavailabilities(response: bytes, doctype: str) -> pd.DataFrame:
             if f.filename.endswith('xml'):
                 frame = _outage_parser(arc.read(f), headers, ts_func)
                 dfs.append(frame)
-    df = pd.concat(dfs, axis=0)
+    if len(dfs) == 0:
+        df = pd.DataFrame(columns=headers)
+    else:
+        df = pd.concat(dfs, axis=0)
     df.set_index('created_doc_time', inplace=True)
     df.sort_index(inplace=True)
     return df

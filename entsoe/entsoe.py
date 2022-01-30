@@ -14,7 +14,7 @@ from .parsers import parse_prices, parse_loads, parse_generation, \
     parse_installed_capacity_per_plant, parse_crossborder_flows, \
     parse_unavailabilities, parse_contracted_reserve, parse_imbalance_prices_zip, \
     parse_netpositions, parse_procured_balancing_capacity
-from .decorators import retry, paginated, year_limited, day_limited
+from .decorators import retry, paginated, year_limited, day_limited, documents_limited
 
 __title__ = "entsoe-py"
 __version__ = "0.4.2"
@@ -105,6 +105,13 @@ class EntsoeRawClient:
                 elif 'amount of requested data exceeds allowed limit' in error_text:
                     requested = error_text.split(' ')[-2]
                     allowed = error_text.split(' ')[-5]
+                    raise PaginationError(
+                        f"The API is limited to {allowed} elements per "
+                        f"request. This query requested for {requested} "
+                        f"documents and cannot be fulfilled as is.")
+                elif 'requested data to be gathered via the offset parameter exceeds the allowed limit' in error_text:
+                    requested = error_text.split(' ')[-9]
+                    allowed = error_text.split(' ')[-30][:-2]
                     raise PaginationError(
                         f"The API is limited to {allowed} elements per "
                         f"request. This query requested for {requested} "
@@ -690,7 +697,8 @@ class EntsoeRawClient:
     def query_contracted_reserve_prices(
             self, country_code: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp, type_marketagreement_type: str,
-            psr_type: Optional[str] = None) -> str:
+            psr_type: Optional[str] = None,
+            offset: int = 0) -> str:
         """
         Parameters
         ----------
@@ -701,6 +709,8 @@ class EntsoeRawClient:
             type of contract (see mappings.MARKETAGREEMENTTYPE)
         psr_type : str
             filter query for a specific psr type
+        offset : int
+            offset for querying more than 100 documents
 
         Returns
         -------
@@ -711,6 +721,7 @@ class EntsoeRawClient:
             'documentType': 'A89',
             'controlArea_Domain': area.code,
             'type_MarketAgreement.Type': type_marketagreement_type,
+            'offset': offset
         }
         if psr_type:
             params.update({'psrType': psr_type})
@@ -720,7 +731,8 @@ class EntsoeRawClient:
     def query_contracted_reserve_amount(
             self, country_code: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp, type_marketagreement_type: str,
-            psr_type: Optional[str] = None) -> str:
+            psr_type: Optional[str] = None,
+            offset: int = 0) -> str:
         """
         Parameters
         ----------
@@ -731,6 +743,8 @@ class EntsoeRawClient:
             type of contract (see mappings.MARKETAGREEMENTTYPE)
         psr_type : str
             filter query for a specific psr type
+        offset : int
+            offset for querying more than 100 documents
 
         Returns
         -------
@@ -741,6 +755,7 @@ class EntsoeRawClient:
             'documentType': 'A81',
             'controlArea_Domain': area.code,
             'type_MarketAgreement.Type': type_marketagreement_type,
+            'offset': offset
         }
         if psr_type:
             params.update({'psrType': psr_type})
@@ -751,7 +766,8 @@ class EntsoeRawClient:
             self, country_code: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp, doctype: str, docstatus: Optional[str] = None,
             periodstartupdate: Optional[pd.Timestamp] = None,
-            periodendupdate: Optional[pd.Timestamp] = None) -> bytes:
+            periodendupdate: Optional[pd.Timestamp] = None,
+            offset: int = 0) -> bytes:
         """
         Generic unavailibility query method.
         This endpoint serves ZIP files.
@@ -766,6 +782,7 @@ class EntsoeRawClient:
         docstatus : str, optional
         periodstartupdate : pd.Timestamp, optional
         periodendupdate : pd.Timestamp, optional
+        offset : int
 
         Returns
         -------
@@ -774,7 +791,8 @@ class EntsoeRawClient:
         area = lookup_area(country_code)
         params = {
             'documentType': doctype,
-            'biddingZone_domain': area.code
+            'biddingZone_domain': area.code,
+            'offset': offset
             # ,'businessType': 'A53 (unplanned) | A54 (planned)'
         }
         if docstatus:
@@ -790,7 +808,8 @@ class EntsoeRawClient:
             self, country_code: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp, docstatus: Optional[str] = None,
             periodstartupdate: Optional[pd.Timestamp] = None,
-            periodendupdate: Optional[pd.Timestamp] = None) -> bytes:
+            periodendupdate: Optional[pd.Timestamp] = None,
+            offset: int = 0) -> bytes:
         """
         This endpoint serves ZIP files.
         The query is limited to 200 items per request.
@@ -803,6 +822,8 @@ class EntsoeRawClient:
         docstatus : str, optional
         periodstartupdate : pd.Timestamp, optional
         periodendupdate : pd.Timestamp, optional
+        offset : int
+
 
         Returns
         -------
@@ -811,7 +832,7 @@ class EntsoeRawClient:
         content = self._query_unavailability(
             country_code=country_code, start=start, end=end, doctype="A80",
             docstatus=docstatus, periodstartupdate=periodstartupdate,
-            periodendupdate=periodendupdate)
+            periodendupdate=periodendupdate, offset=offset)
         return content
 
     def query_unavailability_of_production_units(
@@ -847,7 +868,9 @@ class EntsoeRawClient:
             country_code_to: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp, docstatus: Optional[str] = None,
             periodstartupdate: Optional[pd.Timestamp] = None,
-            periodendupdate: Optional[pd.Timestamp] = None, **kwargs) -> bytes:
+            periodendupdate: Optional[pd.Timestamp] = None,
+            offset: int = 0,
+            **kwargs) -> bytes:
         """
         Generic unavailibility query method.
         This endpoint serves ZIP files.
@@ -862,6 +885,7 @@ class EntsoeRawClient:
         docstatus : str, optional
         periodstartupdate : pd.Timestamp, optional
         periodendupdate : pd.Timestamp, optional
+        offset : int
 
         Returns
         -------
@@ -872,7 +896,8 @@ class EntsoeRawClient:
         params = {
             'documentType': "A78",
             'in_Domain': area_in.code,
-            'out_Domain': area_out.code
+            'out_Domain': area_out.code,
+            'offset': offset
         }
         if docstatus:
             params['docStatus'] = docstatus
@@ -1464,10 +1489,12 @@ class EntsoePandasClient(EntsoeRawClient):
     
     @year_limited
     @paginated
+    @documents_limited(100)
     def query_contracted_reserve_prices(
             self, country_code: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp, type_marketagreement_type: str,
-            psr_type: Optional[str] = None) -> pd.DataFrame:
+            psr_type: Optional[str] = None,
+            offset: int = 0) -> pd.DataFrame:
         """
         Parameters
         ----------
@@ -1478,6 +1505,8 @@ class EntsoePandasClient(EntsoeRawClient):
             type of contract (see mappings.MARKETAGREEMENTTYPE)
         psr_type : str
             filter query for a specific psr type
+        offset : int
+            offset for querying more than 100 documents
 
         Returns
         -------
@@ -1487,7 +1516,7 @@ class EntsoePandasClient(EntsoeRawClient):
         text = super(EntsoePandasClient, self).query_contracted_reserve_prices(
             country_code=area, start=start, end=end,
             type_marketagreement_type=type_marketagreement_type,
-            psr_type=psr_type)
+            psr_type=psr_type, offset=offset)
         df = parse_contracted_reserve(text, area.tz, "procurement_price.amount")
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
@@ -1495,10 +1524,12 @@ class EntsoePandasClient(EntsoeRawClient):
 
     @year_limited
     @paginated
+    @documents_limited(100)
     def query_contracted_reserve_amount(
             self, country_code: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp, type_marketagreement_type: str,
-            psr_type: Optional[str] = None) -> pd.DataFrame:
+            psr_type: Optional[str] = None,
+            offset: int = 0) -> pd.DataFrame:
         """
         Parameters
         ----------
@@ -1509,6 +1540,8 @@ class EntsoePandasClient(EntsoeRawClient):
             type of contract (see mappings.MARKETAGREEMENTTYPE)
         psr_type : str
             filter query for a specific psr type
+        offset : int
+            offset for querying more than 100 documents
 
         Returns
         -------
@@ -1518,7 +1551,7 @@ class EntsoePandasClient(EntsoeRawClient):
         text = super(EntsoePandasClient, self).query_contracted_reserve_amount(
             country_code=area, start=start, end=end,
             type_marketagreement_type=type_marketagreement_type,
-            psr_type=psr_type)
+            psr_type=psr_type, offset=offset)
         df = parse_contracted_reserve(text, area.tz, "quantity")
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
@@ -1526,11 +1559,13 @@ class EntsoePandasClient(EntsoeRawClient):
 
     @year_limited
     @paginated
+    @documents_limited(200)
     def _query_unavailability(
             self, country_code: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp, doctype: str, docstatus: Optional[str] = None,
             periodstartupdate: Optional[pd.Timestamp] = None,
-            periodendupdate: Optional[pd.Timestamp] = None) -> pd.DataFrame:
+            periodendupdate: Optional[pd.Timestamp] = None,
+            offset: int = 0) -> pd.DataFrame:
         """
         Parameters
         ----------
@@ -1541,6 +1576,7 @@ class EntsoePandasClient(EntsoeRawClient):
         docstatus : str, optional
         periodstartupdate : pd.Timestamp, optional
         periodendupdate : pd.Timestamp, optional
+        offset : int
 
         Returns
         -------
@@ -1550,12 +1586,12 @@ class EntsoePandasClient(EntsoeRawClient):
         content = super(EntsoePandasClient, self)._query_unavailability(
             country_code=area, start=start, end=end, doctype=doctype,
             docstatus=docstatus, periodstartupdate=periodstartupdate,
-            periodendupdate=periodendupdate)
+            periodendupdate=periodendupdate, offset=offset)
         df = parse_unavailabilities(content, doctype)
         df = df.tz_convert(area.tz)
         df['start'] = df['start'].apply(lambda x: x.tz_convert(area.tz))
         df['end'] = df['end'].apply(lambda x: x.tz_convert(area.tz))
-        df = df.truncate(before=start, after=end)
+        df = df[(df['start'] < end) | (df['end'] > start)]
         return df
 
     def query_unavailability_of_generation_units(
@@ -1615,6 +1651,7 @@ class EntsoePandasClient(EntsoeRawClient):
             end: pd.Timestamp, docstatus: Optional[str] = None,
             periodstartupdate: Optional[pd.Timestamp] = None,
             periodendupdate: Optional[pd.Timestamp] = None,
+            offset: int = 0,
             **kwargs) -> pd.DataFrame:
         """
         Parameters
@@ -1626,6 +1663,7 @@ class EntsoePandasClient(EntsoeRawClient):
         docstatus : str, optional
         periodstartupdate : pd.Timestamp, optional
         periodendupdate : pd.Timestamp, optional
+        offset : int
 
         Returns
         -------
@@ -1636,12 +1674,12 @@ class EntsoePandasClient(EntsoeRawClient):
         content = super(EntsoePandasClient,
                         self).query_unavailability_transmission(
             area_from, area_to, start, end, docstatus, periodstartupdate,
-            periodendupdate)
+            periodendupdate, offset=offset)
         df = parse_unavailabilities(content, "A78")
         df = df.tz_convert(area_from.tz)
         df['start'] = df['start'].apply(lambda x: x.tz_convert(area_from.tz))
         df['end'] = df['end'].apply(lambda x: x.tz_convert(area_from.tz))
-        df = df.truncate(before=start, after=end)
+        df = df[(df['start'] < end) | (df['end'] > start)]
         return df
 
     def query_withdrawn_unavailability_of_generation_units(
@@ -1660,7 +1698,7 @@ class EntsoePandasClient(EntsoeRawClient):
         """
         df = self.query_unavailability_of_generation_units(
             country_code=country_code, start=start, end=end, docstatus='A13')
-        df = df.truncate(before=start, after=end)
+        df = df[(df['start'] < end) | (df['end'] > start)]
         return df
 
     @day_limited

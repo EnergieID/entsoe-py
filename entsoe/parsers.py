@@ -747,6 +747,8 @@ def _unavailability_gen_ts(soup: bs4.BeautifulSoup) -> list:
 
 HEADERS_UNAVAIL_TRANSM = ['created_doc_time',
                           'docstatus',
+                          'mrid',
+                          'revision'
                           'businesstype',
                           'in_domain',
                           'out_domain',

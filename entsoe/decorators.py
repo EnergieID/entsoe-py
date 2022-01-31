@@ -45,7 +45,9 @@ def paginated(func):
             df = func(*args, start=start, end=end, **kwargs)
         except PaginationError:
             pivot = start + (end - start) / 2
+            utils.wait_until_request_valid()
             df1 = pagination_wrapper(*args, start=start, end=pivot, **kwargs)
+            utils.wait_until_request_valid()
             df2 = pagination_wrapper(*args, start=pivot, end=end, **kwargs)
             df = pd.concat([df1, df2])
         return df

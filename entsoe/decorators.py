@@ -8,7 +8,7 @@ import pandas as pd
 import logging
 
 from .misc import year_blocks, day_blocks
-
+from . import utils
 
 def retry(func):
     """Catches connection errors, waits and retries"""
@@ -19,6 +19,7 @@ def retry(func):
         error = None
         for _ in range(self.retry_count):
             try:
+                utils.wait_until_request_valid()
                 result = func(*args, **kwargs)
             except (requests.ConnectionError, gaierror) as e:
                 error = e
@@ -44,7 +45,9 @@ def paginated(func):
             df = func(*args, start=start, end=end, **kwargs)
         except PaginationError:
             pivot = start + (end - start) / 2
+            utils.wait_until_request_valid()
             df1 = pagination_wrapper(*args, start=start, end=pivot, **kwargs)
+            utils.wait_until_request_valid()
             df2 = pagination_wrapper(*args, start=pivot, end=end, **kwargs)
             df = pd.concat([df1, df2])
         return df
@@ -60,6 +63,7 @@ def documents_limited(n):
             frames = []
             for offset in range(0, 4800 + n, n):
                 try:
+                    utils.wait_until_request_valid()
                     frame = func(*args, offset=offset, **kwargs)
                     frames.append(frame)
                 except NoMatchingDataError:

@@ -1,9 +1,29 @@
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
-
+from typing import Deque
 from .mappings import Area
+import datetime
+import time
 
+MAX_NB_REQUEST_PER_PERIOD = 375 # 400 + safety margin
+PERIOD_SEC = 59
+LAST_REQUESTS: Deque[datetime.datetime] = Deque(
+    maxlen=MAX_NB_REQUEST_PER_PERIOD
+)
+def wait_until_request_valid() -> None:
+    """
+    This function will sleep until we can make a request.
+    If the queue is at its full capacity, we wait until the first request was at least 1 minute ago
+    This function allows to avoid making more than MAX_NB_REQUEST_PER_PERIOD every PERIOD_SEC seconds
+    """
+    if len(LAST_REQUESTS) >= MAX_NB_REQUEST_PER_PERIOD:
+        first_request = LAST_REQUESTS[0]
+        while (datetime.datetime.now() - first_request).seconds <= PERIOD_SEC:
+            time.sleep(
+                PERIOD_SEC - (datetime.datetime.now() - first_request).seconds + 1
+            )
+    LAST_REQUESTS.append(datetime.datetime.now())
 
 # tries to grab all mapping codes from the website and check them against the ones we already know
 def check_new_area_codes():

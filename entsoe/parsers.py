@@ -693,6 +693,8 @@ _INV_BIDDING_ZONE_DICO = {area.code: area.name for area in Area}
 
 HEADERS_UNAVAIL_GEN = ['created_doc_time',
                        'docstatus',
+                       'mrid',
+                       'revision',
                        'businesstype',
                        'biddingzone_domain',
                        'qty_uom',
@@ -828,6 +830,8 @@ def _outage_parser(xml_file: bytes, headers, ts_func) -> pd.DataFrame:
     xml_text = xml_file.decode()
 
     soup = bs4.BeautifulSoup(xml_text, 'html.parser')
+    mrid = soup.find("mrid").text
+    revision_number = int(soup.find("revisionnumber").text)
     try:
         creation_date = pd.Timestamp(soup.createddatetime.text)
     except AttributeError:
@@ -840,7 +844,7 @@ def _outage_parser(xml_file: bytes, headers, ts_func) -> pd.DataFrame:
     d = list()
     series = _extract_timeseries(xml_text)
     for ts in series:
-        row = [creation_date, docstatus]
+        row = [creation_date, docstatus, mrid, revision_number]
         for t in ts_func(ts):
             d.append(row + t)
     df = pd.DataFrame.from_records(d, columns=headers)

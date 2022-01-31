@@ -8,7 +8,7 @@ import pandas as pd
 import logging
 
 from .misc import year_blocks, day_blocks
-
+from . import utils
 
 def retry(func):
     """Catches connection errors, waits and retries"""
@@ -19,6 +19,7 @@ def retry(func):
         error = None
         for _ in range(self.retry_count):
             try:
+                utils.wait_until_request_valid()
                 result = func(*args, **kwargs)
             except (requests.ConnectionError, gaierror) as e:
                 error = e
@@ -60,6 +61,7 @@ def documents_limited(n):
             frames = []
             for offset in range(0, 4800 + n, n):
                 try:
+                    utils.wait_until_request_valid()
                     frame = func(*args, offset=offset, **kwargs)
                     frames.append(frame)
                 except NoMatchingDataError:

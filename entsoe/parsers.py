@@ -39,9 +39,10 @@ def parse_prices(xml_text):
     -------
     pd.Series
     """
-    series = pd.Series(dtype = 'object')
+    series = []
     for soup in _extract_timeseries(xml_text):
-        series = series.append(_parse_price_timeseries(soup))
+        series.append(_parse_price_timeseries(soup))
+    series = pd.concat(series)
     series = series.sort_index()
     return series
 
@@ -57,9 +58,10 @@ def parse_netpositions(xml_text):
     -------
     pd.Series
     """
-    series = pd.Series(dtype = 'object')
+    series = []
     for soup in _extract_timeseries(xml_text):
-        series = series.append(_parse_netposition_timeseries(soup))
+        series.append(_parse_netposition_timeseries(soup))
+    series = pd.concat(series)
     series = series.sort_index()
     return series
 
@@ -75,9 +77,10 @@ def parse_loads(xml_text, process_type='A01'):
     pd.DataFrame
     """
     if process_type == 'A01' or process_type == 'A16':
-        series = pd.Series(dtype = 'object')
+        series = []
         for soup in _extract_timeseries(xml_text):
-                series = series.append(_parse_load_timeseries(soup))
+            series.append(_parse_load_timeseries(soup))
+        series = pd.concat(series)
         series = series.sort_index()
         return pd.DataFrame({
             'Forecasted Load' if process_type == 'A01' else 'Actual Load': series
@@ -227,9 +230,10 @@ def parse_crossborder_flows(xml_text):
     -------
     pd.Series
     """
-    series = pd.Series(dtype = 'object')
+    series = []
     for soup in _extract_timeseries(xml_text):
-        series = series.append(_parse_crossborder_flows_timeseries(soup))
+        series.append(_parse_crossborder_flows_timeseries(soup))
+    series = pd.concat(series)
     series = series.sort_index()
     return series
 
@@ -295,7 +299,7 @@ def _parse_procured_balancing_capacity(soup, tz):
     start = pd.to_datetime(period.find('timeinterval').find('start').text)
     end = pd.to_datetime(period.find('timeinterval').find('end').text)
     resolution = _resolution_to_timedelta(period.find('resolution').text)
-    tx = pd.date_range(start=start, end=end, freq=resolution, closed='left')
+    tx = pd.date_range(start=start, end=end, freq=resolution, inclusive='left')
     points = period.find_all('point')
     df = pd.DataFrame(index=tx, columns=['Price', 'Volume'])
 
@@ -628,7 +632,7 @@ def _parse_datetimeindex(soup, tz=None):
         end = end.tz_convert(tz)
 
     delta = _resolution_to_timedelta(res_text=soup.find('resolution').text)
-    index = pd.date_range(start=start, end=end, freq=delta, closed='left')
+    index = pd.date_range(start=start, end=end, freq=delta, inclusive='left')
     if tz is not None:
         dst_jump = len(set(index.map(lambda d: d.dst()))) > 1
         if dst_jump and delta == "7D":

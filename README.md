@@ -26,7 +26,7 @@ type_marketagreement_type = 'A01'
 
 # methods that return XML
 client.query_day_ahead_prices(country_code, start, end)
-client.query_net_position_dayahead(country_code, start, end)
+client.query_net_position(country_code, start, end, dayahead=True)
 client.query_load(country_code, start, end)
 client.query_load_forecast(country_code, start, end)
 client.query_wind_and_solar_forecast(country_code, start, end, psr_type=None)
@@ -94,7 +94,7 @@ type_marketagreement_type = 'A01'
 
 # methods that return Pandas Series
 client.query_day_ahead_prices(country_code, start=start,end=end)
-client.query_net_position_dayahead(country_code, start=start, end=end)
+client.query_net_position(country_code, start=start, end=end, dayahead=True)
 client.query_crossborder_flows(country_code_from, country_code_to, start, end)
 client.query_scheduled_exchanges(country_code_from, country_code_to, start, end, dayahead=False)
 client.query_net_transfer_capacity_dayahead(country_code_from, country_code_to, start, end)

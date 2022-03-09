@@ -82,7 +82,15 @@ def year_limited(func):
     the call up in blocks per year"""
 
     @wraps(func)
-    def year_wrapper(*args, start, end, **kwargs):
+    def year_wrapper(*args, start=None, end=None, **kwargs):
+        if start is None or end is None:
+            raise Exception('Please specify the start and end date explicity with start=<date> when calling this '
+                            'function')
+        if type(start) != pd.Timestamp or type(end) != pd.Timestamp:
+            raise Exception('Please use a timezoned pandas object for start and end')
+        if start.tzinfo is None or end.tzinfo is None:
+            raise Exception('Please use a timezoned pandas object for start and end')
+
         blocks = year_blocks(start, end)
         frames = []
         for _start, _end in blocks:

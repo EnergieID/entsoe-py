@@ -79,6 +79,9 @@ print(response.text)
 The Pandas Client works similar to the Raw Client, with extras:
 - Time periods that span more than 1 year are automatically dealt with
 - Requests of large numbers of files are split over multiple API calls
+
+Please note that this client requires you to specifically set a start= and end= parameter which should be a pandas timestamp with timezone.
+If not it will throw an exception
 ```python
 from entsoe import EntsoePandasClient
 import pandas as pd

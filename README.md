@@ -23,6 +23,7 @@ country_code = 'BE'  # Belgium
 country_code_from = 'FR'  # France
 country_code_to = 'DE_LU' # Germany-Luxembourg
 type_marketagreement_type = 'A01'
+contract_marketagreement_type = 'A01'
 
 # methods that return XML
 client.query_day_ahead_prices(country_code, start, end)
@@ -42,6 +43,7 @@ client.query_net_transfer_capacity_weekahead(country_code_from, country_code_to,
 client.query_net_transfer_capacity_monthahead(country_code_from, country_code_to, start, end)
 client.query_net_transfer_capacity_yearahead(country_code_from, country_code_to, start, end)
 client.query_intraday_offered_capacity(country_code_from, country_code_to, start, end, implicit=True)
+client.query_offered_capacity(country_code_from, country_code_to, start, end, contract_marketagreement_type, implicit=True)
 client.query_contracted_reserve_prices(country_code, start, end, type_marketagreement_type, psr_type=None)
 client.query_contracted_reserve_amount(country_code, start, end, type_marketagreement_type, psr_type=None)
 client.query_procured_balancing_capacity(country_code, start, end, process_type, type_marketagreement_type=None)
@@ -91,6 +93,7 @@ country_code = 'BE'  # Belgium
 country_code_from = 'FR'  # France
 country_code_to = 'DE_LU' # Germany-Luxembourg
 type_marketagreement_type = 'A01'
+contract_marketagreement_type = "A01"
 
 # methods that return Pandas Series
 client.query_day_ahead_prices(country_code, start=start,end=end)
@@ -102,6 +105,7 @@ client.query_net_transfer_capacity_weekahead(country_code_from, country_code_to,
 client.query_net_transfer_capacity_monthahead(country_code_from, country_code_to, start, end)
 client.query_net_transfer_capacity_yearahead(country_code_from, country_code_to, start, end)
 client.query_intraday_offered_capacity(country_code_from, country_code_to, start, end,implicit=True)
+client.query_offered_capacity(country_code_from, country_code_to, start, end, contract_marketagreement_type, implicit=True)
 
 # methods that return Pandas DataFrames
 client.query_load(country_code, start=start,end=end)

@@ -34,17 +34,13 @@ setup(
     long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://github.com/EnergieID/entsoe-py',
-    author='EnergieID.be',
-    author_email='jan@energieid.be',
+    author='EnergieID.be, Frank Boerman',
+    author_email='jan@energieid.be, frank@fboerman.nl',
     license='MIT',
 
     # See https://pypi.python.org/pypi?%3Aaction=list_classifiers
     classifiers=[
-        # How mature is this project? Common values are
-        #   3 - Alpha
-        #   4 - Beta
-        #   5 - Production/Stable
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 5 - Production/Stable',
 
         # Indicate who your project is intended for
         'Intended Audience :: Developers',
@@ -55,8 +51,8 @@ setup(
 
         # Specify the Python versions you support here. In particular, ensure
         # that you indicate whether you support Python 2, Python 3 or both.
-        'Programming Language :: Python :: 3.6',
-        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
     ],
 
     keywords='ENTSO-E data api energy',
@@ -71,7 +67,7 @@ setup(
 
     # List run-time dependencies here.  These will be installed by pip when
     # your project is installed.
-    install_requires=['requests', 'pytz', 'beautifulsoup4', 'pandas'],
+    install_requires=['requests', 'pytz', 'beautifulsoup4', 'pandas>=1.4.0'],
 
     # If there are data files included in your packages that need to be
     # installed, specify them here.  If using Python 2.6 or less, then these

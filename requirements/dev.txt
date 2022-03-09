@@ -1,0 +1,10 @@
+-r requirements.txt
+
+nox
+flake8
+flake8-docstrings
+black
+isort
+pytest-mock
+pytest-cov
+requests_mock

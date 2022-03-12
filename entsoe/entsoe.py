@@ -583,12 +583,17 @@ class EntsoeRawClient:
         -------
         str
         """
+        if implicit:
+            business_type = None
+        else:
+            business_type = "B05"
         return self._query_crossborder(
             country_code_from=country_code_from,
             country_code_to=country_code_to, start=start, end=end,
-            doctype="A25", contract_marketagreement_type=contract_marketagreement_type,
-            auction_type=("A01" if implicit==True else "A02"),
-            business_type="B05")
+            doctype=("A31" if implicit else "A25"),
+            contract_marketagreement_type=contract_marketagreement_type,
+            auction_type=("A01" if implicit else "A02"),
+            business_type=business_type)
 
     def _query_crossborder(
             self, country_code_from: Union[Area, str],

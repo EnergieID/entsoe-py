@@ -171,14 +171,15 @@ class EntsoeRawClient:
         response = self._base_request(params=params, start=start, end=end)
         return response.text
     
-    def query_net_position_dayahead(self, country_code: Union[Area, str],
-                            start: pd.Timestamp, end: pd.Timestamp) -> str:
+    def query_net_position(self, country_code: Union[Area, str],
+                           start: pd.Timestamp, end: pd.Timestamp, dayahead: bool = True) -> str:
         """
         Parameters
         ----------
         country_code : Area|str
         start : pd.Timestamp
         end : pd.Timestamp
+        dayahead : bool
 
         Returns
         -------
@@ -192,6 +193,9 @@ class EntsoeRawClient:
             'in_Domain': area.code,
             'out_Domain': area.code
         }
+        if not dayahead:
+            params.update({'Contract_MarketAgreement.Type': "A07"})
+
         response = self._base_request(params=params, start=start, end=end)
         return response.text
 
@@ -929,8 +933,8 @@ class EntsoeRawClient:
 
 class EntsoePandasClient(EntsoeRawClient):
     @year_limited
-    def query_net_position_dayahead(self, country_code: Union[Area, str],
-                            start: pd.Timestamp, end: pd.Timestamp) -> pd.Series:
+    def query_net_position(self, country_code: Union[Area, str],
+                            start: pd.Timestamp, end: pd.Timestamp, dayahead: bool = True) -> pd.Series:
         """
 
         Parameters
@@ -944,8 +948,8 @@ class EntsoePandasClient(EntsoeRawClient):
 
         """
         area = lookup_area(country_code)
-        text = super(EntsoePandasClient, self).query_net_position_dayahead(
-            country_code=area, start=start, end=end)
+        text = super(EntsoePandasClient, self).query_net_position(
+            country_code=area, start=start, end=end, dayahead=dayahead)
         series = parse_netpositions(text)
         series = series.tz_convert(area.tz)
         series = series.truncate(before=start, after=end)

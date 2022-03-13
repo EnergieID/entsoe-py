@@ -565,13 +565,46 @@ class EntsoeRawClient:
             doctype="A31", contract_marketagreement_type="A07",
             auction_type=("A01" if implicit==True else "A02"))
 
+    def query_offered_capacity(
+        self, country_code_from: Union[Area, str],
+            country_code_to: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, contract_marketagreement_type: str,
+            implicit:bool = True,**kwargs) -> str:
+        """
+        Allocated result documents, for OC evolution see query_intraday_offered_capacity
+
+        Parameters
+        ----------
+        country_code_from : Area|str
+        country_code_to : Area|str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        contract_marketagreement_type : str
+            type of contract (see mappings.MARKETAGREEMENTTYPE)
+        implicit: bool (True = implicit - default for most borders. False = explicit - for instance BE-GB)
+
+        Returns
+        -------
+        str
+        """
+        if implicit:
+            business_type = None
+        else:
+            business_type = "B05"
+        return self._query_crossborder(
+            country_code_from=country_code_from,
+            country_code_to=country_code_to, start=start, end=end,
+            doctype=("A31" if implicit else "A25"),
+            contract_marketagreement_type=contract_marketagreement_type,
+            auction_type=("A01" if implicit else "A02"),
+            business_type=business_type)
 
     def _query_crossborder(
             self, country_code_from: Union[Area, str],
             country_code_to: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp, doctype: str,
             contract_marketagreement_type: Optional[str] = None,
-            auction_type: Optional[str] = None) -> str:
+            auction_type: Optional[str] = None, business_type: Optional[str] = None) -> str:
         """
         Generic function called by query_crossborder_flows, 
         query_scheduled_exchanges, query_net_transfer_capacity_DA/WA/MA/YA and query_.
@@ -584,6 +617,7 @@ class EntsoeRawClient:
         end : pd.Timestamp
         doctype: str
         contract_marketagreement_type: str
+        business_type: str
 
         Returns
         -------
@@ -603,6 +637,9 @@ class EntsoeRawClient:
         if auction_type is not None:
             params[
                 'Auction.Type'] = auction_type
+        if business_type is not None:
+            params[
+                'businessType'] = business_type
 
         response = self._base_request(params=params, start=start, end=end)
         return response.text
@@ -1399,6 +1436,43 @@ class EntsoePandasClient(EntsoeRawClient):
             country_code_to=area_to,
             start=start,
             end=end,
+            implicit=implicit)
+        ts = parse_crossborder_flows(text)
+        ts = ts.tz_convert(area_from.tz)
+        ts = ts.truncate(before=start, after=end)
+        return ts
+
+    @year_limited
+    def query_offered_capacity(
+        self, country_code_from: Union[Area, str],
+            country_code_to: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, contract_marketagreement_type: str,
+            implicit:bool = True,**kwargs) -> pd.Series:
+        """
+        Allocated result documents, for OC evolution see query_intraday_offered_capacity
+        Note: Result will be in the timezone of the origin country  --> to check
+
+        Parameters
+        ----------
+        country_code_from : Area|str
+        country_code_to : Area|str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        contract_marketagreement_type : str
+            type of contract (see mappings.MARKETAGREEMENTTYPE)
+        implicit: bool (True = implicit - default for most borders. False = explicit - for instance BE-GB)
+        Returns
+        -------
+        pd.Series
+        """
+        area_to = lookup_area(country_code_to)
+        area_from = lookup_area(country_code_from)
+        text = super(EntsoePandasClient, self).query_offered_capacity(
+            country_code_from=area_from,
+            country_code_to=area_to,
+            start=start,
+            end=end,
+            contract_marketagreement_type=contract_marketagreement_type,
             implicit=implicit)
         ts = parse_crossborder_flows(text)
         ts = ts.tz_convert(area_from.tz)

@@ -32,7 +32,7 @@ class EntsoeRawClientTest(unittest.TestCase):
             self.client.query_installed_generation_capacity,
             # this one gives back a zip so disabled for testing right now
             #self.client.query_imbalance_prices,
-            self.client.query_net_position_dayahead
+            self.client.query_net_position
         ]
         for query in queries:
             text = query(country_code=self.country_code, start=self.start,
@@ -93,7 +93,7 @@ class EntsoePandasClientTest(EntsoeRawClientTest):
         queries = [
             self.client.query_day_ahead_prices,
             self.client.query_generation_forecast,
-            self.client.query_net_position_dayahead
+            self.client.query_net_position
         ]
         for query in queries:
             ts = query(country_code=self.country_code, start=self.start,

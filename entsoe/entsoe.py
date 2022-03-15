@@ -1443,11 +1443,13 @@ class EntsoePandasClient(EntsoeRawClient):
         return ts
 
     @year_limited
+    @paginated
+    @documents_limited(100)
     def query_offered_capacity(
-        self, country_code_from: Union[Area, str],
+            self, country_code_from: Union[Area, str],
             country_code_to: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp, contract_marketagreement_type: str,
-            implicit:bool = True,**kwargs) -> pd.Series:
+            implicit: bool = True, offset: int = 0, **kwargs) -> pd.Series:
         """
         Allocated result documents, for OC evolution see query_intraday_offered_capacity
         Note: Result will be in the timezone of the origin country  --> to check
@@ -1461,6 +1463,8 @@ class EntsoePandasClient(EntsoeRawClient):
         contract_marketagreement_type : str
             type of contract (see mappings.MARKETAGREEMENTTYPE)
         implicit: bool (True = implicit - default for most borders. False = explicit - for instance BE-GB)
+        offset: int
+            offset for querying more than 100 documents
         Returns
         -------
         pd.Series
@@ -1473,7 +1477,8 @@ class EntsoePandasClient(EntsoeRawClient):
             start=start,
             end=end,
             contract_marketagreement_type=contract_marketagreement_type,
-            implicit=implicit)
+            implicit=implicit,
+            offset=offset)
         ts = parse_crossborder_flows(text)
         ts = ts.tz_convert(area_from.tz)
         ts = ts.truncate(before=start, after=end)

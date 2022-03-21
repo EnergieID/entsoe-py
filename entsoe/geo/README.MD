@@ -16,6 +16,7 @@ The ```parse.py``` script provides function to then extract all european countri
 Then for countries that have multiple bidding zones we import from specific sites:
 * Norway: https://temakart.nve.no/link/?link=vannkraft (direct download)
 * Sweden: https://www.natomraden.se/ (direct downloading gives weird shapes so manually redrawn it)
+* Italy: extract from [electricitymap](https://github.com/electricitymap/electricitymap-contrib/blob/master/web/geo/world.geojson) and then manually adjusted to fit with existing ones.
 
 Thanks to [this comment](https://github.com/electricitymap/electricitymap-contrib/issues/917#issuecomment-364766643) which gave tips for this
 

@@ -1,4 +1,4 @@
 requests
 pytz
 beautifulsoup4
-pandas
+pandas>=1.4.0

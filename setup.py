@@ -69,12 +69,5 @@ setup(
     # your project is installed.
     install_requires=['requests', 'pytz', 'beautifulsoup4', 'pandas>=1.4.0'],
 
-    # If there are data files included in your packages that need to be
-    # installed, specify them here.  If using Python 2.6 or less, then these
-    # have to be included in MANIFEST.in as well.
-    # Note: for creating the source distribution, they had to be included in the
-    # MANIFEST.in as well.
-    package_data={
-        'entsoe-py': ['LICENSE', 'README.md', 'entsoe/geo/geojson/*.geojson'],
-    },
+    include_package_data=True,
 )

@@ -257,6 +257,25 @@ def parse_imbalance_prices(xml_text):
     return df
 
 
+def parse_imbalance_volumes(xml_text):
+    """
+    Parameters
+    ----------
+    xml_text : str
+
+    Returns
+    -------
+    pd.DataFrame
+    """
+    timeseries_blocks = _extract_timeseries(xml_text)
+    frames = (_parse_imbalance_volumes_timeseries(soup)
+              for soup in timeseries_blocks)
+    df = pd.concat(frames, axis=1)
+    df = df.stack().unstack()  # ad-hoc fix to prevent column splitting by NaNs
+    df.sort_index(inplace=True)
+    return df
+
+
 def parse_procured_balancing_capacity(xml_text, tz):
     """
     Parameters
@@ -437,6 +456,62 @@ def _parse_imbalance_prices_timeseries(soup) -> pd.DataFrame:
     df.columns.name = None
     df.rename(columns={'A04': 'Long', 'A05': 'Short',
                        'None': 'Price for Consumption'}, inplace=True)
+
+    return df
+
+
+def parse_imbalance_volumes_zip(zip_contents: bytes) -> pd.DataFrame:
+    """
+    Parameters
+    ----------
+    zip_contents : bytes
+
+    Returns
+    -------
+    pd.DataFrame
+    """
+    def gen_frames(archive):
+        with zipfile.ZipFile(BytesIO(archive), 'r') as arc:
+            for f in arc.infolist():
+                if f.filename.endswith('xml'):
+                    frame = parse_imbalance_volumes(xml_text=arc.read(f))
+                    yield frame
+
+    frames = gen_frames(zip_contents)
+    df = pd.concat(frames)
+    df.sort_index(inplace=True)
+    return df
+
+
+def _parse_imbalance_volumes_timeseries(soup) -> pd.DataFrame:
+    """
+    Parameters
+    ----------
+    soup : bs4.element.tag
+
+    Returns
+    -------
+    pd.DataFrame
+    """
+    flow_direction_factor = {
+        'A01': 1, # in
+        'A02': -1 # out
+    }[soup.find('flowdirection.direction').text]
+
+    df = pd.DataFrame(columns=['Imbalance Volume'])
+
+    for period in soup.find_all('period'):
+        start = pd.to_datetime(period.find('timeinterval').find('start').text)
+        end = pd.to_datetime(period.find('timeinterval').find('end').text)
+        resolution = _resolution_to_timedelta(period.find('resolution').text)
+        tx = pd.date_range(start=start, end=end, freq=resolution, inclusive='left')
+        points = period.find_all('point')
+
+        for dt, point in zip(tx, points):
+            df.loc[dt, 'Imbalance Volume'] = \
+                float(point.find('quantity').text) * flow_direction_factor
+
+    df.set_index(['Imbalance Volume'])
 
     return df
 

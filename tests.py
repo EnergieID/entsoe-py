@@ -30,8 +30,9 @@ class EntsoeRawClientTest(unittest.TestCase):
             self.client.query_generation,
             self.client.query_generation_forecast,
             self.client.query_installed_generation_capacity,
-            # this one gives back a zip so disabled for testing right now
+            # these give back a zip so disabled for testing right now
             #self.client.query_imbalance_prices,
+            #self.client.query_imbalance_volumes,
             self.client.query_net_position
         ]
         for query in queries:
@@ -114,6 +115,7 @@ class EntsoePandasClientTest(EntsoeRawClientTest):
             self.client.query_generation,
             self.client.query_installed_generation_capacity,
             self.client.query_imbalance_prices,
+            self.client.query_imbalance_volumes,
             self.client.query_unavailability_of_generation_units
         ]
         for query in queries:

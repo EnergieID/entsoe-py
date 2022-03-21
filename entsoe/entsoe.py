@@ -13,7 +13,7 @@ from .mappings import Area, NEIGHBOURS, lookup_area
 from .parsers import parse_prices, parse_loads, parse_generation, \
     parse_installed_capacity_per_plant, parse_crossborder_flows, \
     parse_unavailabilities, parse_contracted_reserve, parse_imbalance_prices_zip, \
-    parse_netpositions, parse_procured_balancing_capacity
+    parse_imbalance_volumes_zip, parse_netpositions, parse_procured_balancing_capacity
 from .decorators import retry, paginated, year_limited, day_limited, documents_limited
 
 __title__ = "entsoe-py"
@@ -663,6 +663,32 @@ class EntsoeRawClient:
         area = lookup_area(country_code)
         params = {
             'documentType': 'A85',
+            'controlArea_Domain': area.code,
+        }
+        if psr_type:
+            params.update({'psrType': psr_type})
+        response = self._base_request(params=params, start=start, end=end)
+        return response.content
+
+    def query_imbalance_volumes(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, psr_type: Optional[str] = None) -> bytes:
+        """
+        Parameters
+        ----------
+        country_code : Area|str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        psr_type : str
+            filter query for a specific psr type
+
+        Returns
+        -------
+        bytes
+        """
+        area = lookup_area(country_code)
+        params = {
+            'documentType': 'A86',
             'controlArea_Domain': area.code,
         }
         if psr_type:
@@ -1510,6 +1536,31 @@ class EntsoePandasClient(EntsoeRawClient):
         return df
 
     @year_limited
+    def query_imbalance_volumes(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, psr_type: Optional[str] = None) -> pd.DataFrame:
+        """
+        Parameters
+        ----------
+        country_code : Area|str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        psr_type : str
+            filter query for a specific psr type
+
+        Returns
+        -------
+        pd.DataFrame
+        """
+        area = lookup_area(country_code)
+        archive = super(EntsoePandasClient, self).query_imbalance_volumes(
+            country_code=area, start=start, end=end, psr_type=psr_type)
+        df = parse_imbalance_volumes_zip(zip_contents=archive)
+        df = df.tz_convert(area.tz)
+        df = df.truncate(before=start, after=end)
+        return df
+
+    @year_limited
     @paginated
     def query_procured_balancing_capacity(
             self, country_code: Union[Area, str], start: pd.Timestamp,
@@ -1861,4 +1912,3 @@ class EntsoePandasClient(EntsoeRawClient):
         df = pd.concat(data.values(), axis=1, keys=data.keys())
         df = df.truncate(before=start, after=end)
         return df
-

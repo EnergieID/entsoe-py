@@ -33,5 +33,5 @@ def extract_naturalearthdata(shpfile, countrylist, outputfolder):
         s.to_file(os.path.join(outputfolder, f"{s['zoneName'].iloc[0]}.geojson"), driver='GeoJSON')
 
 
-def load_zones(folder, zones):
-    return pd.concat([gpd.read_file(os.path.join(folder, f'{x}.geojson')) for x in zones]).set_index('zoneName').sort_index()
+def load_zones(zones):
+    return pd.concat([gpd.read_file(os.path.join(os.path.dirname(__file__), 'geojson', f'{x}.geojson')) for x in zones]).set_index('zoneName').sort_index()

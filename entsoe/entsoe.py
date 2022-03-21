@@ -17,8 +17,8 @@ from .parsers import parse_prices, parse_loads, parse_generation, \
 from .decorators import retry, paginated, year_limited, day_limited, documents_limited
 
 __title__ = "entsoe-py"
-__version__ = "0.5.0"
-__author__ = "EnergieID.be"
+__version__ = "0.5.1"
+__author__ = "EnergieID.be, Frank Boerman"
 __license__ = "MIT"
 
 URL = 'https://transparency.entsoe.eu/api'

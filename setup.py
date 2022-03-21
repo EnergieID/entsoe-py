@@ -75,6 +75,6 @@ setup(
     # Note: for creating the source distribution, they had to be included in the
     # MANIFEST.in as well.
     package_data={
-        'entsoe-py': ['LICENSE', 'README.md'],
+        'entsoe-py': ['LICENSE', 'README.md', 'entsoe/geo/geojson/*.geojson'],
     },
 )

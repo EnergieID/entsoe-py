@@ -1053,15 +1053,16 @@ class EntsoePandasClient(EntsoeRawClient):
 
         Returns
         -------
-        pd.Series
+        pd.DataFrame
         """
         area = lookup_area(country_code)
         text = super(EntsoePandasClient, self).query_load(
             country_code=area, start=start, end=end)
-        series = parse_loads(text, process_type='A16')
-        series = series.tz_convert(area.tz)
-        series = series.truncate(before=start, after=end)
-        return series
+
+        df = parse_loads(text, process_type='A16')
+        df = df.tz_convert(area.tz)
+        df = df.truncate(before=start, after=end)
+        return df
 
     @year_limited
     def query_load_forecast(

@@ -33,5 +33,20 @@ def extract_naturalearthdata(shpfile, countrylist, outputfolder):
         s.to_file(os.path.join(outputfolder, f"{s['zoneName'].iloc[0]}.geojson"), driver='GeoJSON')
 
 
-def load_zones(zones):
-    return pd.concat([gpd.read_file(os.path.join(os.path.dirname(__file__), 'geojson', f'{x}.geojson')) for x in zones]).set_index('zoneName').sort_index()
+def load_zones(zones: list, d: pd.Timestamp):
+    # make sure to select the right files for changed bidding zones
+    # this is probably a little bit over explicit but that makes the confusing bidding zone situation a bit more clearer
+
+    zones_corrected = []
+    if d < pd.Timestamp('2021-01-01'):
+        for zone in zones:
+            if zone in ['IT_CNOR', 'IT_CSUD', 'IT_SUD']:
+                zones_corrected.append(zone + '_2020')
+            elif zone in ['IT_CALA']:
+                raise ValueError(f'Zones {["IT_CALA"]} does not exist at this date')
+            else:
+                zones_corrected.append(zone)
+    else:
+        zones_corrected = zones
+
+    return pd.concat([gpd.read_file(os.path.join(os.path.dirname(__file__), 'geojson', f'{x}.geojson')) for x in zones_corrected]).set_index('zoneName').sort_index()

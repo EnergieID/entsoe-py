@@ -17,7 +17,7 @@ from .parsers import parse_prices, parse_loads, parse_generation, \
 from .decorators import retry, paginated, year_limited, day_limited, documents_limited
 
 __title__ = "entsoe-py"
-__version__ = "0.5.2"
+__version__ = "0.5.3"
 __author__ = "EnergieID.be, Frank Boerman"
 __license__ = "MIT"
 

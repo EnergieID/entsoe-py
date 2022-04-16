@@ -1,3 +1,6 @@
+# odd custom folders
+ne_10m_admin_0_countries
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

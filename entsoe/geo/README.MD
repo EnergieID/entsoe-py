@@ -9,6 +9,8 @@ A helper script ```utils.py``` that was used to parse some of the inputs is prov
 
 The files have been made compliant with RFC 7946 ring winding order as plotly requires, with help of the ```geojson-rewind``` package
 
+The ```load_zones``` function automatically selects the configuration that was active on the given date. This then handles bidding zone changes.
+
 ## Data sources
 For countries geojson in general the natural earth database is used, downloadable from here: https://www.naturalearthdata.com/downloads/10m-cultural-vectors/  
 The ```parse.py``` script provides function to then extract all european countries from it with single bidding zone.
@@ -16,7 +18,7 @@ The ```parse.py``` script provides function to then extract all european countri
 Then for countries that have multiple bidding zones we import from specific sites:
 * Norway: https://temakart.nve.no/link/?link=vannkraft (direct download)
 * Sweden: https://www.natomraden.se/ (direct downloading gives weird shapes so manually redrawn it)
-* Italy: extract from [electricitymap](https://github.com/electricitymap/electricitymap-contrib/blob/master/web/geo/world.geojson) and then manually adjusted to fit with existing ones.
+* Italy: added together regions as specified here: https://www.mercatoelettrico.org/en/mercati/mercatoelettrico/zone.aspx
 
 Thanks to [this comment](https://github.com/electricitymap/electricitymap-contrib/issues/917#issuecomment-364766643) which gave tips for this
 
@@ -25,11 +27,11 @@ Below assigns a unique number to all selected zones and plots a chloropleth map
 ```python
 from utils import load_zones
 import plotly.express as px
+import pandas as pd
 
-folder = 'somewhere/on/your/computer/*.geojson'
-zones = ['NL', 'BE']
+zones = ['some', 'ISO2', 'codes']
 
-geo_df = load_zones(folder, zones)
+geo_df = load_zones(zones, pd.Timestamp('somedate'))
 geo_df['value'] = range(1,len(geo_df)+1)
 
 fig = px.choropleth(geo_df,

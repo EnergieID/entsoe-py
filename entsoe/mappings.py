@@ -111,7 +111,7 @@ class Area(enum.Enum):
     NL =            '10YNL----------L', 'Netherlands, TenneT NL BZ / CA/ MBA',          'Europe/Amsterdam',
     NO_1 =          '10YNO-1--------2', 'NO1 BZ / MBA',                                 'Europe/Oslo',
     NO_2 =          '10YNO-2--------T', 'NO2 BZ / MBA',                                 'Europe/Oslo',
-    NO_2_NSL =      '10YNO-2--------T', 'NO2 BZ / MBA',                                 'Europe/Oslo',
+    NO_2_NSL =      '50Y0JVU59B4JWQCU', 'NO2 NSL BZ / MBA',                                 'Europe/Oslo',
     NO_3 =          '10YNO-3--------J', 'NO3 BZ / MBA',                                 'Europe/Oslo',
     NO_4 =          '10YNO-4--------9', 'NO4 BZ / MBA',                                 'Europe/Oslo',
     NO_5 =          '10Y1001A1001A48H', 'NO5 BZ / MBA',                                 'Europe/Oslo',

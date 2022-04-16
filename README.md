@@ -47,6 +47,7 @@ client.query_offered_capacity(country_code_from, country_code_to, start, end, co
 client.query_contracted_reserve_prices(country_code, start, end, type_marketagreement_type, psr_type=None)
 client.query_contracted_reserve_amount(country_code, start, end, type_marketagreement_type, psr_type=None)
 client.query_procured_balancing_capacity(country_code, start, end, process_type, type_marketagreement_type=None)
+client.query_aggregate_water_reservoirs_and_hydro_storage(country_code, start, end)
 
 # methods that return ZIP (bytes)
 client.query_imbalance_prices(country_code, start, end, psr_type=None)
@@ -109,6 +110,7 @@ client.query_net_transfer_capacity_monthahead(country_code_from, country_code_to
 client.query_net_transfer_capacity_yearahead(country_code_from, country_code_to, start, end)
 client.query_intraday_offered_capacity(country_code_from, country_code_to, start, end,implicit=True)
 client.query_offered_capacity(country_code_from, country_code_to, start, end, contract_marketagreement_type, implicit=True)
+client.query_aggregate_water_reservoirs_and_hydro_storage(country_code, start, end)
 
 # methods that return Pandas DataFrames
 client.query_load(country_code, start=start,end=end)

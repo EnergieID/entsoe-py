@@ -220,6 +220,25 @@ def parse_installed_capacity_per_plant(xml_text):
     return df
 
 
+def parse_water_hydro(xml_text, tz):
+    """
+    Parameters
+    ----------
+    xml_text : str
+
+    Returns
+    -------
+    pd.Series
+    """
+    all_series = []
+    for soup in _extract_timeseries(xml_text):
+        all_series.append(_parse_water_hydro_timeseries(soup, tz=tz))
+
+    series = pd.concat(all_series)
+
+    return series
+
+
 def parse_crossborder_flows(xml_text):
     """
     Parameters
@@ -654,6 +673,35 @@ def _parse_generation_timeseries(soup, per_plant: bool = False, include_eic: boo
         # This will result in a multi-index upon concatenation
         name.reverse()
         series.name = tuple(name)
+
+    return series
+
+
+def _parse_water_hydro_timeseries(soup, tz):
+    """
+    Parses timeseries for water reservoirs and hydro storage plants
+
+    Parameters
+    ----------
+    soup : bs4.element.tag
+
+    Returns
+    -------
+    pd.Series
+    """
+
+    positions = []
+    quantities = []
+    for point in soup.find_all('point'):
+        positions.append(int(point.find('position').text))
+        quantity = point.find('quantity')
+        if quantity is None:
+            raise LookupError(
+                f'No quantity found in this point, it should have one: {point}')
+        quantities.append(float(quantity.text))
+    series = pd.Series(index=positions, data=quantities)
+    series = series.sort_index()
+    series.index = _parse_datetimeindex(soup, tz)
 
     return series
 

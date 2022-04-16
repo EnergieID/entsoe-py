@@ -26,7 +26,7 @@ def extract_naturalearthdata(shpfile, countrylist, outputfolder):
 
     geo_df_all = geo_df_all[['ISO_A2', 'geometry']].rename(columns={'ISO_A2': 'zoneName'})
 
-    df_selected = geo_df_all[geo_df_all['zoneName'].isin([countrylist])]
+    df_selected = geo_df_all[geo_df_all['zoneName'].isin(countrylist)]
 
     for i in range(len(df_selected)):
         s=df_selected.iloc[i:i+1, :]

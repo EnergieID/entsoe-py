@@ -134,8 +134,8 @@ def parse_generation(
             # If not, we just save ts
             all_series[ts.name] = ts
         else:
-            # If yes, we append to it
-            series = series.append(ts)
+            # If yes, we extend it
+            series = pd.concat([series, ts])
             series.sort_index(inplace=True)
             all_series[series.name] = series
 
@@ -205,7 +205,7 @@ def parse_installed_capacity_per_plant(xml_text):
         if series is None:
             all_series[s.name] = s
         else:
-            series = series.append(s)
+            series = pd.concat([series, s])
             series.sort_index()
             all_series[series.name] = series
 

@@ -1942,14 +1942,14 @@ class EntsoePandasClient(EntsoeRawClient):
             end: pd.Timestamp) -> pd.DataFrame:
         """Query the combination of both domestic generation and imports"""
         generation = self.query_generation(country_code=country_code, end=end,
-                                           start=start, lookup_bzones=True)
+                                           start=start, nett=True)
         generation = generation.loc[:, (generation != 0).any(
             axis=0)]  # drop columns that contain only zero's
-        generation = generation.resample('H').sum()
         imports = self.query_import(country_code=country_code, start=start,
                                     end=end)
 
         data = {f'Generation': generation, f'Import': imports}
         df = pd.concat(data.values(), axis=1, keys=data.keys())
+        df = df.ffill()
         df = df.truncate(before=start, after=end)
         return df

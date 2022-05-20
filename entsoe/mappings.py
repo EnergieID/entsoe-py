@@ -317,5 +317,6 @@ NEIGHBOURS = {
     'IT_SARD': ['IT_CNOR', 'IT_CSUD'],
     'IT_SICI': ['IT_CALA', 'IT_ROSN', 'MT'],
     'IT_CALA': ['IT_SICI', 'IT_SUD'],
-    'MT': ['IT_SICI']
+    'MT': ['IT_SICI'],
+    'HR': ['BA', 'HU', 'RS', 'SI']
 }

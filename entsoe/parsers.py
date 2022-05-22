@@ -2,11 +2,14 @@ import sys
 import zipfile
 from io import BytesIO
 from typing import Union
-
+import warnings
 import bs4
+from bs4.builder import XMLParsedAsHTMLWarning
 import pandas as pd
 
 from .mappings import PSRTYPE_MAPPINGS, DOCSTATUS, BSNTYPE, Area
+
+warnings.filterwarnings('ignore', category=XMLParsedAsHTMLWarning)
 
 GENERATION_ELEMENT = "inBiddingZone_Domain.mRID"
 CONSUMPTION_ELEMENT = "outBiddingZone_Domain.mRID"

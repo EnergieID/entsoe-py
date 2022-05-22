@@ -6,6 +6,7 @@ from pandas.tseries.offsets import YearBegin, YearEnd
 import pytz
 import requests
 from bs4 import BeautifulSoup
+from bs4.builder import XMLParsedAsHTMLWarning
 
 from entsoe.exceptions import InvalidPSRTypeError, InvalidBusinessParameterError
 from .exceptions import NoMatchingDataError, PaginationError
@@ -16,9 +17,12 @@ from .parsers import parse_prices, parse_loads, parse_generation, \
     parse_imbalance_volumes_zip, parse_netpositions, parse_procured_balancing_capacity, \
     parse_water_hydro
 from .decorators import retry, paginated, year_limited, day_limited, documents_limited
+import warnings
+
+warnings.filterwarnings('ignore', category=XMLParsedAsHTMLWarning)
 
 __title__ = "entsoe-py"
-__version__ = "0.5.4"
+__version__ = "0.5.5"
 __author__ = "EnergieID.be, Frank Boerman"
 __license__ = "MIT"
 

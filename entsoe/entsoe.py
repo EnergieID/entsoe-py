@@ -1911,7 +1911,7 @@ class EntsoePandasClient(EntsoeRawClient):
         df = df.tz_convert(area.tz)
         # Truncation will fail if data is not sorted along the index in rare
         # cases. Ensure the dataframe is sorted:
-        df = df.sort_index(0)
+        df = df.sort_index(axis=0)
         df = df.truncate(before=start, after=end)
         return df
 

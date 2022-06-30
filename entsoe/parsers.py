@@ -14,6 +14,11 @@ warnings.filterwarnings('ignore', category=XMLParsedAsHTMLWarning)
 GENERATION_ELEMENT = "inBiddingZone_Domain.mRID"
 CONSUMPTION_ELEMENT = "outBiddingZone_Domain.mRID"
 
+pd_version = [int(i) for i in pd.__version__.split(".")]
+if pd_version[0] > 1 or pd_version[1] > 3:
+    PD_BOUND_KW = {"inclusive": 'left'}
+else:
+    PD_BOUND_KW = {"closed": 'left'}
 
 def _extract_timeseries(xml_text):
     """
@@ -340,7 +345,7 @@ def _parse_procured_balancing_capacity(soup, tz):
     start = pd.to_datetime(period.find('timeinterval').find('start').text)
     end = pd.to_datetime(period.find('timeinterval').find('end').text)
     resolution = _resolution_to_timedelta(period.find('resolution').text)
-    tx = pd.date_range(start=start, end=end, freq=resolution, inclusive='left')
+    tx = pd.date_range(start=start, end=end, freq=resolution, **PD_BOUND_KW)
     points = period.find_all('point')
     df = pd.DataFrame(index=tx, columns=['Price', 'Volume'])
 
@@ -526,7 +531,7 @@ def _parse_imbalance_volumes_timeseries(soup) -> pd.DataFrame:
         start = pd.to_datetime(period.find('timeinterval').find('start').text)
         end = pd.to_datetime(period.find('timeinterval').find('end').text)
         resolution = _resolution_to_timedelta(period.find('resolution').text)
-        tx = pd.date_range(start=start, end=end, freq=resolution, inclusive='left')
+        tx = pd.date_range(start=start, end=end, freq=resolution, **PD_BOUND_KW)
         points = period.find_all('point')
 
         for dt, point in zip(tx, points):
@@ -758,7 +763,7 @@ def _parse_datetimeindex(soup, tz=None):
         end = end.tz_convert(tz)
 
     delta = _resolution_to_timedelta(res_text=soup.find('resolution').text)
-    index = pd.date_range(start=start, end=end, freq=delta, inclusive='left')
+    index = pd.date_range(start=start, end=end, freq=delta, **PD_BOUND_KW)
     if tz is not None:
         dst_jump = len(set(index.map(lambda d: d.dst()))) > 1
         if dst_jump and delta == "7D":

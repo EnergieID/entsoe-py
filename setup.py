@@ -67,7 +67,7 @@ setup(
 
     # List run-time dependencies here.  These will be installed by pip when
     # your project is installed.
-    install_requires=['requests', 'pytz', 'beautifulsoup4', 'pandas>=1.4.0'],
+    install_requires=['requests', 'pytz', 'beautifulsoup4', 'pandas'],
 
     include_package_data=True,
 )

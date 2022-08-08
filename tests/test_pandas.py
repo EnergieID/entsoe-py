@@ -49,7 +49,7 @@ COUNTRY_CODES_TO = ["DE_LU"]  # Germany-Luxembourg
 
 BASIC_QUERIES_SERIES = [
     "query_day_ahead_prices",
-    "query_net_position_dayahead",
+    "query_net_position",
     "query_load",
     "query_load_forecast",
 ]

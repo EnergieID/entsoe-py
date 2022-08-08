@@ -68,6 +68,7 @@ BASIC_QUERIES = [
     "query_generation_per_plant",
     "query_installed_generation_capacity",
     "query_installed_generation_capacity_per_unit",
+    "query_aggregate_water_reservoirs_and_hydro_storage",
 ]
 
 CROSSBORDER_QUERIES = [
@@ -77,7 +78,6 @@ CROSSBORDER_QUERIES = [
     "query_net_transfer_capacity_weekahead",
     "query_net_transfer_capacity_monthahead",
     "query_net_transfer_capacity_yearahead",
-    "query_intraday_offered_capacity",
 ]
 
 # XML
@@ -104,10 +104,27 @@ def test_crossborder_queries(
     assert valid_xml(result)
 
 
+def test_query_intraday_offered_capacity(client, country_code_from, country_code_to, start, end):
+    result = client.query_intraday_offered_capacity(
+        country_code_from, country_code_to, start, end, implicit=True
+    )
+    assert isinstance(result, str)
+    assert valid_xml(result)
+
+
+def test_query_offered_capacity(client, country_code_from, country_code_to, start, end):
+    contract_marketagreement_type = "A01"
+    result = client.query_offered_capacity(
+        country_code_from, country_code_to, start, end, contract_marketagreement_type, implicit=True
+    )
+    assert isinstance(result, str)
+    assert valid_xml(result)
+
+
 def test_query_contracted_reserve_prices(client, country_code, start, end):
     type_marketagreement_type = "A01"
     result = client.query_contracted_reserve_prices(
-        country_code, start, end, type_marketagreement_type
+        country_code, start, end, type_marketagreement_type, psr_type=None
     )
     assert isinstance(result, str)
     assert valid_xml(result)
@@ -116,17 +133,16 @@ def test_query_contracted_reserve_prices(client, country_code, start, end):
 def test_query_contracted_reserve_amount(client, country_code, start, end):
     type_marketagreement_type = "A01"
     result = client.query_contracted_reserve_amount(
-        country_code, start, end, type_marketagreement_type
+        country_code, start, end, type_marketagreement_type, psr_type=None
     )
     assert isinstance(result, str)
     assert valid_xml(result)
 
 
 def test_query_procured_balancing_capacity_bytearray(client, country_code, start, end):
-    type_marketagreement_type = "A01"
     process_type = "A47"
     result = client.query_procured_balancing_capacity(
-        country_code, start, end, process_type, type_marketagreement_type
+        country_code, start, end, process_type, type_marketagreement_type=None
     )
     assert isinstance(result, str)
     assert valid_xml(result)
@@ -143,17 +159,17 @@ def test_query_procured_balancing_capacity_process_type_not_allowed(client):
 # ZIP
 
 def test_query_imbalance_prices(client, country_code, start, end):
-    result = client.query_imbalance_prices(country_code, start, end)
+    result = client.query_imbalance_prices(country_code, start, end, psr_type=None)
     assert isinstance(result, (bytes, bytearray))
 
 
 def test_query_unavailability_of_generation_units(client, country_code, start, end):
-    result = client.query_unavailability_of_generation_units(country_code, start, end,)
+    result = client.query_unavailability_of_generation_units(country_code, start, end, docstatus=None, periodstartupdate=None, periodendupdate=None)
     assert isinstance(result, (bytes, bytearray))
 
 
 def test_query_unavailability_of_production_units(client, country_code, start, end):
-    result = client.query_unavailability_of_production_units(country_code, start, end,)
+    result = client.query_unavailability_of_production_units(country_code, start, end, docstatus=None, periodstartupdate=None, periodendupdate=None)
     assert isinstance(result, (bytes, bytearray))
 
 
@@ -161,7 +177,7 @@ def test_query_unavailability_transmission(
     client, country_code_from, country_code_to, start, end
 ):
     result = client.query_unavailability_transmission(
-        country_code_from, country_code_to, start, end,
+        country_code_from, country_code_to, start, end, docstatus=None, periodstartupdate=None, periodendupdate=None
     )
     assert isinstance(result, (bytes, bytearray))
 

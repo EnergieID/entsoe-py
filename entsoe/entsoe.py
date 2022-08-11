@@ -1517,9 +1517,12 @@ class EntsoePandasClient(EntsoeRawClient):
     @paginated
     @documents_limited(100)
     def query_offered_capacity(
-            self, country_code_from: Union[Area, str],
-            country_code_to: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp, contract_marketagreement_type: str,
+            self,
+            country_code_from: Union[Area, str],
+            country_code_to: Union[Area, str],
+            contract_marketagreement_type: str,
+            start: pd.Timestamp,
+            end: pd.Timestamp,
             implicit: bool = True, offset: int = 0, **kwargs) -> pd.Series:
         """
         Allocated result documents, for OC evolution see query_intraday_offered_capacity
@@ -1529,10 +1532,10 @@ class EntsoePandasClient(EntsoeRawClient):
         ----------
         country_code_from : Area|str
         country_code_to : Area|str
-        start : pd.Timestamp
-        end : pd.Timestamp
         contract_marketagreement_type : str
             type of contract (see mappings.MARKETAGREEMENTTYPE)
+        start : pd.Timestamp
+        end : pd.Timestamp
         implicit: bool (True = implicit - default for most borders. False = explicit - for instance BE-GB)
         offset: int
             offset for querying more than 100 documents
@@ -1608,18 +1611,21 @@ class EntsoePandasClient(EntsoeRawClient):
     @year_limited
     @paginated
     def query_procured_balancing_capacity(
-            self, country_code: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp, process_type: str,
+            self,
+            country_code: Union[Area, str],
+            process_type: str,
+            start: pd.Timestamp,
+            end: pd.Timestamp,
             type_marketagreement_type: Optional[str] = None) -> bytes:
         """
         Activated Balancing Energy [17.1.E]
         Parameters
         ----------
         country_code : Area|str
-        start : pd.Timestamp
-        end : pd.Timestamp
         process_type : str
             A51 ... aFRR; A47 ... mFRR
+        start : pd.Timestamp
+        end : pd.Timestamp
         type_marketagreement_type : str
             type of contract (see mappings.MARKETAGREEMENTTYPE)
 
@@ -1670,18 +1676,21 @@ class EntsoePandasClient(EntsoeRawClient):
     @paginated
     @documents_limited(100)
     def query_contracted_reserve_prices(
-            self, country_code: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp, type_marketagreement_type: str,
+            self,
+            country_code: Union[Area, str],
+            type_marketagreement_type: str,
+            start: pd.Timestamp,
+            end: pd.Timestamp,
             psr_type: Optional[str] = None,
             offset: int = 0) -> pd.DataFrame:
         """
         Parameters
         ----------
         country_code : Area, str
-        start : pd.Timestamp
-        end : pd.Timestamp
         type_marketagreement_type : str
             type of contract (see mappings.MARKETAGREEMENTTYPE)
+        start : pd.Timestamp
+        end : pd.Timestamp
         psr_type : str
             filter query for a specific psr type
         offset : int
@@ -1705,18 +1714,21 @@ class EntsoePandasClient(EntsoeRawClient):
     @paginated
     @documents_limited(100)
     def query_contracted_reserve_amount(
-            self, country_code: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp, type_marketagreement_type: str,
+            self,
+            country_code: Union[Area, str],
+            type_marketagreement_type: str,
+            start: pd.Timestamp,
+            end: pd.Timestamp,
             psr_type: Optional[str] = None,
             offset: int = 0) -> pd.DataFrame:
         """
         Parameters
         ----------
         country_code : Area|str
-        start : pd.Timestamp
-        end : pd.Timestamp
         type_marketagreement_type : str
             type of contract (see mappings.MARKETAGREEMENTTYPE)
+        start : pd.Timestamp
+        end : pd.Timestamp
         psr_type : str
             filter query for a specific psr type
         offset : int

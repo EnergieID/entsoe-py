@@ -22,11 +22,11 @@ import warnings
 warnings.filterwarnings('ignore', category=XMLParsedAsHTMLWarning)
 
 __title__ = "entsoe-py"
-__version__ = "0.5.5"
+__version__ = "0.5.6"
 __author__ = "EnergieID.be, Frank Boerman"
 __license__ = "MIT"
 
-URL = 'https://transparency.entsoe.eu/api'
+URL = 'https://web-api.tp.entsoe.eu/api'
 
 
 class EntsoeRawClient:

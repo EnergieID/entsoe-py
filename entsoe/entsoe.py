@@ -1064,7 +1064,10 @@ class EntsoePandasClient(EntsoeRawClient):
         """
         area = lookup_area(country_code)
         text = super(EntsoePandasClient, self).query_day_ahead_prices(
-            country_code=area, start=start, end=end)
+            country_code=area,
+            start=start-pd.Timedelta(days=1),
+            end=end+pd.Timedelta(days=1)
+        )
         series = parse_prices(text)
         series = series.tz_convert(area.tz)
         series = series.truncate(before=start, after=end)

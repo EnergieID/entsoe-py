@@ -22,7 +22,7 @@ import warnings
 warnings.filterwarnings('ignore', category=XMLParsedAsHTMLWarning)
 
 __title__ = "entsoe-py"
-__version__ = "0.5.5"
+__version__ = "0.5.6"
 __author__ = "EnergieID.be, Frank Boerman"
 __license__ = "MIT"
 
@@ -1063,6 +1063,7 @@ class EntsoePandasClient(EntsoeRawClient):
         pd.Series
         """
         area = lookup_area(country_code)
+        # we do here extra days at start and end to fix issue 187
         text = super(EntsoePandasClient, self).query_day_ahead_prices(
             country_code=area,
             start=start-pd.Timedelta(days=1),
@@ -1071,6 +1072,9 @@ class EntsoePandasClient(EntsoeRawClient):
         series = parse_prices(text)
         series = series.tz_convert(area.tz)
         series = series.truncate(before=start, after=end)
+        # because of the above fix we need to check again if any valid data exists after truncating
+        if len(series) == 0:
+            raise NoMatchingDataError
         return series
 
     @year_limited

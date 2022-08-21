@@ -1522,7 +1522,7 @@ class EntsoePandasClient(EntsoeRawClient):
 
     @year_limited
     @paginated
-    @documents_limited(100)
+    #@documents_limited(100)
     def query_offered_capacity(
             self,
             country_code_from: Union[Area, str],

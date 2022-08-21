@@ -1,5 +1,5 @@
 import logging
-from typing import Union, Optional, Dict
+from typing import Union, Optional, Dict, List, Literal
 
 import pandas as pd
 from pandas.tseries.offsets import YearBegin, YearEnd
@@ -8,7 +8,7 @@ import requests
 from bs4 import BeautifulSoup
 from bs4.builder import XMLParsedAsHTMLWarning
 
-from entsoe.exceptions import InvalidPSRTypeError, InvalidBusinessParameterError
+from entsoe.exceptions import InvalidPSRTypeError, InvalidBusinessParameterError, InvalidParameterError
 from .exceptions import NoMatchingDataError, PaginationError
 from .mappings import Area, NEIGHBOURS, lookup_area
 from .parsers import parse_prices, parse_loads, parse_generation, \
@@ -22,7 +22,7 @@ import warnings
 warnings.filterwarnings('ignore', category=XMLParsedAsHTMLWarning)
 
 __title__ = "entsoe-py"
-__version__ = "0.5.7"
+__version__ = "0.5.8"
 __author__ = "EnergieID.be, Frank Boerman"
 __license__ = "MIT"
 
@@ -1049,11 +1049,14 @@ class EntsoePandasClient(EntsoeRawClient):
 
     @year_limited
     def query_day_ahead_prices(
-            self, country_code: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp) -> pd.Series:
+            self, country_code: Union[Area, str],
+            start: pd.Timestamp,
+            end: pd.Timestamp,
+            resolution: List[Literal['60T', '15T']] = '60T') -> pd.Series:
         """
         Parameters
         ----------
+        resolution: either 60T for hourly values or 15T for quarterly values, throws error if type is not available
         country_code : Area|str
         start : pd.Timestamp
         end : pd.Timestamp
@@ -1062,6 +1065,8 @@ class EntsoePandasClient(EntsoeRawClient):
         -------
         pd.Series
         """
+        if resolution not in ['60T', '15T']:
+            raise InvalidParameterError('Please choose either 60T or 15T')
         area = lookup_area(country_code)
         # we do here extra days at start and end to fix issue 187
         text = super(EntsoePandasClient, self).query_day_ahead_prices(
@@ -1069,7 +1074,9 @@ class EntsoePandasClient(EntsoeRawClient):
             start=start-pd.Timedelta(days=1),
             end=end+pd.Timedelta(days=1)
         )
-        series = parse_prices(text)
+        series = parse_prices(text)[resolution]
+        if len(series) == 0:
+            raise NoMatchingDataError
         series = series.tz_convert(area.tz)
         series = series.truncate(before=start, after=end)
         # because of the above fix we need to check again if any valid data exists after truncating

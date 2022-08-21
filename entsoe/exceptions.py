@@ -12,3 +12,7 @@ class InvalidPSRTypeError(Exception):
 
 class InvalidBusinessParameterError(Exception):
     pass
+
+
+class InvalidParameterError(Exception):
+    pass

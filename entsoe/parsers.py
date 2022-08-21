@@ -42,11 +42,17 @@ def parse_prices(xml_text):
     -------
     pd.Series
     """
-    series = []
+    series = {
+        '15T': [],
+        '60T': []
+    }
     for soup in _extract_timeseries(xml_text):
-        series.append(_parse_price_timeseries(soup))
-    series = pd.concat(series)
-    series = series.sort_index()
+        soup_series = _parse_price_timeseries(soup)
+        series[soup_series.index.freqstr].append(soup_series)
+
+    for freq, freq_series in series.items():
+        if len(freq_series) > 0:
+            series[freq] = pd.concat(freq_series).sort_index()
     return series
 
 

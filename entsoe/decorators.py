@@ -59,7 +59,6 @@ def documents_limited(n):
         def documents_wrapper(*args, **kwargs):
             frames = []
             for offset in range(0, 4800 + n, n):
-                print(offset)
                 try:
                     frame = func(*args, offset=offset, **kwargs)
                     frames.append(frame)

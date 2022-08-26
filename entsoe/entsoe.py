@@ -175,7 +175,7 @@ class EntsoeRawClient:
         }
         response = self._base_request(params=params, start=start, end=end)
         return response.text
-    
+
     def query_net_position(self, country_code: Union[Area, str],
                            start: pd.Timestamp, end: pd.Timestamp, dayahead: bool = True) -> str:
         """
@@ -570,7 +570,7 @@ class EntsoeRawClient:
             country_code_from=country_code_from,
             country_code_to=country_code_to, start=start, end=end,
             doctype="A61", contract_marketagreement_type="A04")
-    
+
     def query_intraday_offered_capacity(
         self, country_code_from: Union[Area, str],
             country_code_to: Union[Area, str], start: pd.Timestamp,
@@ -635,7 +635,7 @@ class EntsoeRawClient:
             contract_marketagreement_type: Optional[str] = None,
             auction_type: Optional[str] = None, business_type: Optional[str] = None) -> str:
         """
-        Generic function called by query_crossborder_flows, 
+        Generic function called by query_crossborder_flows,
         query_scheduled_exchanges, query_net_transfer_capacity_DA/WA/MA/YA and query_.
 
         Parameters
@@ -761,7 +761,7 @@ class EntsoeRawClient:
 
     def query_activated_balancing_energy(
             self, country_code: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp, business_type: str, 
+            end: pd.Timestamp, business_type: str,
             psr_type: Optional[str] = None) -> bytes:
         """
         Activated Balancing Energy [17.1.E]
@@ -1449,7 +1449,7 @@ class EntsoePandasClient(EntsoeRawClient):
         ts = ts.tz_convert(area_from.tz)
         ts = ts.truncate(before=start, after=end)
         return ts
-    
+
     @year_limited
     def query_net_transfer_capacity_yearahead(
             self, country_code_from: Union[Area, str],
@@ -1554,7 +1554,7 @@ class EntsoePandasClient(EntsoeRawClient):
         ts = ts.tz_convert(area_from.tz)
         ts = ts.truncate(before=start, after=end)
         return ts
-    
+
     @year_limited
     def query_imbalance_prices(
             self, country_code: Union[Area, str], start: pd.Timestamp,
@@ -1639,7 +1639,7 @@ class EntsoePandasClient(EntsoeRawClient):
     @year_limited
     def query_activated_balancing_energy(
             self, country_code: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp, business_type: str, 
+            end: pd.Timestamp, business_type: str,
             psr_type: Optional[str] = None) -> pd.DataFrame:
         """
         Activated Balancing Energy [17.1.E]
@@ -1659,13 +1659,13 @@ class EntsoePandasClient(EntsoeRawClient):
         """
         area = lookup_area(country_code)
         text = super(EntsoePandasClient, self).query_activated_balancing_energy(
-            country_code=area, start=start, end=end, 
+            country_code=area, start=start, end=end,
             business_type=business_type, psr_type=psr_type)
         df = parse_contracted_reserve(text, area.tz, "quantity")
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df
-    
+
     @year_limited
     @paginated
     @documents_limited(100)
@@ -1912,6 +1912,9 @@ class EntsoePandasClient(EntsoeRawClient):
         # Truncation will fail if data is not sorted along the index in rare
         # cases. Ensure the dataframe is sorted:
         df = df.sort_index(axis=0)
+
+        if df.columns.nlevels == 2:
+            df = df.assign(newlevel='Actual Aggregated').set_index('newlevel', append=True).unstack('newlevel')
         df = df.truncate(before=start, after=end)
         return df
 

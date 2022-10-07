@@ -5,16 +5,18 @@ from typing import Union
 def lookup_area(s: Union['Area', str]) -> 'Area':
     if isinstance(s, Area):
         # If it already is an Area object, we're happy
-        area = s
-    else:  # It is a string
-        try:
-            # If it is a "country code" string, we do a lookup
-            area = Area[s]
-        except KeyError:
-            # It is not, it may be a direct code
-            area = [area for area in Area if area.value == s][0]
-    return area
+        return s
+    if isinstance(s, str):
+        # If it is a "country code" string, we do a lookup
+        if Area.has_code(s.upper()):
+            return Area[s.upper()]
 
+        # If it is a "direct code", we do a lookup
+        for area in Area:
+            if area.value == s:
+                return area
+
+    raise ValueError('Invalid country code.')
 
 class Area(enum.Enum):
     """
@@ -44,6 +46,10 @@ class Area(enum.Enum):
     @property
     def code(self):
         return self.value
+
+    @classmethod
+    def has_code(cls, code:str)->bool:
+        return code in cls.__members__ 
 
     # List taken directly from the API Docs
     DE_50HZ =       '10YDE-VE-------2', '50Hertz CA, DE(50HzT) BZA',                    'Europe/Berlin',

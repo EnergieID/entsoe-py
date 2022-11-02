@@ -151,7 +151,7 @@ class EntsoeRawClient:
         if dtm.tzinfo is not None and dtm.tzinfo != pytz.UTC:
             dtm = dtm.tz_convert("UTC")
         fmt = '%Y%m%d%H00'
-        ret_str = dtm.strftime(fmt)
+        ret_str = dtm.round(freq='h').strftime(fmt)
         return ret_str
 
     def query_day_ahead_prices(self, country_code: Union[Area, str],

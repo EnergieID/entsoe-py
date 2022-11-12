@@ -44,6 +44,7 @@ def parse_prices(xml_text):
     """
     series = {
         '15T': [],
+        '30T': [],
         '60T': []
     }
     for soup in _extract_timeseries(xml_text):

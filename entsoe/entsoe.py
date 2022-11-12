@@ -1052,11 +1052,12 @@ class EntsoePandasClient(EntsoeRawClient):
             self, country_code: Union[Area, str],
             start: pd.Timestamp,
             end: pd.Timestamp,
-            resolution: List[Literal['60T', '15T']] = '60T') -> pd.Series:
+            resolution: List[Literal['60T', '30T', '15T']] = '60T') -> pd.Series:
         """
         Parameters
         ----------
-        resolution: either 60T for hourly values or 15T for quarterly values, throws error if type is not available
+        resolution: either 60T for hourly values, 
+            30T for half-hourly values or 15T for quarterly values, throws error if type is not available
         country_code : Area|str
         start : pd.Timestamp
         end : pd.Timestamp
@@ -1065,8 +1066,8 @@ class EntsoePandasClient(EntsoeRawClient):
         -------
         pd.Series
         """
-        if resolution not in ['60T', '15T']:
-            raise InvalidParameterError('Please choose either 60T or 15T')
+        if resolution not in ['60T', '30T', '15T']:
+            raise InvalidParameterError('Please choose either 60T, 30T or 15T')
         area = lookup_area(country_code)
         # we do here extra days at start and end to fix issue 187
         text = super(EntsoePandasClient, self).query_day_ahead_prices(

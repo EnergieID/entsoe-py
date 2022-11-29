@@ -22,7 +22,7 @@ import warnings
 warnings.filterwarnings('ignore', category=XMLParsedAsHTMLWarning)
 
 __title__ = "entsoe-py"
-__version__ = "0.5.8"
+__version__ = "0.5.9"
 __author__ = "EnergieID.be, Frank Boerman"
 __license__ = "MIT"
 

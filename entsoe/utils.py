@@ -12,7 +12,7 @@ def check_new_area_codes():
     soup = BeautifulSoup(r.text, 'lxml')
     # to select the correct table find a known code and go to the parent table of that cell
     rows = soup.find('p', text='10YNL----------L').parent.parent.parent.find_all('tr')
-    table_area_codes = [[x.text for x in y.find_all('td')] for y in rows]
+    table_area_codes = [[x.text.strip('\n') for x in y.find_all('td')] for y in rows]
     # remove the header row
     del table_area_codes[0]
 

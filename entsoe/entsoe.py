@@ -304,6 +304,35 @@ class EntsoeRawClient:
             params.update({'psrType': psr_type})
         response = self._base_request(params=params, start=start, end=end)
         return response.text
+    
+    def query_intraday_wind_and_solar_forecast(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, psr_type: Optional[str] = None,
+            process_type: str = 'A40', **kwargs) -> str:
+        """
+        Parameters
+        ----------
+        country_code : Area|str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        psr_type : str
+            filter on a single psr type
+        process_type : str
+
+        Returns
+        -------
+        str
+        """
+        area = lookup_area(country_code)
+        params = {
+            'documentType': 'A69',
+            'processType': process_type,
+            'in_Domain': area.code,
+        }
+        if psr_type:
+            params.update({'psrType': psr_type})
+        response = self._base_request(params=params, start=start, end=end)
+        return response.text
 
     def query_generation(
             self, country_code: Union[Area, str], start: pd.Timestamp,
@@ -1203,6 +1232,34 @@ class EntsoePandasClient(EntsoeRawClient):
         """
         area = lookup_area(country_code)
         text = super(EntsoePandasClient, self).query_wind_and_solar_forecast(
+            country_code=area, start=start, end=end, psr_type=psr_type,
+            process_type=process_type)
+        df = parse_generation(text, nett=True)
+        df = df.tz_convert(area.tz)
+        df = df.truncate(before=start, after=end)
+        return df
+    
+    @year_limited
+    def query_intraday_wind_and_solar_forecast(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, psr_type: Optional[str] = None,
+            process_type: str = 'A40', **kwargs) -> pd.DataFrame:
+        """
+        Parameters
+        ----------
+        country_code : Area|str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        psr_type : str
+            filter on a single psr type
+        process_type : str
+
+        Returns
+        -------
+        pd.DataFrame
+        """
+        area = lookup_area(country_code)
+        text = super(EntsoePandasClient, self).query_intraday_wind_and_solar_forecast(
             country_code=area, start=start, end=end, psr_type=psr_type,
             process_type=process_type)
         df = parse_generation(text, nett=True)

@@ -307,7 +307,7 @@ class EntsoeRawClient:
 
     def query_generation(
             self, country_code: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp, psr_type: Optional[str] = None, **kwargs) -> str:
+            end: pd.Timestamp, psr_type: Optional[str] = None, **kwargs) -> bytes:
         """
         Parameters
         ----------
@@ -319,7 +319,7 @@ class EntsoeRawClient:
 
         Returns
         -------
-        str
+        bytes
         """
         area = lookup_area(country_code)
         params = {
@@ -330,7 +330,7 @@ class EntsoeRawClient:
         if psr_type:
             params.update({'psrType': psr_type})
         response = self._base_request(params=params, start=start, end=end)
-        return response.text
+        return response.content
 
     def query_generation_per_plant(
             self, country_code: Union[Area, str], start: pd.Timestamp,
@@ -1231,9 +1231,9 @@ class EntsoePandasClient(EntsoeRawClient):
         pd.DataFrame
         """
         area = lookup_area(country_code)
-        text = super(EntsoePandasClient, self).query_generation(
+        xml = super(EntsoePandasClient, self).query_generation(
             country_code=area, start=start, end=end, psr_type=psr_type)
-        df = parse_generation(text, nett=nett)
+        df = parse_generation(xml, nett=nett)
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df

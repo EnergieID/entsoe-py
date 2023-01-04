@@ -6,6 +6,7 @@ import warnings
 import bs4
 from bs4.builder import XMLParsedAsHTMLWarning
 import pandas as pd
+from lxml import etree
 
 from .mappings import PSRTYPE_MAPPINGS, DOCSTATUS, BSNTYPE, Area
 
@@ -15,21 +16,21 @@ GENERATION_ELEMENT = "inBiddingZone_Domain.mRID"
 CONSUMPTION_ELEMENT = "outBiddingZone_Domain.mRID"
 
 
-def _extract_timeseries(xml_text):
+def _extract_timeseries(xml):
     """
     Parameters
     ----------
-    xml_text : str
+    xml : bytes
 
     Yields
     -------
-    bs4.element.tag
+    lxml.element
     """
-    if not xml_text:
+    if not xml:
         return
-    soup = bs4.BeautifulSoup(xml_text, 'html.parser')
-    for timeseries in soup.find_all('timeseries'):
-        yield timeseries
+    for event, element in etree.iterparse(BytesIO(xml), tag='{*}TimeSeries'):
+        yield element
+
 
 
 def parse_prices(xml_text):
@@ -137,7 +138,7 @@ def parse_generation(
     all_series = dict()
     for soup in _extract_timeseries(xml_text):
         ts = _parse_generation_timeseries(soup, per_plant=per_plant, include_eic=include_eic)
-
+        
         # check if we already have a series of this name
         series = all_series.get(ts.name)
         if series is None:
@@ -148,7 +149,7 @@ def parse_generation(
             series = pd.concat([series, ts])
             series.sort_index(inplace=True)
             all_series[series.name] = series
-
+            
     # drop duplicates in all series
     for name in all_series:
         ts = all_series[name]
@@ -631,24 +632,17 @@ def _parse_generation_timeseries(soup, per_plant: bool = False, include_eic: boo
     -------
     pd.Series
     """
-    positions = []
-    quantities = []
-    for point in soup.find_all('point'):
-        positions.append(int(point.find('position').text))
-        quantity = point.find('quantity')
-        if quantity is None:
-            raise LookupError(
-                f'No quantity found in this point, it should have one: {point}')
-        quantities.append(float(quantity.text))
+    positions =  [int(x.text)   for x in soup.iter('{*}position')]
+    quantities = [float(x.text) for x in soup.iter('{*}quantity')]
 
     series = pd.Series(index=positions, data=quantities)
     series = series.sort_index()
     series.index = _parse_datetimeindex(soup)
 
     # Check if there is a psrtype, if so, get it.
-    _psrtype = soup.find('psrtype')
+    _psrtype = list(soup.iter("{*}psrType"))
     if _psrtype is not None:
-        psrtype = _psrtype.text
+        psrtype = _psrtype[0].text
     else:
         psrtype = None
 
@@ -656,7 +650,7 @@ def _parse_generation_timeseries(soup, per_plant: bool = False, include_eic: boo
     # If IN, this means Actual Consumption is measured
     # If OUT, this means Consumption is measured.
     # OUT means Consumption of a generation plant, eg. charging a pumped hydro plant
-    if soup.find(CONSUMPTION_ELEMENT.lower()):
+    if list(soup.iter("{*}" + CONSUMPTION_ELEMENT)):
         metric = 'Actual Consumption'
     else:
         metric = 'Actual Aggregated'
@@ -669,7 +663,7 @@ def _parse_generation_timeseries(soup, per_plant: bool = False, include_eic: boo
         name.append(psrtype_name)
 
     if per_plant:
-        plantname = soup.find('name').text
+        plantname = soup.find('{*}name').text
         name.append(plantname)
         if include_eic:
             eic = soup.find("mrid", codingscheme="A01").text
@@ -758,13 +752,13 @@ def _parse_datetimeindex(soup, tz=None):
     -------
     pd.DatetimeIndex
     """
-    start = pd.Timestamp(soup.find('start').text)
-    end = pd.Timestamp(soup.find_all('end')[-1].text)
+    start = pd.Timestamp(next(soup.iter("{*}start")).text)
+    end = pd.Timestamp(next(soup.iter("{*}end")).text)
     if tz is not None:
         start = start.tz_convert(tz)
         end = end.tz_convert(tz)
 
-    delta = _resolution_to_timedelta(res_text=soup.find('resolution').text)
+    delta = _resolution_to_timedelta(res_text=next(soup.iter('{*}resolution')).text)
     index = pd.date_range(start=start, end=end, freq=delta, inclusive='left')
     if tz is not None:
         dst_jump = len(set(index.map(lambda d: d.dst()))) > 1

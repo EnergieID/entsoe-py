@@ -358,7 +358,7 @@ def _parse_procured_balancing_capacity(element, tz):
     df = pd.DataFrame(index=tx, columns=['Price', 'Volume'])
 
     for dt, point in zip(tx, points):
-        df.loc[dt, 'Price'] = float(find(point, 'Procurement_Price.amount'))
+        df.loc[dt, 'Price'] = float(find(point, 'procurement_Price.amount'))
         df.loc[dt, 'Volume'] = float(find(point, 'quantity'))
 
     mrid = int(find(element, 'mRID'))
@@ -474,7 +474,7 @@ def _parse_imbalance_prices_timeseries(element) -> pd.DataFrame:
     for point in findall(element, 'Point'):
         positions.append(int(find(point, 'position')))
         amounts.append(float(find(point, 'imbalance_Price.amount')))
-        if list(findall(point, 'imbalance_price.category')):
+        if list(findall(point, 'imbalance_Price.category')):
             categories.append(find(point, 'imbalance_Price.category'))
         else:
             categories.append('None')
@@ -561,8 +561,8 @@ def _parse_netposition_timeseries(element):
     """
     positions = []
     quantities = []
-    #TODO
-    if 'REGION' in find(element, 'out_Domain.mrid'):
+
+    if 'REGION' in find(element, 'out_Domain.mRID'):
         factor = -1 # flow is import so negative
     else:
         factor = 1
@@ -587,7 +587,7 @@ def _parse_price_timeseries(element):
     pd.Series
     """
     positions = [int(x.text) for x in findall(element, 'position')]
-    prices = [float(x.text) for x in findall(element, 'price_amount')]
+    prices = [float(x.text) for x in findall(element, 'price.amount')]
 
     series = pd.Series(index=positions, data=prices)
     series = series.sort_index()
@@ -663,9 +663,7 @@ def _parse_generation_timeseries(element, per_plant: bool = False, include_eic: 
         plantname = find(element, 'name')
         name.append(plantname)
         if include_eic:
-            #TODO
-            eic = find(element, "mRID") # is codingscheme as below required
-            # eic = find(element, "mrid", codingscheme="A01")
+            eic = find(element, 'mRID codingScheme="A01"')
             name.insert(0, eic)
 
 
@@ -776,8 +774,8 @@ def _parse_crossborder_flows_timeseries(element):
     -------
     pd.Series
     """
-    positions =  [int(x.text)   for x in element.iter('{*}position')]
-    flows = [float(x.text) for x in element.iter('{*}quantity')]
+    positions =  [int(x.text)   for x in findall(element, 'position')]
+    flows = [float(x.text) for x in findall(element, 'quantity')]
 
     series = pd.Series(index=positions, data=flows)
     series = series.sort_index()
@@ -813,9 +811,10 @@ def _resolution_to_timedelta(res_text: str) -> str:
 # domain code in the unavailibility parsers:
 _INV_BIDDING_ZONE_DICO = {area.code: area.name for area in Area}
 
+#TODO cannot find some of these in https://transparency.entsoe.eu/content/static_content/Static%20content/web%20api/Guide.html, such as revision, created_doc_time
 HEADERS_UNAVAIL_GEN = ['created_doc_time',
-                       'docstatus',
-                       'mrid',
+                       'docStatus',
+                       'mRID',
                        'revision',
                        'businesstype',
                        'biddingzone_domain',
@@ -852,20 +851,20 @@ def _unavailability_gen_ts(element) -> list:
     # When no nominal power is given, give default numeric value of 0:
     get_float = lambda val: float('NaN') if val == "" else float(val)
 
-    f = [BSNTYPE[get_attr('businesstype')],
-         _INV_BIDDING_ZONE_DICO[get_attr('biddingzone_domain.mrid')],
-         get_attr('quantity_measure_unit.name'),
-         get_attr('curvetype'),
-         get_attr('production_registeredresource.mrid'),
-         get_attr('production_registeredresource.name'),
-         get_attr('production_registeredresource.location.name'),
+    f = [BSNTYPE[get_attr('businessType')],
+         _INV_BIDDING_ZONE_DICO[get_attr('biddingZone_Domain.mRID')],
+         get_attr('quantity_Measure_Unit.name'),
+         get_attr('curveType'),
+         get_attr('production_RegisteredResource.mRID'),
+         get_attr('production_RegisteredResource.name'),
+         get_attr('production_RegisteredResource.location.name'),
          PSRTYPE_MAPPINGS.get(get_attr(
-             'production_registeredresource.psrtype.psrtype'), ""),
+             'production_RegisteredResource.pSRType.psrType'), ""),
          get_float(get_attr(
-             'production_registeredresource.psrtype.powersystemresources.nominalp'))]
+             'production_RegisteredResource.pSRType.powerSystemResources.nominalP'))]
     return [f + p for p in _available_period(element)]
 
-
+#TODO
 HEADERS_UNAVAIL_TRANSM = ['created_doc_time',
                           'docstatus',
                           'businesstype',

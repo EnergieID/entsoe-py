@@ -22,7 +22,7 @@ def find(element, tag):
 def findall(element, tag):
     return element.iter('{*}'+tag)
 
-def _extract_timeseries(xml):
+def _extract_timeseries(xml_bytes):
     """
     Parameters
     ----------
@@ -32,9 +32,9 @@ def _extract_timeseries(xml):
     -------
     lxml.element
     """
-    if not xml:
+    if not xml_bytes:
         return
-    for event, element in etree.iterparse(BytesIO(xml), tag='{*}TimeSeries'):
+    for event, element in etree.iterparse(BytesIO(xml_bytes), tag='{*}TimeSeries'):
         yield element
 
 
@@ -87,7 +87,7 @@ def parse_loads(xml_bytes, process_type='A01'):
     """
     Parameters
     ----------
-    xml_bytes : str
+    xml_bytes: bytes
 
     Returns
     -------
@@ -128,7 +128,7 @@ def parse_generation(
     """
     Parameters
     ----------
-    xml_bytes : str
+    xml_bytes: bytes
     per_plant : bool
         Decide if you need the parser that can extract plant info as well.
     nett : bool
@@ -241,7 +241,7 @@ def parse_water_hydro(xml_bytes, tz):
     """
     Parameters
     ----------
-    xml_bytes : str
+    xml_bytes: bytes
 
     Returns
     -------
@@ -260,7 +260,7 @@ def parse_crossborder_flows(xml_bytes):
     """
     Parameters
     ----------
-    xml_bytes : str
+    xml_bytes: bytes
 
     Returns
     -------
@@ -278,7 +278,7 @@ def parse_imbalance_prices(xml_bytes):
     """
     Parameters
     ----------
-    xml_bytes : str
+    xml_bytes : bytes
 
     Returns
     -------
@@ -297,7 +297,7 @@ def parse_imbalance_volumes(xml_bytes):
     """
     Parameters
     ----------
-    xml_bytes : str
+    xml_bytes: bytes
 
     Returns
     -------
@@ -316,7 +316,7 @@ def parse_procured_balancing_capacity(xml_bytes, tz):
     """
     Parameters
     ----------
-    xml_bytes : str
+    xml_bytes: bytes
     tz: str
 
     Returns
@@ -361,9 +361,9 @@ def _parse_procured_balancing_capacity(element, tz):
         df.loc[dt, 'Price'] = float(find(point, 'Procurement_Price.amount'))
         df.loc[dt, 'Volume'] = float(find(point, 'quantity'))
 
-    mr_id = int(find(element, 'mrid'))
+    mrid = int(find(element, 'mRID'))
     df.columns = pd.MultiIndex.from_product(
-        [[flow_direction], [mr_id], df.columns],
+        [[flow_direction], [mrid], df.columns],
         names=('direction', 'mrid', 'unit')
     )
 
@@ -374,7 +374,7 @@ def parse_contracted_reserve(xml_bytes, tz, label):
     """
     Parameters
     ----------
-    xml_bytes : str
+    xml_bytes: bytes
     tz: str
     label: str
 
@@ -398,7 +398,7 @@ def _parse_contracted_reserve_series(element, tz, label):
     ----------
     element: lxml.element
     tz: str
-    label: str
+    label: str (case sensitive!)
 
     Returns
     -------
@@ -425,12 +425,11 @@ def _parse_contracted_reserve_series(element, tz, label):
                       'A03': 'Symmetric'}
 
     # First column level: the type of reserve
-    reserve_type = BSNTYPE[find(element, "businesstype")]
+    reserve_type = BSNTYPE[find(element, "businessType")]
     df.rename(columns={label: reserve_type}, inplace=True)
 
     # Second column level: the flow direction 
-    #TODO
-    direction = direction_dico[find(element, 'FlowDirection.direction')]
+    direction = direction_dico[find(element, 'flowDirection.direction')]
     df.columns = pd.MultiIndex.from_product([df.columns, [direction]])
     return df
 
@@ -449,6 +448,7 @@ def parse_imbalance_prices_zip(zip_contents: bytes) -> pd.DataFrame:
         with zipfile.ZipFile(BytesIO(archive), 'r') as arc:
             for f in arc.infolist():
                 if f.filename.endswith('xml'):
+                    #TODO this should generate bytes not xml text
                     frame = parse_imbalance_prices(xml_text=arc.read(f))
                     yield frame
 
@@ -473,10 +473,9 @@ def _parse_imbalance_prices_timeseries(element) -> pd.DataFrame:
     categories = []
     for point in findall(element, 'Point'):
         positions.append(int(find(point, 'position')))
-        #TODO
-        amounts.append(float(find(point, 'imbalance_price.amount')))
-        if point.find('imbalance_price.category'):
-            categories.append(point.find('imbalance_price.category').text)
+        amounts.append(float(find(point, 'imbalance_Price.amount')))
+        if list(findall(point, 'imbalance_price.category')):
+            categories.append(find(point, 'imbalance_Price.category'))
         else:
             categories.append('None')
 
@@ -563,7 +562,7 @@ def _parse_netposition_timeseries(element):
     positions = []
     quantities = []
     #TODO
-    if 'REGION' in find(element, 'out_domain.mrid'):
+    if 'REGION' in find(element, 'out_Domain.mrid'):
         factor = -1 # flow is import so negative
     else:
         factor = 1
@@ -665,7 +664,8 @@ def _parse_generation_timeseries(element, per_plant: bool = False, include_eic: 
         name.append(plantname)
         if include_eic:
             #TODO
-            eic = find(element, "mrid", codingscheme="A01")
+            eic = find(element, "mRID") # is codingscheme as below required
+            # eic = find(element, "mrid", codingscheme="A01")
             name.insert(0, eic)
 
 
@@ -712,21 +712,21 @@ def _parse_installed_capacity_per_plant(element):
     -------
     pd.Series
     """
-    #TODO
-    extract_vals = {'Name': 'registeredresource.name',
+
+    extract_vals = {'Name': 'registeredResource.name',
                     'Production Type': 'psrType',
-                    'Bidding Zone': 'inbiddingzone_domain.mrid',
+                    'Bidding Zone': 'inBiddingZone_Domain.mRID',
                     # 'Status': 'businessType',
                     'Voltage Connection Level [kV]':
-                        'voltage_powersystemresources.highvoltagelimit'}
-    #TODO
+                        'voltage_PowerSystemResources.highVoltageLimit'}
+
     series = pd.Series(extract_vals).apply(lambda v: find(element, v))
 
     # extract only first point
     series['Installed Capacity [MW]'] = \
         float(find(element, 'quantity'))
-    #TODO
-    series.name = find(element, 'registeredresource.mrid')
+
+    series.name = find(element, 'registeredResource.name')
 
     return series
 
@@ -898,11 +898,11 @@ def _unavailability_tm_ts(element) -> list:
     get_attr = lambda attr: "" if list(findall(element, attr)) is None else find(element, attr)
     # When no nominal power is given, give default numeric value of 0:
 
-    f = [BSNTYPE[get_attr('businesstype')],
-         _INV_BIDDING_ZONE_DICO[get_attr('in_domain.mrid')],
-         _INV_BIDDING_ZONE_DICO[get_attr('out_domain.mrid')],
-         get_attr('quantity_measure_unit.name'),
-         get_attr('curvetype'),
+    f = [BSNTYPE[get_attr('businessType')],
+         _INV_BIDDING_ZONE_DICO[get_attr('in_Domain.mRID')],
+         _INV_BIDDING_ZONE_DICO[get_attr('out_Domain.mRID')],
+         get_attr('quantity_Measure_Unit.name'),
+         get_attr('curveType'),
          ]
     return [f + p for p in _available_period(element)]
 
@@ -938,34 +938,39 @@ def parse_unavailabilities(response: bytes, doctype: str) -> pd.DataFrame:
 def _available_period(timeseries) -> list:
     # if not timeseries:
     #    return
-    #TODO
-    for period in findall(timeseries, 'available_period'):
-        start, end = pd.Timestamp(period.timeinterval.start.text), pd.Timestamp(
-            period.timeinterval.end.text)
-        res = period.resolution.text
-        pstn, qty = period.point.position.text, period.point.quantity.text
+
+    for period in findall(timeseries, 'Available_Period'):
+        start, end = pd.Timestamp(find(period, 'start')), pd.Timestamp(
+            find(period, 'end'))
+        res = find(period, 'resolution')
+        pstn, qty = find(period, 'position'), find(period, 'quantity')
         yield [start, end, res, pstn, qty]
 
 
 def _outage_parser(xml_file: bytes, headers, ts_func) -> pd.DataFrame:
-    xml_text = xml_file.decode()
-
-    soup = bs4.BeautifulSoup(xml_text, 'html.parser')
-    mrid = soup.find("mrid").text
-    revision_number = int(soup.find("revisionnumber").text)
+    # xml_text = xml_file.decode()
+    # soup = bs4.BeautifulSoup(xml_text, 'html.parser')
+    element = etree.iterparse(BytesIO(xml_file))
+    
+    
+    
+    mrid = find(element, 'mRID')
+    revision_number = int(find(element, 'revisionNumber'))
+    
     try:
-        creation_date = pd.Timestamp(soup.createddatetime.text)
+        creation_date = pd.Timestamp(find(element, 'createdDateTime'))
     except AttributeError:
         creation_date = ""
 
     try:
-        docstatus = DOCSTATUS[soup.docstatus.value.text]
+        docstatus = DOCSTATUS[find(element, 'value')]
     except AttributeError:
         docstatus = None
     d = list()
-    series = _extract_timeseries(xml_text)
+    series = _extract_timeseries(xml_file)
     for ts in series:
         row = [creation_date, docstatus, mrid, revision_number]
+        # ts_func may break since it will no longer receive a soup timeseries but a lxml element
         for t in ts_func(ts):
             d.append(row + t)
     df = pd.DataFrame.from_records(d, columns=headers)

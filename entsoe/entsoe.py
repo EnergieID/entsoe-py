@@ -174,7 +174,7 @@ class EntsoeRawClient:
             'out_Domain': area.code
         }
         response = self._base_request(params=params, start=start, end=end)
-        return response.text
+        return response
 
     def query_net_position(self, country_code: Union[Area, str],
                            start: pd.Timestamp, end: pd.Timestamp, dayahead: bool = True) -> str:
@@ -202,7 +202,7 @@ class EntsoeRawClient:
             params.update({'Contract_MarketAgreement.Type': "A07"})
 
         response = self._base_request(params=params, start=start, end=end)
-        return response.text
+        return response
 
     def query_load(self, country_code: Union[Area, str], start: pd.Timestamp,
                    end: pd.Timestamp) -> str:
@@ -225,7 +225,7 @@ class EntsoeRawClient:
             'out_Domain': area.code
         }
         response = self._base_request(params=params, start=start, end=end)
-        return response.text
+        return response
 
     def query_load_forecast(
             self, country_code: Union[Area, str], start: pd.Timestamp,
@@ -250,7 +250,7 @@ class EntsoeRawClient:
             # 'out_Domain': domain
         }
         response = self._base_request(params=params, start=start, end=end)
-        return response.text
+        return response
 
     def query_generation_forecast(
             self, country_code: Union[Area, str], start: pd.Timestamp,
@@ -274,7 +274,7 @@ class EntsoeRawClient:
             'in_Domain': area.code,
         }
         response = self._base_request(params=params, start=start, end=end)
-        return response.text
+        return response
 
     def query_wind_and_solar_forecast(
             self, country_code: Union[Area, str], start: pd.Timestamp,
@@ -303,7 +303,7 @@ class EntsoeRawClient:
         if psr_type:
             params.update({'psrType': psr_type})
         response = self._base_request(params=params, start=start, end=end)
-        return response.text
+        return response
 
     def query_generation(
             self, country_code: Union[Area, str], start: pd.Timestamp,
@@ -357,7 +357,7 @@ class EntsoeRawClient:
         if psr_type:
             params.update({'psrType': psr_type})
         response = self._base_request(params=params, start=start, end=end)
-        return response.text
+        return response
 
     def query_installed_generation_capacity(
             self, country_code: Union[Area, str], start: pd.Timestamp,
@@ -384,7 +384,7 @@ class EntsoeRawClient:
         if psr_type:
             params.update({'psrType': psr_type})
         response = self._base_request(params=params, start=start, end=end)
-        return response.text
+        return response
 
     def query_installed_generation_capacity_per_unit(
             self, country_code: Union[Area, str], start: pd.Timestamp,
@@ -411,7 +411,7 @@ class EntsoeRawClient:
         if psr_type:
             params.update({'psrType': psr_type})
         response = self._base_request(params=params, start=start, end=end)
-        return response.text
+        return response
 
     def query_aggregate_water_reservoirs_and_hydro_storage(self, country_code: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp) -> str:
@@ -435,7 +435,7 @@ class EntsoeRawClient:
             'in_Domain': area.code
         }
         response = self._base_request(params=params, start=start, end=end)
-        return response.text
+        return response
 
     def query_crossborder_flows(
             self, country_code_from: Union[Area, str],
@@ -671,7 +671,7 @@ class EntsoeRawClient:
                 'businessType'] = business_type
 
         response = self._base_request(params=params, start=start, end=end)
-        return response.text
+        return response
 
     def query_imbalance_prices(
             self, country_code: Union[Area, str], start: pd.Timestamp,
@@ -822,7 +822,7 @@ class EntsoeRawClient:
         if psr_type:
             params.update({'psrType': psr_type})
         response = self._base_request(params=params, start=start, end=end)
-        return response.text
+        return response
 
     def query_contracted_reserve_amount(
             self, country_code: Union[Area, str], start: pd.Timestamp,
@@ -856,7 +856,7 @@ class EntsoeRawClient:
         if psr_type:
             params.update({'psrType': psr_type})
         response = self._base_request(params=params, start=start, end=end)
-        return response.text
+        return response
 
     def _query_unavailability(
             self, country_code: Union[Area, str], start: pd.Timestamp,
@@ -1040,9 +1040,9 @@ class EntsoePandasClient(EntsoeRawClient):
 
         """
         area = lookup_area(country_code)
-        text = super(EntsoePandasClient, self).query_net_position(
+        response = super(EntsoePandasClient, self).query_net_position(
             country_code=area, start=start, end=end, dayahead=dayahead)
-        series = parse_netpositions(text)
+        series = parse_netpositions(response.content)
         series = series.tz_convert(area.tz)
         series = series.truncate(before=start, after=end)
         return series
@@ -1070,12 +1070,12 @@ class EntsoePandasClient(EntsoeRawClient):
             raise InvalidParameterError('Please choose either 60T, 30T or 15T')
         area = lookup_area(country_code)
         # we do here extra days at start and end to fix issue 187
-        text = super(EntsoePandasClient, self).query_day_ahead_prices(
+        response = super(EntsoePandasClient, self).query_day_ahead_prices(
             country_code=area,
             start=start-pd.Timedelta(days=1),
             end=end+pd.Timedelta(days=1)
         )
-        series = parse_prices(text)[resolution]
+        series = parse_prices(response.content)[resolution]
         if len(series) == 0:
             raise NoMatchingDataError
         series = series.tz_convert(area.tz)
@@ -1100,10 +1100,10 @@ class EntsoePandasClient(EntsoeRawClient):
         pd.DataFrame
         """
         area = lookup_area(country_code)
-        text = super(EntsoePandasClient, self).query_load(
+        response = super(EntsoePandasClient, self).query_load(
             country_code=area, start=start, end=end)
 
-        df = parse_loads(text, process_type='A16')
+        df = parse_loads(response.content, process_type='A16')
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df
@@ -1125,10 +1125,10 @@ class EntsoePandasClient(EntsoeRawClient):
         pd.DataFrame
         """
         area = lookup_area(country_code)
-        text = super(EntsoePandasClient, self).query_load_forecast(
+        response = super(EntsoePandasClient, self).query_load_forecast(
             country_code=area, start=start, end=end, process_type=process_type)
 
-        df = parse_loads(text, process_type=process_type)
+        df = parse_loads(response.content, process_type=process_type)
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df
@@ -1175,9 +1175,9 @@ class EntsoePandasClient(EntsoeRawClient):
         pd.DataFrame | pd.Series
         """
         area = lookup_area(country_code)
-        text = super(EntsoePandasClient, self).query_generation_forecast(
+        response = super(EntsoePandasClient, self).query_generation_forecast(
             country_code=area, start=start, end=end, process_type=process_type)
-        df = parse_generation(text, nett=nett)
+        df = parse_generation(response.content, nett=nett)
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df
@@ -1202,10 +1202,10 @@ class EntsoePandasClient(EntsoeRawClient):
         pd.DataFrame
         """
         area = lookup_area(country_code)
-        text = super(EntsoePandasClient, self).query_wind_and_solar_forecast(
+        response = super(EntsoePandasClient, self).query_wind_and_solar_forecast(
             country_code=area, start=start, end=end, psr_type=psr_type,
             process_type=process_type)
-        df = parse_generation(text, nett=True)
+        df = parse_generation(response.content, nett=True)
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df
@@ -1256,10 +1256,10 @@ class EntsoePandasClient(EntsoeRawClient):
         pd.DataFrame
         """
         area = lookup_area(country_code)
-        text = super(
+        response = super(
             EntsoePandasClient, self).query_installed_generation_capacity(
             country_code=area, start=start, end=end, psr_type=psr_type)
-        df = parse_generation(text)
+        df = parse_generation(response.content)
         df = df.tz_convert(area.tz)
         # Truncate to YearBegin and YearEnd, because answer is always year-based
         df = df.truncate(before=start - YearBegin(), after=end + YearEnd())
@@ -1283,11 +1283,11 @@ class EntsoePandasClient(EntsoeRawClient):
         pd.DataFrame
         """
         area = lookup_area(country_code)
-        text = super(
+        response = super(
             EntsoePandasClient,
             self).query_installed_generation_capacity_per_unit(
             country_code=area, start=start, end=end, psr_type=psr_type)
-        df = parse_installed_capacity_per_plant(text)
+        df = parse_installed_capacity_per_plant(response.content)
         return df
 
     @year_limited
@@ -1295,12 +1295,12 @@ class EntsoePandasClient(EntsoeRawClient):
     def query_aggregate_water_reservoirs_and_hydro_storage(self, country_code: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp) -> pd.DataFrame:
         area = lookup_area(country_code)
-        text = super(
+        response = super(
             EntsoePandasClient,
             self).query_aggregate_water_reservoirs_and_hydro_storage(
             country_code=area, start=start, end=end)
 
-        df = parse_water_hydro(text, area.tz)
+        df = parse_water_hydro(response.content, area.tz)
 
         return df
 
@@ -1326,12 +1326,12 @@ class EntsoePandasClient(EntsoeRawClient):
         """
         area_to = lookup_area(country_code_to)
         area_from = lookup_area(country_code_from)
-        text = super(EntsoePandasClient, self).query_crossborder_flows(
+        response = super(EntsoePandasClient, self).query_crossborder_flows(
             country_code_from=area_from,
             country_code_to=area_to,
             start=start,
             end=end)
-        ts = parse_crossborder_flows(text)
+        ts = parse_crossborder_flows(response.content)
         ts = ts.tz_convert(area_from.tz)
         ts = ts.truncate(before=start, after=end)
         return ts
@@ -1361,13 +1361,13 @@ class EntsoePandasClient(EntsoeRawClient):
         """
         area_to = lookup_area(country_code_to)
         area_from = lookup_area(country_code_from)
-        text = super(EntsoePandasClient, self).query_scheduled_exchanges(
+        response = super(EntsoePandasClient, self).query_scheduled_exchanges(
             country_code_from=area_from,
             country_code_to=area_to,
             dayahead=dayahead,
             start=start,
             end=end)
-        ts = parse_crossborder_flows(text)
+        ts = parse_crossborder_flows(response.content)
         ts = ts.tz_convert(area_from.tz)
         ts = ts.truncate(before=start, after=end)
         return ts
@@ -1393,12 +1393,12 @@ class EntsoePandasClient(EntsoeRawClient):
         """
         area_to = lookup_area(country_code_to)
         area_from = lookup_area(country_code_from)
-        text = super(EntsoePandasClient, self).query_net_transfer_capacity_dayahead(
+        response = super(EntsoePandasClient, self).query_net_transfer_capacity_dayahead(
             country_code_from=area_from,
             country_code_to=area_to,
             start=start,
             end=end)
-        ts = parse_crossborder_flows(text)
+        ts = parse_crossborder_flows(response.content)
         ts = ts.tz_convert(area_from.tz)
         ts = ts.truncate(before=start, after=end)
         return ts
@@ -1424,12 +1424,12 @@ class EntsoePandasClient(EntsoeRawClient):
         """
         area_to = lookup_area(country_code_to)
         area_from = lookup_area(country_code_from)
-        text = super(EntsoePandasClient, self).query_net_transfer_capacity_weekahead(
+        response = super(EntsoePandasClient, self).query_net_transfer_capacity_weekahead(
             country_code_from=area_from,
             country_code_to=area_to,
             start=start,
             end=end)
-        ts = parse_crossborder_flows(text)
+        ts = parse_crossborder_flows(response.content)
         ts = ts.tz_convert(area_from.tz)
         ts = ts.truncate(before=start, after=end)
         return ts
@@ -1455,12 +1455,12 @@ class EntsoePandasClient(EntsoeRawClient):
         """
         area_to = lookup_area(country_code_to)
         area_from = lookup_area(country_code_from)
-        text = super(EntsoePandasClient, self).query_net_transfer_capacity_monthahead(
+        response = super(EntsoePandasClient, self).query_net_transfer_capacity_monthahead(
             country_code_from=area_from,
             country_code_to=area_to,
             start=start,
             end=end)
-        ts = parse_crossborder_flows(text)
+        ts = parse_crossborder_flows(response.content)
         ts = ts.tz_convert(area_from.tz)
         ts = ts.truncate(before=start, after=end)
         return ts
@@ -1486,12 +1486,12 @@ class EntsoePandasClient(EntsoeRawClient):
         """
         area_to = lookup_area(country_code_to)
         area_from = lookup_area(country_code_from)
-        text = super(EntsoePandasClient, self).query_net_transfer_capacity_yearahead(
+        response = super(EntsoePandasClient, self).query_net_transfer_capacity_yearahead(
             country_code_from=area_from,
             country_code_to=area_to,
             start=start,
             end=end)
-        ts = parse_crossborder_flows(text)
+        ts = parse_crossborder_flows(response.content)
         ts = ts.tz_convert(area_from.tz)
         ts = ts.truncate(before=start, after=end)
         return ts
@@ -1517,13 +1517,13 @@ class EntsoePandasClient(EntsoeRawClient):
         """
         area_to = lookup_area(country_code_to)
         area_from = lookup_area(country_code_from)
-        text = super(EntsoePandasClient, self).query_intraday_offered_capacity(
+        response = super(EntsoePandasClient, self).query_intraday_offered_capacity(
             country_code_from=area_from,
             country_code_to=area_to,
             start=start,
             end=end,
             implicit=implicit)
-        ts = parse_crossborder_flows(text)
+        ts = parse_crossborder_flows(response.content)
         ts = ts.tz_convert(area_from.tz)
         ts = ts.truncate(before=start, after=end)
         return ts
@@ -1560,7 +1560,7 @@ class EntsoePandasClient(EntsoeRawClient):
         """
         area_to = lookup_area(country_code_to)
         area_from = lookup_area(country_code_from)
-        text = super(EntsoePandasClient, self).query_offered_capacity(
+        response = super(EntsoePandasClient, self).query_offered_capacity(
             country_code_from=area_from,
             country_code_to=area_to,
             start=start,
@@ -1568,7 +1568,7 @@ class EntsoePandasClient(EntsoeRawClient):
             contract_marketagreement_type=contract_marketagreement_type,
             implicit=implicit,
             offset=offset)
-        ts = parse_crossborder_flows(text)
+        ts = parse_crossborder_flows(response.content)
         ts = ts.tz_convert(area_from.tz)
         ts = ts.truncate(before=start, after=end)
         return ts
@@ -1649,10 +1649,10 @@ class EntsoePandasClient(EntsoeRawClient):
         pd.DataFrame
         """
         area = lookup_area(country_code)
-        text = super(EntsoePandasClient, self).query_procured_balancing_capacity(
+        response = super(EntsoePandasClient, self).query_procured_balancing_capacity(
             country_code=area, start=start, end=end,
             process_type=process_type, type_marketagreement_type=type_marketagreement_type)
-        df = parse_procured_balancing_capacity(text, area.tz)
+        df = parse_procured_balancing_capacity(response.content, area.tz)
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df
@@ -1679,10 +1679,10 @@ class EntsoePandasClient(EntsoeRawClient):
         pd.DataFrame
         """
         area = lookup_area(country_code)
-        text = super(EntsoePandasClient, self).query_activated_balancing_energy(
+        response = super(EntsoePandasClient, self).query_activated_balancing_energy(
             country_code=area, start=start, end=end,
             business_type=business_type, psr_type=psr_type)
-        df = parse_contracted_reserve(text, area.tz, "quantity")
+        df = parse_contracted_reserve(response.content, area.tz, "quantity")
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df
@@ -1716,11 +1716,11 @@ class EntsoePandasClient(EntsoeRawClient):
         pd.DataFrame
         """
         area = lookup_area(country_code)
-        text = super(EntsoePandasClient, self).query_contracted_reserve_prices(
+        response = super(EntsoePandasClient, self).query_contracted_reserve_prices(
             country_code=area, start=start, end=end,
             type_marketagreement_type=type_marketagreement_type,
             psr_type=psr_type, offset=offset)
-        df = parse_contracted_reserve(text, area.tz, "procurement_price.amount")
+        df = parse_contracted_reserve(response.content, area.tz, "procurement_price.amount")
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df
@@ -1754,11 +1754,11 @@ class EntsoePandasClient(EntsoeRawClient):
         pd.DataFrame
         """
         area = lookup_area(country_code)
-        text = super(EntsoePandasClient, self).query_contracted_reserve_amount(
+        response = super(EntsoePandasClient, self).query_contracted_reserve_amount(
             country_code=area, start=start, end=end,
             type_marketagreement_type=type_marketagreement_type,
             psr_type=psr_type, offset=offset)
-        df = parse_contracted_reserve(text, area.tz, "quantity")
+        df = parse_contracted_reserve(response.content, area.tz, "quantity")
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df
@@ -1931,9 +1931,9 @@ class EntsoePandasClient(EntsoeRawClient):
         pd.DataFrame
         """
         area = lookup_area(country_code)
-        text = super(EntsoePandasClient, self).query_generation_per_plant(
+        response = super(EntsoePandasClient, self).query_generation_per_plant(
             country_code=area, start=start, end=end, psr_type=psr_type)
-        df = parse_generation(text, per_plant=True, include_eic=include_eic)
+        df = parse_generation(response.content, per_plant=True, include_eic=include_eic)
         df.columns = df.columns.set_levels(df.columns.levels[0].str.encode('latin-1').str.decode('utf-8'), level=0)
         df = df.tz_convert(area.tz)
         # Truncation will fail if data is not sorted along the index in rare

@@ -1721,7 +1721,7 @@ class EntsoePandasClient(EntsoeRawClient):
             country_code=area, start=start, end=end,
             type_marketagreement_type=type_marketagreement_type,
             psr_type=psr_type, offset=offset)
-        df = parse_contracted_reserve(response.content, area.tz, "procurement_price.amount")
+        df = parse_contracted_reserve(response.content, area.tz, "procurement_Price.amount")
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df

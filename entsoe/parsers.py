@@ -17,7 +17,6 @@ CONSUMPTION_ELEMENT = "outBiddingZone_Domain.mRID"
 
 
 def find(element, tag):
-    print(tag)
     return next(element.iter('{*}'+tag)).text
     
 def findall(element, tag):

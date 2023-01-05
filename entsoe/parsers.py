@@ -17,6 +17,7 @@ CONSUMPTION_ELEMENT = "outBiddingZone_Domain.mRID"
 
 
 def find(element, tag):
+    print(tag)
     return next(element.iter('{*}'+tag)).text
     
 def findall(element, tag):
@@ -449,7 +450,7 @@ def parse_imbalance_prices_zip(zip_contents: bytes) -> pd.DataFrame:
             for f in arc.infolist():
                 if f.filename.endswith('xml'):
                     #TODO this should generate bytes not xml text
-                    frame = parse_imbalance_prices(xml_text=arc.read(f))
+                    frame = parse_imbalance_prices(xml_bytes=arc.read(f))
                     yield frame
 
     frames = gen_frames(zip_contents)
@@ -637,8 +638,8 @@ def _parse_generation_timeseries(element, per_plant: bool = False, include_eic: 
     series.index = _parse_datetimeindex(element)
 
     # Check if there is a psrtype, if so, get it.
-    _psrtype = findall(element, 'psrType')
-    if _psrtype is not None:
+    _psrtype = list(findall(element, 'psrType'))
+    if _psrtype:
         psrtype = find(element, 'psrType')
     else:
         psrtype = None
@@ -866,7 +867,7 @@ def _unavailability_gen_ts(element) -> list:
 
 #TODO
 HEADERS_UNAVAIL_TRANSM = ['created_doc_time',
-                          'docstatus',
+                          'docStatus',
                           'businesstype',
                           'in_domain',
                           'out_domain',
@@ -949,7 +950,7 @@ def _available_period(timeseries) -> list:
 def _outage_parser(xml_file: bytes, headers, ts_func) -> pd.DataFrame:
     # xml_text = xml_file.decode()
     # soup = bs4.BeautifulSoup(xml_text, 'html.parser')
-    element = etree.iterparse(BytesIO(xml_file))
+    element = etree.parse(BytesIO(xml_file))
     
     
     
@@ -960,10 +961,11 @@ def _outage_parser(xml_file: bytes, headers, ts_func) -> pd.DataFrame:
         creation_date = pd.Timestamp(find(element, 'createdDateTime'))
     except AttributeError:
         creation_date = ""
-
-    try:
+        
+    value = list(findall(element, 'value'))
+    if value:
         docstatus = DOCSTATUS[find(element, 'value')]
-    except AttributeError:
+    else:
         docstatus = None
     d = list()
     series = _extract_timeseries(xml_file)

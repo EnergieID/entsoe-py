@@ -130,6 +130,7 @@ class EntsoeRawClient:
             if response.headers.get('content-type', '') == 'application/xml':
                 if 'No matching data found' in response.text:
                     raise NoMatchingDataError
+            print('response received')
             return response
 
     @staticmethod
@@ -1652,7 +1653,7 @@ class EntsoePandasClient(EntsoeRawClient):
         response = super(EntsoePandasClient, self).query_procured_balancing_capacity(
             country_code=area, start=start, end=end,
             process_type=process_type, type_marketagreement_type=type_marketagreement_type)
-        df = parse_procured_balancing_capacity(response.content, area.tz)
+        df = parse_procured_balancing_capacity(response, area.tz)
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df

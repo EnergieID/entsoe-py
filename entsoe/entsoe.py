@@ -130,7 +130,6 @@ class EntsoeRawClient:
             if response.headers.get('content-type', '') == 'application/xml':
                 if 'No matching data found' in response.text:
                     raise NoMatchingDataError
-            print('response received')
             return response
 
     @staticmethod

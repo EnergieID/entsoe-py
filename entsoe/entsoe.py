@@ -155,7 +155,7 @@ class EntsoeRawClient:
         return ret_str
 
     def query_day_ahead_prices(self, country_code: Union[Area, str],
-                               start: pd.Timestamp, end: pd.Timestamp) -> str:
+                               start: pd.Timestamp, end: pd.Timestamp) -> requests.Response:
         """
         Parameters
         ----------
@@ -165,8 +165,9 @@ class EntsoeRawClient:
 
         Returns
         -------
-        str
+        requests.Response
         """
+        
         area = lookup_area(country_code)
         params = {
             'documentType': 'A44',
@@ -177,7 +178,7 @@ class EntsoeRawClient:
         return response
 
     def query_net_position(self, country_code: Union[Area, str],
-                           start: pd.Timestamp, end: pd.Timestamp, dayahead: bool = True) -> str:
+                           start: pd.Timestamp, end: pd.Timestamp, dayahead: bool = True) -> requests.Response:
         """
         Parameters
         ----------
@@ -188,7 +189,7 @@ class EntsoeRawClient:
 
         Returns
         -------
-        str
+        requests.Response
         """
         area = lookup_area(country_code)
         params = {
@@ -205,7 +206,7 @@ class EntsoeRawClient:
         return response
 
     def query_load(self, country_code: Union[Area, str], start: pd.Timestamp,
-                   end: pd.Timestamp) -> str:
+                   end: pd.Timestamp) -> requests.Response:
         """
         Parameters
         ----------
@@ -215,7 +216,7 @@ class EntsoeRawClient:
 
         Returns
         -------
-        str
+        requests.Response
         """
         area = lookup_area(country_code)
         params = {
@@ -229,7 +230,7 @@ class EntsoeRawClient:
 
     def query_load_forecast(
             self, country_code: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp, process_type: str = 'A01') -> str:
+            end: pd.Timestamp, process_type: str = 'A01') -> requests.Response:
         """
         Parameters
         ----------
@@ -240,7 +241,7 @@ class EntsoeRawClient:
 
         Returns
         -------
-        str
+        requests.Response
         """
         area = lookup_area(country_code)
         params = {
@@ -254,7 +255,7 @@ class EntsoeRawClient:
 
     def query_generation_forecast(
             self, country_code: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp, process_type: str = 'A01') -> str:
+            end: pd.Timestamp, process_type: str = 'A01') -> requests.Response:
         """
         Parameters
         ----------
@@ -265,7 +266,7 @@ class EntsoeRawClient:
 
         Returns
         -------
-        str
+        requests.Response
         """
         area = lookup_area(country_code)
         params = {
@@ -279,7 +280,7 @@ class EntsoeRawClient:
     def query_wind_and_solar_forecast(
             self, country_code: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp, psr_type: Optional[str] = None,
-            process_type: str = 'A01', **kwargs) -> str:
+            process_type: str = 'A01', **kwargs) -> requests.Response:
         """
         Parameters
         ----------
@@ -292,7 +293,7 @@ class EntsoeRawClient:
 
         Returns
         -------
-        str
+        requests.Response
         """
         area = lookup_area(country_code)
         params = {
@@ -307,7 +308,7 @@ class EntsoeRawClient:
 
     def query_generation(
             self, country_code: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp, psr_type: Optional[str] = None, **kwargs) -> bytes:
+            end: pd.Timestamp, psr_type: Optional[str] = None, **kwargs) -> requests.Response:
         """
         Parameters
         ----------
@@ -319,7 +320,7 @@ class EntsoeRawClient:
 
         Returns
         -------
-        bytes
+        requests.Response
         """
         area = lookup_area(country_code)
         params = {
@@ -330,11 +331,11 @@ class EntsoeRawClient:
         if psr_type:
             params.update({'psrType': psr_type})
         response = self._base_request(params=params, start=start, end=end)
-        return response.content
+        return response
 
     def query_generation_per_plant(
             self, country_code: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp, psr_type: Optional[str] = None, **kwargs) -> str:
+            end: pd.Timestamp, psr_type: Optional[str] = None, **kwargs) -> requests.Response:
         """
         Parameters
         ----------
@@ -346,7 +347,7 @@ class EntsoeRawClient:
 
         Returns
         -------
-        str
+        requests.Response
         """
         area = lookup_area(country_code)
         params = {
@@ -361,7 +362,7 @@ class EntsoeRawClient:
 
     def query_installed_generation_capacity(
             self, country_code: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp, psr_type: Optional[str] = None) -> str:
+            end: pd.Timestamp, psr_type: Optional[str] = None) -> requests.Response:
         """
         Parameters
         ----------
@@ -373,7 +374,7 @@ class EntsoeRawClient:
 
         Returns
         -------
-        str
+        requests.Response
         """
         area = lookup_area(country_code)
         params = {
@@ -388,7 +389,7 @@ class EntsoeRawClient:
 
     def query_installed_generation_capacity_per_unit(
             self, country_code: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp, psr_type: Optional[str] = None) -> str:
+            end: pd.Timestamp, psr_type: Optional[str] = None) -> requests.Response:
         """
         Parameters
         ----------
@@ -400,7 +401,7 @@ class EntsoeRawClient:
 
         Returns
         -------
-        str
+        requests.Response
         """
         area = lookup_area(country_code)
         params = {
@@ -414,7 +415,7 @@ class EntsoeRawClient:
         return response
 
     def query_aggregate_water_reservoirs_and_hydro_storage(self, country_code: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp) -> str:
+            end: pd.Timestamp) -> requests.Response:
         """
         Parameters
         ----------
@@ -426,7 +427,7 @@ class EntsoeRawClient:
 
         Returns
         -------
-        str
+        requests.Response
         """
         area = lookup_area(country_code)
         params = {
@@ -440,7 +441,7 @@ class EntsoeRawClient:
     def query_crossborder_flows(
             self, country_code_from: Union[Area, str],
             country_code_to: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp, **kwargs) -> str:
+            end: pd.Timestamp, **kwargs) -> requests.Response:
         """
         Parameters
         ----------
@@ -451,7 +452,7 @@ class EntsoeRawClient:
 
         Returns
         -------
-        str
+        requests.Response
         """
         return self._query_crossborder(
             country_code_from=country_code_from,
@@ -464,7 +465,7 @@ class EntsoeRawClient:
             start: pd.Timestamp,
             end: pd.Timestamp,
             dayahead: bool = False,
-            **kwargs) -> str:
+            **kwargs) -> requests.Response:
         """
         Parameters
         ----------
@@ -476,7 +477,7 @@ class EntsoeRawClient:
 
         Returns
         -------
-        str
+        requests.Response
         """
         if dayahead:
             contract_marketagreement_type = "A01"
@@ -490,7 +491,7 @@ class EntsoeRawClient:
     def query_net_transfer_capacity_dayahead(
             self, country_code_from: Union[Area, str],
             country_code_to: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp) -> str:
+            end: pd.Timestamp) -> requests.Response:
         """
         Parameters
         ----------
@@ -501,7 +502,7 @@ class EntsoeRawClient:
 
         Returns
         -------
-        str
+        requests.Response
         """
         return self._query_crossborder(
             country_code_from=country_code_from,
@@ -511,7 +512,7 @@ class EntsoeRawClient:
     def query_net_transfer_capacity_weekahead(
             self, country_code_from: Union[Area, str],
             country_code_to: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp) -> str:
+            end: pd.Timestamp) -> requests.Response:
         """
         Parameters
         ----------
@@ -522,7 +523,7 @@ class EntsoeRawClient:
 
         Returns
         -------
-        str
+        requests.Response
         """
         return self._query_crossborder(
             country_code_from=country_code_from,
@@ -532,7 +533,7 @@ class EntsoeRawClient:
     def query_net_transfer_capacity_monthahead(
             self, country_code_from: Union[Area, str],
             country_code_to: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp) -> str:
+            end: pd.Timestamp) -> requests.Response:
         """
         Parameters
         ----------
@@ -543,7 +544,7 @@ class EntsoeRawClient:
 
         Returns
         -------
-        str
+        requests.Response
         """
         return self._query_crossborder(
             country_code_from=country_code_from,
@@ -553,7 +554,7 @@ class EntsoeRawClient:
     def query_net_transfer_capacity_yearahead(
             self, country_code_from: Union[Area, str],
             country_code_to: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp) -> str:
+            end: pd.Timestamp) -> requests.Response:
         """
         Parameters
         ----------
@@ -564,7 +565,7 @@ class EntsoeRawClient:
 
         Returns
         -------
-        str
+        requests.Response
         """
         return self._query_crossborder(
             country_code_from=country_code_from,
@@ -574,7 +575,7 @@ class EntsoeRawClient:
     def query_intraday_offered_capacity(
         self, country_code_from: Union[Area, str],
             country_code_to: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp, implicit:bool = True,**kwargs) -> str:
+            end: pd.Timestamp, implicit:bool = True,**kwargs) -> requests.Response:
         """
         Parameters
         ----------
@@ -586,7 +587,7 @@ class EntsoeRawClient:
 
         Returns
         -------
-        str
+        requests.Response
         """
         return self._query_crossborder(
             country_code_from=country_code_from,
@@ -598,7 +599,7 @@ class EntsoeRawClient:
         self, country_code_from: Union[Area, str],
             country_code_to: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp, contract_marketagreement_type: str,
-            implicit:bool = True,**kwargs) -> str:
+            implicit:bool = True,**kwargs) -> requests.Response:
         """
         Allocated result documents, for OC evolution see query_intraday_offered_capacity
 
@@ -614,7 +615,7 @@ class EntsoeRawClient:
 
         Returns
         -------
-        str
+        requests.Response
         """
         if implicit:
             business_type = None
@@ -633,7 +634,7 @@ class EntsoeRawClient:
             country_code_to: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp, doctype: str,
             contract_marketagreement_type: Optional[str] = None,
-            auction_type: Optional[str] = None, business_type: Optional[str] = None) -> str:
+            auction_type: Optional[str] = None, business_type: Optional[str] = None) -> requests.Response:
         """
         Generic function called by query_crossborder_flows,
         query_scheduled_exchanges, query_net_transfer_capacity_DA/WA/MA/YA and query_.
@@ -650,7 +651,7 @@ class EntsoeRawClient:
 
         Returns
         -------
-        str
+        requests.Response
         """
         area_in = lookup_area(country_code_to)
         area_out = lookup_area(country_code_from)
@@ -794,7 +795,7 @@ class EntsoeRawClient:
             self, country_code: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp, type_marketagreement_type: str,
             psr_type: Optional[str] = None,
-            offset: int = 0) -> str:
+            offset: int = 0) -> requests.Response:
         """
         Parameters
         ----------
@@ -810,7 +811,7 @@ class EntsoeRawClient:
 
         Returns
         -------
-        str
+        requests.Response
         """
         area = lookup_area(country_code)
         params = {
@@ -828,7 +829,7 @@ class EntsoeRawClient:
             self, country_code: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp, type_marketagreement_type: str,
             psr_type: Optional[str] = None,
-            offset: int = 0) -> str:
+            offset: int = 0) -> requests.Response:
         """
         Parameters
         ----------
@@ -844,7 +845,7 @@ class EntsoeRawClient:
 
         Returns
         -------
-        str
+        requests.Response
         """
         area = lookup_area(country_code)
         params = {
@@ -1231,9 +1232,9 @@ class EntsoePandasClient(EntsoeRawClient):
         pd.DataFrame
         """
         area = lookup_area(country_code)
-        xml = super(EntsoePandasClient, self).query_generation(
+        response = super(EntsoePandasClient, self).query_generation(
             country_code=area, start=start, end=end, psr_type=psr_type)
-        df = parse_generation(xml, nett=nett)
+        df = parse_generation(response.content, nett=nett)
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df
@@ -1649,10 +1650,10 @@ class EntsoePandasClient(EntsoeRawClient):
         pd.DataFrame
         """
         area = lookup_area(country_code)
-        response = super(EntsoePandasClient, self).query_procured_balancing_capacity(
+        content = super(EntsoePandasClient, self).query_procured_balancing_capacity(
             country_code=area, start=start, end=end,
             process_type=process_type, type_marketagreement_type=type_marketagreement_type)
-        df = parse_procured_balancing_capacity(response, area.tz)
+        df = parse_procured_balancing_capacity(content, area.tz)
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df
@@ -1679,10 +1680,10 @@ class EntsoePandasClient(EntsoeRawClient):
         pd.DataFrame
         """
         area = lookup_area(country_code)
-        response = super(EntsoePandasClient, self).query_activated_balancing_energy(
+        content = super(EntsoePandasClient, self).query_activated_balancing_energy(
             country_code=area, start=start, end=end,
             business_type=business_type, psr_type=psr_type)
-        df = parse_contracted_reserve(response.content, area.tz, "quantity")
+        df = parse_contracted_reserve(content, area.tz, "quantity")
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df

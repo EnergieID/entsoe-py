@@ -722,7 +722,7 @@ def _parse_installed_capacity_per_plant(element):
 
     # extract only first point
     series['Installed Capacity [MW]'] = \
-        float(find(element, 'quantity'))
+        find(element, 'quantity')
 
     series.name = find(element, 'registeredResource.mRID')
 

@@ -973,5 +973,5 @@ def _outage_parser(xml_file: bytes, headers, ts_func) -> pd.DataFrame:
         # ts_func may break since it will no longer receive a soup timeseries but a lxml element
         for t in ts_func(ts):
             d.append(row + t)
-    df = pd.DataFrame.from_records(d, columns=headers)
+    df = pd.DataFrame.from_records(d, columns=[h.lower() for h in headers])
     return df

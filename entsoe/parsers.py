@@ -6,6 +6,7 @@ import warnings
 import bs4
 from bs4.builder import XMLParsedAsHTMLWarning
 import pandas as pd
+from lxml import etree
 
 from .mappings import PSRTYPE_MAPPINGS, DOCSTATUS, BSNTYPE, Area
 
@@ -15,28 +16,34 @@ GENERATION_ELEMENT = "inBiddingZone_Domain.mRID"
 CONSUMPTION_ELEMENT = "outBiddingZone_Domain.mRID"
 
 
-def _extract_timeseries(xml_text):
+def find(element, tag):
+    return next(element.iter('{*}'+tag)).text
+    
+def findall(element, tag):
+    return element.iter('{*}'+tag)
+
+def _extract_timeseries(xml_bytes):
     """
     Parameters
     ----------
-    xml_text : str
+    xml : bytes
 
     Yields
     -------
-    bs4.element.tag
+    lxml.element
     """
-    if not xml_text:
+    if not xml_bytes:
         return
-    soup = bs4.BeautifulSoup(xml_text, 'html.parser')
-    for timeseries in soup.find_all('timeseries'):
-        yield timeseries
+    for event, element in etree.iterparse(BytesIO(xml_bytes), tag='{*}TimeSeries'):
+        yield element
 
 
-def parse_prices(xml_text):
+
+def parse_prices(xml_bytes):
     """
     Parameters
     ----------
-    xml_text : str
+    xml_bytes : butes
 
     Returns
     -------
@@ -47,9 +54,9 @@ def parse_prices(xml_text):
         '30T': [],
         '60T': []
     }
-    for soup in _extract_timeseries(xml_text):
-        soup_series = _parse_price_timeseries(soup)
-        series[soup_series.index.freqstr].append(soup_series)
+    for element in _extract_timeseries(xml_bytes):
+        element_series = _parse_price_timeseries(element)
+        series[element_series.index.freqstr].append(element_series)
 
     for freq, freq_series in series.items():
         if len(freq_series) > 0:
@@ -57,30 +64,30 @@ def parse_prices(xml_text):
     return series
 
 
-def parse_netpositions(xml_text):
+def parse_netpositions(xml_bytes):
     """
 
     Parameters
     ----------
-    xml_text : str
+    xml_bytes : bytes
 
     Returns
     -------
     pd.Series
     """
     series = []
-    for soup in _extract_timeseries(xml_text):
-        series.append(_parse_netposition_timeseries(soup))
+    for element in _extract_timeseries(xml_bytes):
+        series.append(_parse_netposition_timeseries(element))
     series = pd.concat(series)
     series = series.sort_index()
     return series
 
 
-def parse_loads(xml_text, process_type='A01'):
+def parse_loads(xml_bytes, process_type='A01'):
     """
     Parameters
     ----------
-    xml_text : str
+    xml_bytes: bytes
 
     Returns
     -------
@@ -88,8 +95,8 @@ def parse_loads(xml_text, process_type='A01'):
     """
     if process_type == 'A01' or process_type == 'A16':
         series = []
-        for soup in _extract_timeseries(xml_text):
-            series.append(_parse_load_timeseries(soup))
+        for element in _extract_timeseries(xml_bytes):
+            series.append(_parse_load_timeseries(element))
         series = pd.concat(series)
         series = series.sort_index()
         return pd.DataFrame({
@@ -98,11 +105,11 @@ def parse_loads(xml_text, process_type='A01'):
     else:
         series_min = pd.Series(dtype='object')
         series_max = pd.Series(dtype='object')
-        for soup in _extract_timeseries(xml_text):
-            t = _parse_load_timeseries(soup)
-            if soup.find('businesstype').text == 'A60':
+        for element in _extract_timeseries(xml_bytes):
+            t = _parse_load_timeseries(element)
+            if find(element, 'businessType') == 'A60':
                 series_min = series_min.append(t)
-            elif soup.find('businesstype').text == 'A61':
+            elif find(element, 'businessType') == 'A61':
                 series_max = series_max.append(t)
             else:
                 continue
@@ -114,14 +121,14 @@ def parse_loads(xml_text, process_type='A01'):
 
 
 def parse_generation(
-        xml_text: str,
+        xml_bytes: str,
         per_plant: bool = False,
         include_eic: bool = False,
         nett: bool = False) -> Union[pd.DataFrame, pd.Series]:
     """
     Parameters
     ----------
-    xml_text : str
+    xml_bytes: bytes
     per_plant : bool
         Decide if you need the parser that can extract plant info as well.
     nett : bool
@@ -135,9 +142,9 @@ def parse_generation(
     pd.DataFrame | pd.Series
     """
     all_series = dict()
-    for soup in _extract_timeseries(xml_text):
-        ts = _parse_generation_timeseries(soup, per_plant=per_plant, include_eic=include_eic)
-
+    for element in _extract_timeseries(xml_bytes):
+        ts = _parse_generation_timeseries(element, per_plant=per_plant, include_eic=include_eic)
+        
         # check if we already have a series of this name
         series = all_series.get(ts.name)
         if series is None:
@@ -148,7 +155,7 @@ def parse_generation(
             series = pd.concat([series, ts])
             series.sort_index(inplace=True)
             all_series[series.name] = series
-
+            
     # drop duplicates in all series
     for name in all_series:
         ts = all_series[name]
@@ -198,19 +205,19 @@ def _calc_nett_and_drop_redundant_columns(
     return df
 
 
-def parse_installed_capacity_per_plant(xml_text):
+def parse_installed_capacity_per_plant(xml_bytes):
     """
     Parameters
     ----------
-    xml_text : str
+    xml_bytes : bytes
 
     Returns
     -------
     pd.DataFrame
     """
     all_series = {}
-    for soup in _extract_timeseries(xml_text):
-        s = _parse_installed_capacity_per_plant(soup)
+    for element in _extract_timeseries(xml_bytes):
+        s = _parse_installed_capacity_per_plant(element)
         series = all_series.get(s.name)
         if series is None:
             all_series[s.name] = s
@@ -230,95 +237,95 @@ def parse_installed_capacity_per_plant(xml_text):
     return df
 
 
-def parse_water_hydro(xml_text, tz):
+def parse_water_hydro(xml_bytes, tz):
     """
     Parameters
     ----------
-    xml_text : str
+    xml_bytes: bytes
 
     Returns
     -------
     pd.Series
     """
     all_series = []
-    for soup in _extract_timeseries(xml_text):
-        all_series.append(_parse_water_hydro_timeseries(soup, tz=tz))
+    for element in _extract_timeseries(xml_bytes):
+        all_series.append(_parse_water_hydro_timeseries(element, tz=tz))
 
     series = pd.concat(all_series)
 
     return series
 
 
-def parse_crossborder_flows(xml_text):
+def parse_crossborder_flows(xml_bytes):
     """
     Parameters
     ----------
-    xml_text : str
+    xml_bytes: bytes
 
     Returns
     -------
     pd.Series
     """
     series = []
-    for soup in _extract_timeseries(xml_text):
-        series.append(_parse_crossborder_flows_timeseries(soup))
+    for element in _extract_timeseries(xml_bytes):
+        series.append(_parse_crossborder_flows_timeseries(element))
     series = pd.concat(series)
     series = series.sort_index()
     return series
 
 
-def parse_imbalance_prices(xml_text):
+def parse_imbalance_prices(xml_bytes):
     """
     Parameters
     ----------
-    xml_text : str
+    xml_bytes : bytes
 
     Returns
     -------
     pd.DataFrame
     """
-    timeseries_blocks = _extract_timeseries(xml_text)
-    frames = (_parse_imbalance_prices_timeseries(soup)
-              for soup in timeseries_blocks)
+    timeseries_blocks = _extract_timeseries(xml_bytes)
+    frames = (_parse_imbalance_prices_timeseries(element)
+              for element in timeseries_blocks)
     df = pd.concat(frames, axis=1)
     df = df.stack().unstack()  # ad-hoc fix to prevent column splitting by NaNs
     df.sort_index(inplace=True)
     return df
 
 
-def parse_imbalance_volumes(xml_text):
+def parse_imbalance_volumes(xml_bytes):
     """
     Parameters
     ----------
-    xml_text : str
+    xml_bytes: bytes
 
     Returns
     -------
     pd.DataFrame
     """
-    timeseries_blocks = _extract_timeseries(xml_text)
-    frames = (_parse_imbalance_volumes_timeseries(soup)
-              for soup in timeseries_blocks)
+    timeseries_blocks = _extract_timeseries(xml_bytes)
+    frames = (_parse_imbalance_volumes_timeseries(element)
+              for element in timeseries_blocks)
     df = pd.concat(frames, axis=1)
     df = df.stack().unstack()  # ad-hoc fix to prevent column splitting by NaNs
     df.sort_index(inplace=True)
     return df
 
 
-def parse_procured_balancing_capacity(xml_text, tz):
+def parse_procured_balancing_capacity(xml_bytes, tz):
     """
     Parameters
     ----------
-    xml_text : str
+    xml_bytes: bytes
     tz: str
 
     Returns
     -------
     pd.DataFrame
     """
-    timeseries_blocks = _extract_timeseries(xml_text)
-    frames = (_parse_procured_balancing_capacity(soup, tz)
-              for soup in timeseries_blocks)
+    timeseries_blocks = _extract_timeseries(xml_bytes)
+    frames = (_parse_procured_balancing_capacity(element, tz)
+              for element in timeseries_blocks)
     df = pd.concat(frames, axis=1)
 
     df.sort_index(axis=0, inplace=True)
@@ -326,11 +333,11 @@ def parse_procured_balancing_capacity(xml_text, tz):
     return df
 
 
-def _parse_procured_balancing_capacity(soup, tz):
+def _parse_procured_balancing_capacity(element, tz):
     """
     Parameters
     ----------
-    soup : bs4.element.tag
+    element: lxml.element
     tz: str
 
     Returns
@@ -342,33 +349,32 @@ def _parse_procured_balancing_capacity(soup, tz):
         'A02': 'Down'
     }
 
-    flow_direction = direction[soup.find('flowdirection.direction').text]
-    period = soup.find('period')
-    start = pd.to_datetime(period.find('timeinterval').find('start').text)
-    end = pd.to_datetime(period.find('timeinterval').find('end').text)
-    resolution = _resolution_to_timedelta(period.find('resolution').text)
+    flow_direction = direction[find(element, 'flowDirection.direction')]
+    start = pd.to_datetime(find(element, 'start'))
+    end = pd.to_datetime(find(element, 'end'))
+    resolution = _resolution_to_timedelta(find(element, 'resolution'))
     tx = pd.date_range(start=start, end=end, freq=resolution, inclusive='left')
-    points = period.find_all('point')
+    points = findall(element, 'Point')
     df = pd.DataFrame(index=tx, columns=['Price', 'Volume'])
 
     for dt, point in zip(tx, points):
-        df.loc[dt, 'Price'] = float(point.find('procurement_price.amount').text)
-        df.loc[dt, 'Volume'] = float(point.find('quantity').text)
+        df.loc[dt, 'Price'] = float(find(point, 'procurement_Price.amount'))
+        df.loc[dt, 'Volume'] = float(find(point, 'quantity'))
 
-    mr_id = int(soup.find('mrid').text)
+    mrid = int(find(element, 'mRID'))
     df.columns = pd.MultiIndex.from_product(
-        [[flow_direction], [mr_id], df.columns],
+        [[flow_direction], [mrid], df.columns],
         names=('direction', 'mrid', 'unit')
     )
 
     return df
 
 
-def parse_contracted_reserve(xml_text, tz, label):
+def parse_contracted_reserve(xml_bytes, tz, label):
     """
     Parameters
     ----------
-    xml_text : str
+    xml_bytes: bytes
     tz: str
     label: str
 
@@ -376,9 +382,9 @@ def parse_contracted_reserve(xml_text, tz, label):
     -------
     pd.DataFrame
     """
-    timeseries_blocks = _extract_timeseries(xml_text)
-    frames = (_parse_contracted_reserve_series(soup, tz, label)
-              for soup in timeseries_blocks)
+    timeseries_blocks = _extract_timeseries(xml_bytes)
+    frames = (_parse_contracted_reserve_series(element, tz, label)
+              for element in timeseries_blocks)
     df = pd.concat(frames, axis=1)
     # Ad-hoc fix to prevent that columns are split by NaNs:
     df = df.groupby(axis=1, level = [0,1]).mean()
@@ -386,29 +392,26 @@ def parse_contracted_reserve(xml_text, tz, label):
     return df
 
 
-def _parse_contracted_reserve_series(soup, tz, label):
+def _parse_contracted_reserve_series(element, tz, label):
     """
     Parameters
     ----------
-    soup : bs4.element.tag
+    element: lxml.element
     tz: str
-    label: str
+    label: str (case sensitive!)
 
     Returns
     -------
     pd.Series
     """
-    positions = []
-    prices = []
-    for point in soup.find_all('point'):
-        positions.append(int(point.find('position').text))
-        prices.append(float(point.find(label).text))
-
+    positions =  [int(x.text)   for x in findall(element, 'position')]
+    prices = [float(x.text) for x in findall(element, label)]
+    
     df = pd.DataFrame(data={'position': positions,
                             label: prices})
     df = df.set_index(['position'])
     df.sort_index(inplace=True)
-    index = _parse_datetimeindex(soup, tz)
+    index = _parse_datetimeindex(element, tz)
     if len(index) > len(df.index):
         print("Shortening index", file=sys.stderr)
         df.index = index[:len(df.index)]
@@ -422,11 +425,11 @@ def _parse_contracted_reserve_series(soup, tz, label):
                       'A03': 'Symmetric'}
 
     # First column level: the type of reserve
-    reserve_type = BSNTYPE[soup.find("businesstype").text]
+    reserve_type = BSNTYPE[find(element, "businessType")]
     df.rename(columns={label: reserve_type}, inplace=True)
 
     # Second column level: the flow direction 
-    direction = direction_dico[soup.find("flowdirection.direction").text]
+    direction = direction_dico[find(element, 'flowDirection.direction')]
     df.columns = pd.MultiIndex.from_product([df.columns, [direction]])
     return df
 
@@ -445,7 +448,8 @@ def parse_imbalance_prices_zip(zip_contents: bytes) -> pd.DataFrame:
         with zipfile.ZipFile(BytesIO(archive), 'r') as arc:
             for f in arc.infolist():
                 if f.filename.endswith('xml'):
-                    frame = parse_imbalance_prices(xml_text=arc.read(f))
+                    #TODO this should generate bytes not xml text
+                    frame = parse_imbalance_prices(xml_bytes=arc.read(f))
                     yield frame
 
     frames = gen_frames(zip_contents)
@@ -454,11 +458,11 @@ def parse_imbalance_prices_zip(zip_contents: bytes) -> pd.DataFrame:
     return df
 
 
-def _parse_imbalance_prices_timeseries(soup) -> pd.DataFrame:
+def _parse_imbalance_prices_timeseries(element) -> pd.DataFrame:
     """
     Parameters
     ----------
-    soup : bs4.element.tag
+    element: lxml.element
 
     Returns
     -------
@@ -467,11 +471,11 @@ def _parse_imbalance_prices_timeseries(soup) -> pd.DataFrame:
     positions = []
     amounts = []
     categories = []
-    for point in soup.find_all('point'):
-        positions.append(int(point.find('position').text))
-        amounts.append(float(point.find('imbalance_price.amount').text))
-        if point.find('imbalance_price.category'):
-            categories.append(point.find('imbalance_price.category').text)
+    for point in findall(element, 'Point'):
+        positions.append(int(find(point, 'position')))
+        amounts.append(float(find(point, 'imbalance_Price.amount')))
+        if list(findall(point, 'imbalance_Price.category')):
+            categories.append(find(point, 'imbalance_Price.category'))
         else:
             categories.append('None')
 
@@ -479,7 +483,7 @@ def _parse_imbalance_prices_timeseries(soup) -> pd.DataFrame:
                             'amount': amounts, 'category': categories})
     df = df.set_index(['position', 'category']).unstack()
     df.sort_index(inplace=True)
-    df.index = _parse_datetimeindex(soup)
+    df.index = _parse_datetimeindex(element)
     df = df.xs('amount', axis=1)
     df.index.name = None
     df.columns.name = None
@@ -512,11 +516,11 @@ def parse_imbalance_volumes_zip(zip_contents: bytes) -> pd.DataFrame:
     return df
 
 
-def _parse_imbalance_volumes_timeseries(soup) -> pd.DataFrame:
+def _parse_imbalance_volumes_timeseries(element) -> pd.DataFrame:
     """
     Parameters
     ----------
-    soup : bs4.element.tag
+    element: lxml.element
 
     Returns
     -------
@@ -525,31 +529,31 @@ def _parse_imbalance_volumes_timeseries(soup) -> pd.DataFrame:
     flow_direction_factor = {
         'A01': 1, # in
         'A02': -1 # out
-    }[soup.find('flowdirection.direction').text]
+    }[find(element, 'flowDirection.direction')]
 
     df = pd.DataFrame(columns=['Imbalance Volume'])
 
-    for period in soup.find_all('period'):
-        start = pd.to_datetime(period.find('timeinterval').find('start').text)
-        end = pd.to_datetime(period.find('timeinterval').find('end').text)
-        resolution = _resolution_to_timedelta(period.find('resolution').text)
+    for period in findall(element, 'Period'):
+        start = pd.to_datetime(find(period, 'start'))
+        end = pd.to_datetime(find(period, 'end'))
+        resolution = _resolution_to_timedelta(find(period, 'resolution'))
         tx = pd.date_range(start=start, end=end, freq=resolution, inclusive='left')
-        points = period.find_all('point')
+        points = findall(period, 'Point')
 
         for dt, point in zip(tx, points):
             df.loc[dt, 'Imbalance Volume'] = \
-                float(point.find('quantity').text) * flow_direction_factor
+                float(find(point, 'quantity')) * flow_direction_factor
 
     df.set_index(['Imbalance Volume'])
 
     return df
 
 
-def _parse_netposition_timeseries(soup):
+def _parse_netposition_timeseries(element):
     """
     Parameters
     ----------
-    soup : bs4.element.tag
+    element : lxml.element
 
     Returns
     -------
@@ -557,98 +561,85 @@ def _parse_netposition_timeseries(soup):
     """
     positions = []
     quantities = []
-    if 'REGION' in soup.find('out_domain.mrid').text:
+
+    if 'REGION' in find(element, 'out_Domain.mRID'):
         factor = -1 # flow is import so negative
     else:
         factor = 1
-    for point in soup.find_all('point'):
-        positions.append(int(point.find('position').text))
-        quantities.append(factor * float(point.find('quantity').text))
+    positions = [int(x.text) for x in findall(element, 'position')]
+    quantities = [factor * float(x.text) for x in findall(element, 'quantity')]
 
     series = pd.Series(index=positions, data=quantities)
     series = series.sort_index()
-    series.index = _parse_datetimeindex(soup)
+    series.index = _parse_datetimeindex(element)
 
     return series
 
 
-def _parse_price_timeseries(soup):
+def _parse_price_timeseries(element):
     """
     Parameters
     ----------
-    soup : bs4.element.tag
+    element : lxml.element
 
     Returns
     -------
     pd.Series
     """
-    positions = []
-    prices = []
-    for point in soup.find_all('point'):
-        positions.append(int(point.find('position').text))
-        prices.append(float(point.find('price.amount').text))
+    positions = [int(x.text) for x in findall(element, 'position')]
+    prices = [float(x.text) for x in findall(element, 'price.amount')]
 
     series = pd.Series(index=positions, data=prices)
     series = series.sort_index()
-    series.index = _parse_datetimeindex(soup)
+    series.index = _parse_datetimeindex(element)
 
     return series
 
 
-def _parse_load_timeseries(soup):
+def _parse_load_timeseries(element):
     """
     Parameters
     ----------
-    soup : bs4.element.tag
+    element : lxml.element
 
     Returns
     -------
     pd.Series
     """
-    positions = []
-    prices = []
-    for point in soup.find_all('point'):
-        positions.append(int(point.find('position').text))
-        prices.append(float(point.find('quantity').text))
+    positions =  [int(x.text)   for x in findall(element, 'position')]
+    prices = [float(x.text) for x in findall(element, 'quantity')]
 
     series = pd.Series(index=positions, data=prices)
     series = series.sort_index()
-    series.index = _parse_datetimeindex(soup)
+    series.index = _parse_datetimeindex(element)
 
     return series
 
 
-def _parse_generation_timeseries(soup, per_plant: bool = False, include_eic: bool = False) -> pd.Series:
+def _parse_generation_timeseries(element, per_plant: bool = False, include_eic: bool = False) -> pd.Series:
     """
     Works for generation by type, generation forecast, and wind and solar
     forecast
 
     Parameters
     ----------
-    soup : bs4.element.tag
+    element : lxml.element
 
     Returns
     -------
     pd.Series
     """
-    positions = []
-    quantities = []
-    for point in soup.find_all('point'):
-        positions.append(int(point.find('position').text))
-        quantity = point.find('quantity')
-        if quantity is None:
-            raise LookupError(
-                f'No quantity found in this point, it should have one: {point}')
-        quantities.append(float(quantity.text))
+    positions =  [int(x.text)   for x in findall(element, 'position')]
+    quantities = [float(x.text) for x in findall(element, 'quantity')]
 
     series = pd.Series(index=positions, data=quantities)
     series = series.sort_index()
-    series.index = _parse_datetimeindex(soup)
+    series.index = _parse_datetimeindex(element)
 
     # Check if there is a psrtype, if so, get it.
-    _psrtype = soup.find('psrtype')
-    if _psrtype is not None:
-        psrtype = _psrtype.text
+    _psrtype = list(findall(element, 'psrType'))
+    if _psrtype:
+        psrtype = find(element, 'psrType')
     else:
         psrtype = None
 
@@ -656,7 +647,7 @@ def _parse_generation_timeseries(soup, per_plant: bool = False, include_eic: boo
     # If IN, this means Actual Consumption is measured
     # If OUT, this means Consumption is measured.
     # OUT means Consumption of a generation plant, eg. charging a pumped hydro plant
-    if soup.find(CONSUMPTION_ELEMENT.lower()):
+    if list(findall(element, CONSUMPTION_ELEMENT)):
         metric = 'Actual Consumption'
     else:
         metric = 'Actual Aggregated'
@@ -669,10 +660,10 @@ def _parse_generation_timeseries(soup, per_plant: bool = False, include_eic: boo
         name.append(psrtype_name)
 
     if per_plant:
-        plantname = soup.find('name').text
+        plantname = find(element, 'name')
         name.append(plantname)
         if include_eic:
-            eic = soup.find("mrid", codingscheme="A01").text
+            eic = find(element, 'mRID codingScheme="A01"')
             name.insert(0, eic)
 
 
@@ -687,84 +678,79 @@ def _parse_generation_timeseries(soup, per_plant: bool = False, include_eic: boo
     return series
 
 
-def _parse_water_hydro_timeseries(soup, tz):
+def _parse_water_hydro_timeseries(element, tz):
     """
     Parses timeseries for water reservoirs and hydro storage plants
 
     Parameters
     ----------
-    soup : bs4.element.tag
+    element : lxml.element
 
     Returns
     -------
     pd.Series
     """
 
-    positions = []
-    quantities = []
-    for point in soup.find_all('point'):
-        positions.append(int(point.find('position').text))
-        quantity = point.find('quantity')
-        if quantity is None:
-            raise LookupError(
-                f'No quantity found in this point, it should have one: {point}')
-        quantities.append(float(quantity.text))
+    positions =  [int(x.text)   for x in findall(element, 'position')]
+    quantities = [float(x.text) for x in findall(element, 'quantity')]
     series = pd.Series(index=positions, data=quantities)
     series = series.sort_index()
-    series.index = _parse_datetimeindex(soup, tz)
+    series.index = _parse_datetimeindex(element, tz)
 
     return series
 
 
-def _parse_installed_capacity_per_plant(soup):
+def _parse_installed_capacity_per_plant(element):
     """
     Parameters
     ----------
-    soup : bs4.element.tag
+    element : lxml.element
 
     Returns
     -------
     pd.Series
     """
-    extract_vals = {'Name': 'registeredresource.name',
-                    'Production Type': 'psrtype',
-                    'Bidding Zone': 'inbiddingzone_domain.mrid',
-                    # 'Status': 'businesstype',
+
+    extract_vals = {'Name': 'registeredResource.name',
+                    'Production Type': 'psrType',
+                    'Bidding Zone': 'inBiddingZone_Domain.mRID',
+                    # 'Status': 'businessType',
                     'Voltage Connection Level [kV]':
-                        'voltage_powersystemresources.highvoltagelimit'}
-    series = pd.Series(extract_vals).apply(lambda v: soup.find(v).text)
+                        'voltage_PowerSystemResources.highVoltageLimit'}
+
+    series = pd.Series(extract_vals).apply(lambda v: find(element, v))
 
     # extract only first point
     series['Installed Capacity [MW]'] = \
-        soup.find_all('point')[0].find('quantity').text
+        find(element, 'quantity')
 
-    series.name = soup.find('registeredresource.mrid').text
+    series.name = find(element, 'registeredResource.mRID')
 
     return series
 
 
-def _parse_datetimeindex(soup, tz=None):
+def _parse_datetimeindex(element, tz=None):
     """
-    Create a datetimeindex from a parsed beautifulsoup,
+    Create a datetimeindex from a lxml element,
     given that it contains the elements 'start', 'end'
     and 'resolution'
 
     Parameters
     ----------
-    soup : bs4.element.tag
+    element : lxml.element
     tz: str
 
     Returns
     -------
     pd.DatetimeIndex
     """
-    start = pd.Timestamp(soup.find('start').text)
-    end = pd.Timestamp(soup.find_all('end')[-1].text)
+    start = pd.Timestamp(find(element, 'start'))
+    end = pd.Timestamp(find(element, 'end'))
     if tz is not None:
         start = start.tz_convert(tz)
         end = end.tz_convert(tz)
 
-    delta = _resolution_to_timedelta(res_text=soup.find('resolution').text)
+    delta = _resolution_to_timedelta(res_text=find(element, 'resolution'))
     index = pd.date_range(start=start, end=end, freq=delta, inclusive='left')
     if tz is not None:
         dst_jump = len(set(index.map(lambda d: d.dst()))) > 1
@@ -778,25 +764,22 @@ def _parse_datetimeindex(soup, tz=None):
     return index
 
 
-def _parse_crossborder_flows_timeseries(soup):
+def _parse_crossborder_flows_timeseries(element):
     """
     Parameters
     ----------
-    soup : bs4.element.tag
+    element : lxml.element
 
     Returns
     -------
     pd.Series
     """
-    positions = []
-    flows = []
-    for point in soup.find_all('point'):
-        positions.append(int(point.find('position').text))
-        flows.append(float(point.find('quantity').text))
+    positions =  [int(x.text)   for x in findall(element, 'position')]
+    flows = [float(x.text) for x in findall(element, 'quantity')]
 
     series = pd.Series(index=positions, data=flows)
     series = series.sort_index()
-    series.index = _parse_datetimeindex(soup)
+    series.index = _parse_datetimeindex(element)
 
     return series
 
@@ -828,9 +811,10 @@ def _resolution_to_timedelta(res_text: str) -> str:
 # domain code in the unavailibility parsers:
 _INV_BIDDING_ZONE_DICO = {area.code: area.name for area in Area}
 
+#TODO cannot find some of these in https://transparency.entsoe.eu/content/static_content/Static%20content/web%20api/Guide.html, such as revision, created_doc_time
 HEADERS_UNAVAIL_GEN = ['created_doc_time',
-                       'docstatus',
-                       'mrid',
+                       'docStatus',
+                       'mRID',
                        'revision',
                        'businesstype',
                        'biddingzone_domain',
@@ -849,12 +833,12 @@ HEADERS_UNAVAIL_GEN = ['created_doc_time',
                        ]
 
 
-def _unavailability_gen_ts(soup: bs4.BeautifulSoup) -> list:
+def _unavailability_gen_ts(element) -> list:
     """
     Parser for generation unavailibility time-series
     Parameters
     ----------
-    soup : bs4.element.tag
+    element : lxml.element
     tz : str
 
     Returns
@@ -863,27 +847,26 @@ def _unavailability_gen_ts(soup: bs4.BeautifulSoup) -> list:
     """
 
     # Avoid attribute errors when some of the fields are void:
-    get_attr = lambda attr: "" if soup.find(attr) is None else soup.find(
-        attr).text
+    get_attr = lambda attr: "" if list(findall(element, attr)) is None else find(element, attr)
     # When no nominal power is given, give default numeric value of 0:
     get_float = lambda val: float('NaN') if val == "" else float(val)
 
-    f = [BSNTYPE[get_attr('businesstype')],
-         _INV_BIDDING_ZONE_DICO[get_attr('biddingzone_domain.mrid')],
-         get_attr('quantity_measure_unit.name'),
-         get_attr('curvetype'),
-         get_attr('production_registeredresource.mrid'),
-         get_attr('production_registeredresource.name'),
-         get_attr('production_registeredresource.location.name'),
+    f = [BSNTYPE[get_attr('businessType')],
+         _INV_BIDDING_ZONE_DICO[get_attr('biddingZone_Domain.mRID')],
+         get_attr('quantity_Measure_Unit.name'),
+         get_attr('curveType'),
+         get_attr('production_RegisteredResource.mRID'),
+         get_attr('production_RegisteredResource.name'),
+         get_attr('production_RegisteredResource.location.name'),
          PSRTYPE_MAPPINGS.get(get_attr(
-             'production_registeredresource.psrtype.psrtype'), ""),
+             'production_RegisteredResource.pSRType.psrType'), ""),
          get_float(get_attr(
-             'production_registeredresource.psrtype.powersystemresources.nominalp'))]
-    return [f + p for p in _available_period(soup)]
+             'production_RegisteredResource.pSRType.powerSystemResources.nominalP'))]
+    return [f + p for p in _available_period(element)]
 
-
+#TODO
 HEADERS_UNAVAIL_TRANSM = ['created_doc_time',
-                          'docstatus',
+                          'docStatus',
                           'businesstype',
                           'in_domain',
                           'out_domain',
@@ -897,13 +880,13 @@ HEADERS_UNAVAIL_TRANSM = ['created_doc_time',
                           ]
 
 
-def _unavailability_tm_ts(soup: bs4.BeautifulSoup) -> list:
+def _unavailability_tm_ts(element) -> list:
     """
     Parser for transmission unavailibility time-series
 
     Parameters
     ----------
-    soup : bs4.element.tag
+    element: lxml.element
     tz : str
 
     Returns
@@ -911,17 +894,16 @@ def _unavailability_tm_ts(soup: bs4.BeautifulSoup) -> list:
     list
     """
     # Avoid attribute errors when some of the fields are void:
-    get_attr = lambda attr: "" if soup.find(attr) is None else soup.find(
-        attr).text
+    get_attr = lambda attr: "" if list(findall(element, attr)) is None else find(element, attr)
     # When no nominal power is given, give default numeric value of 0:
 
-    f = [BSNTYPE[get_attr('businesstype')],
-         _INV_BIDDING_ZONE_DICO[get_attr('in_domain.mrid')],
-         _INV_BIDDING_ZONE_DICO[get_attr('out_domain.mrid')],
-         get_attr('quantity_measure_unit.name'),
-         get_attr('curvetype'),
+    f = [BSNTYPE[get_attr('businessType')],
+         _INV_BIDDING_ZONE_DICO[get_attr('in_Domain.mRID')],
+         _INV_BIDDING_ZONE_DICO[get_attr('out_Domain.mRID')],
+         get_attr('quantity_Measure_Unit.name'),
+         get_attr('curveType'),
          ]
-    return [f + p for p in _available_period(soup)]
+    return [f + p for p in _available_period(element)]
 
 
 _UNAVAIL_PARSE_CFG = {'A77': (HEADERS_UNAVAIL_GEN, _unavailability_gen_ts),
@@ -952,37 +934,44 @@ def parse_unavailabilities(response: bytes, doctype: str) -> pd.DataFrame:
     return df
 
 
-def _available_period(timeseries: bs4.BeautifulSoup) -> list:
+def _available_period(timeseries) -> list:
     # if not timeseries:
     #    return
-    for period in timeseries.find_all('available_period'):
-        start, end = pd.Timestamp(period.timeinterval.start.text), pd.Timestamp(
-            period.timeinterval.end.text)
-        res = period.resolution.text
-        pstn, qty = period.point.position.text, period.point.quantity.text
+
+    for period in findall(timeseries, 'Available_Period'):
+        start, end = pd.Timestamp(find(period, 'start')), pd.Timestamp(
+            find(period, 'end'))
+        res = find(period, 'resolution')
+        pstn, qty = find(period, 'position'), find(period, 'quantity')
         yield [start, end, res, pstn, qty]
 
 
 def _outage_parser(xml_file: bytes, headers, ts_func) -> pd.DataFrame:
-    xml_text = xml_file.decode()
-
-    soup = bs4.BeautifulSoup(xml_text, 'html.parser')
-    mrid = soup.find("mrid").text
-    revision_number = int(soup.find("revisionnumber").text)
+    # xml_text = xml_file.decode()
+    # soup = bs4.BeautifulSoup(xml_text, 'html.parser')
+    element = etree.parse(BytesIO(xml_file))
+    
+    
+    
+    mrid = find(element, 'mRID')
+    revision_number = int(find(element, 'revisionNumber'))
+    
     try:
-        creation_date = pd.Timestamp(soup.createddatetime.text)
+        creation_date = pd.Timestamp(find(element, 'createdDateTime'))
     except AttributeError:
         creation_date = ""
-
-    try:
-        docstatus = DOCSTATUS[soup.docstatus.value.text]
-    except AttributeError:
+        
+    value = list(findall(element, 'value'))
+    if value:
+        docstatus = DOCSTATUS[find(element, 'value')]
+    else:
         docstatus = None
     d = list()
-    series = _extract_timeseries(xml_text)
+    series = _extract_timeseries(xml_file)
     for ts in series:
         row = [creation_date, docstatus, mrid, revision_number]
+        # ts_func may break since it will no longer receive a soup timeseries but a lxml element
         for t in ts_func(ts):
             d.append(row + t)
-    df = pd.DataFrame.from_records(d, columns=headers)
+    df = pd.DataFrame.from_records(d, columns=[h.lower() for h in headers])
     return df

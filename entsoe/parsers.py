@@ -724,7 +724,7 @@ def _parse_installed_capacity_per_plant(element):
     series['Installed Capacity [MW]'] = \
         float(find(element, 'quantity'))
 
-    series.name = find(element, 'registeredResource.name')
+    series.name = find(element, 'registeredResource.mRID')
 
     return series
 

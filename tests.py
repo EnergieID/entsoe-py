@@ -1,5 +1,6 @@
 import unittest
 
+import numpy as np
 import pandas as pd
 from bs4 import BeautifulSoup
 
@@ -134,6 +135,33 @@ class EntsoePandasClientTest(EntsoeRawClientTest):
             process_type='A51'
         )
         self.assertIsInstance(ts, pd.DataFrame)
+
+
+class DecoratorsTest(unittest.TestCase):
+
+    def test_documents_limited(self):
+        from entsoe.decorators import documents_limited
+        start, end = pd.Timestamp("2022-01-01T00:00:00Z"), pd.Timestamp("2022-12-31T00:00:00Z")
+        dates = pd.date_range(start, end)
+        full_data = np.asarray([np.random.random(dates.shape), np.random.random(dates.shape), np.random.random(dates.shape)]).T
+
+        @documents_limited(100)
+        def data_func(start, end, offset=0):
+            if offset > 100:
+                raise NoMatchingDataError
+            index = pd.date_range(start, end)
+            columns = ["A", "B", "C"] if offset < 100 else ["A", "B", "D"]
+            df = pd.DataFrame(
+                index=index, columns=columns, data=full_data
+            )
+            df = df[(start <= df.index) & (df.index <= end)]
+            return df
+
+        result = data_func(start, end)
+        self.assertListEqual(list(result["A"]), list(full_data[:, 0]))
+        self.assertListEqual(list(result["B"]), list(full_data[:, 1]))
+        self.assertListEqual(list(result["C"]), list(full_data[:, 2]))
+        self.assertListEqual(list(result["D"]), list(full_data[:, 2]))
 
 
 if __name__ == '__main__':

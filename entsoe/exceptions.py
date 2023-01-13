@@ -16,3 +16,7 @@ class InvalidBusinessParameterError(Exception):
 
 class InvalidParameterError(Exception):
     pass
+
+
+class InvalidDataReturnedWarning(UserWarning):
+    pass

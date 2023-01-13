@@ -1,9 +1,10 @@
 import sys
+import warnings
 from socket import gaierror
 from time import sleep
 import requests
 from functools import wraps
-from .exceptions import NoMatchingDataError, PaginationError
+from .exceptions import NoMatchingDataError, PaginationError, InvalidDataReturnedWarning
 import pandas as pd
 import logging
 
@@ -70,9 +71,21 @@ def documents_limited(n):
                 # All the data returned are void
                 raise NoMatchingDataError
 
-            df = pd.concat(frames, sort=True)
-            df = df.loc[~df.index.duplicated(keep='first')]
-            return df
+            df = pd.concat(frames)
+            # Make sure, that overlapping and different chunks are
+            # processed correctly.
+            # a) first check, that there are no overlaps
+            grouped_df = df.groupby(level=0)
+            if not all(grouped_df.count() == 1):
+                warnings.warn(
+                    "Invalid Data Returned: two data set returned have the data at the same timestamp. "
+                    "The median of those is now used. Please check the raw data, and be careful!",
+                    InvalidDataReturnedWarning
+                )
+            # Then get the "median" (at this point you could use
+            # any other function that maps to one value)
+            df = grouped_df.median()
+            return df.sort_index()
         return documents_wrapper
     return decorator
 

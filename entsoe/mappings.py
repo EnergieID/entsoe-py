@@ -296,7 +296,7 @@ NEIGHBOURS = {
     'IE_SEM': ['GB'],
     'BA': ['HR', 'ME', 'RS'],
     'NO_1': ['NO_2', 'NO_3', 'NO_5', 'SE_3'],
-    'SE_4': ['DE_AT_LU', 'DE_LU', 'DK_2', 'LT', 'PL'],
+    'SE_4': ['DE_AT_LU', 'DE_LU', 'DK_2', 'LT', 'PL', 'SE_3'],
     'NO_5': ['NO_1', 'NO_2', 'NO_3'],
     'SK': ['CZ', 'HU', 'PL', 'UA'],
     'EE': ['FI', 'LV', 'RU'],

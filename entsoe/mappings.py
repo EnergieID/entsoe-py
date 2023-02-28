@@ -102,6 +102,7 @@ class Area(enum.Enum):
     LV =            '10YLV-1001A00074', 'Latvia, AST BZ / CA / MBA',                    'Europe/Riga',
     LT =            '10YLT-1001A0008Q', 'Lithuania, Litgrid BZ / CA / MBA',             'Europe/Vilnius',
     LU =            '10YLU-CEGEDEL-NQ', 'Luxembourg, CREOS CA',                         'Europe/Luxembourg',
+    LU_BZN =        '10Y1001A1001A82H', 'Luxembourg',                                   'Europe/Luxembourg',
     MT =            '10Y1001A1001A93C', 'Malta, Malta BZ / CA / MBA',                   'Europe/Malta',
     ME =            '10YCS-CG-TSO---S', 'Montenegro, CGES BZ / CA / MBA',               'Europe/Podgorica',
     GB =            '10YGB----------A', 'National Grid BZ / CA/ MBA',                   'Europe/London',

@@ -1971,6 +1971,32 @@ class EntsoePandasClient(EntsoeRawClient):
         df = df.truncate(before=start, after=end)
         return df
 
+    def query_export(self, country_code: Union[Area, str], start: pd.Timestamp,
+                     end: pd.Timestamp) -> pd.DataFrame:
+        """
+        Adds together all outgoing cross-border flows from a country
+        The neighbours of a country are given by the NEIGHBOURS mapping
+        """
+        area = lookup_area(country_code)
+        imports = []
+        for neighbour in NEIGHBOURS[area.name]:
+            try:
+                im = self.query_crossborder_flows(country_code_from=country_code,
+                                                  country_code_to=neighbour,
+                                                  end=end,
+                                                  start=start,
+                                                  lookup_bzones=True)
+            except NoMatchingDataError:
+                continue
+            im.name = neighbour
+            imports.append(im)
+        df = pd.concat(imports, axis=1)
+        # drop columns that contain only zero's
+        df = df.loc[:, (df != 0).any(axis=0)]
+        df = df.tz_convert(area.tz)
+        df = df.truncate(before=start, after=end)
+        return df
+
     def query_generation_import(
             self, country_code: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp) -> pd.DataFrame:

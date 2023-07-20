@@ -129,7 +129,7 @@ client.query_unavailability_of_generation_units(country_code, start=start,end=en
 client.query_unavailability_of_production_units(country_code, start, end, docstatus=None, periodstartupdate=None, periodendupdate=None)
 client.query_unavailability_transmission(country_code_from, country_code_to, start, end, docstatus=None, periodstartupdate=None, periodendupdate=None)
 client.query_withdrawn_unavailability_of_generation_units(country_code, start, end)
-client.query_import(country_code, start, end)
+client.query_physical_crossborder_allborders(country_code, start, end, export)
 client.query_generation_import(country_code, start, end)
 client.query_procured_balancing_capacity(country_code, start, end, process_type, type_marketagreement_type=None)
 

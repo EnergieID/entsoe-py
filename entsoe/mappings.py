@@ -179,6 +179,7 @@ DOCSTATUS = {'A01': 'Intermediate',
              'A02': 'Final',
              'A05': 'Active',
              'A09': 'Cancelled',
+             'A13': 'Withdrawn',
              'X01': 'Estimated'}
 
 BSNTYPE = {'A29': 'Already allocated capacity (AAC)',

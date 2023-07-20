@@ -305,6 +305,14 @@ class EntsoeRawClient:
         response = self._base_request(params=params, start=start, end=end)
         return response.text
 
+    def query_intraday_wind_and_solar_forecast(
+            self, country_code: Union[Area, str], start: pd.Timestamp, end: pd.Timestamp, psr_type: Optional[str] = None) -> str:
+        return self.query_wind_and_solar_forecast(country_code=country_code,
+                                                  start=start,
+                                                  end=end,
+                                                  psr_type=psr_type,
+                                                  process_type='A40')
+
     def query_generation(
             self, country_code: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp, psr_type: Optional[str] = None, **kwargs) -> str:
@@ -1209,6 +1217,16 @@ class EntsoePandasClient(EntsoeRawClient):
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df
+
+    def query_intraday_wind_and_solar_forecast(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, psr_type: Optional[str] = None) -> pd.DataFrame:
+        return self.query_wind_and_solar_forecast(country_code=country_code,
+                                                  start=start,
+                                                  end=end,
+                                                  psr_type=psr_type,
+                                                  process_type='A40')
+
 
     @year_limited
     def query_generation(

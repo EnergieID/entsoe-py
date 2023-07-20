@@ -22,7 +22,7 @@ import warnings
 warnings.filterwarnings('ignore', category=XMLParsedAsHTMLWarning)
 
 __title__ = "entsoe-py"
-__version__ = "0.5.9"
+__version__ = "0.5.10"
 __author__ = "EnergieID.be, Frank Boerman"
 __license__ = "MIT"
 
@@ -1945,21 +1945,32 @@ class EntsoePandasClient(EntsoeRawClient):
         df = df.truncate(before=start, after=end)
         return df
 
-    def query_import(self, country_code: Union[Area, str], start: pd.Timestamp,
-                     end: pd.Timestamp) -> pd.DataFrame:
+    def query_physical_crossborder_allborders(self, country_code: Union[Area, str], start: pd.Timestamp,
+                     end: pd.Timestamp, export: bool, per_hour: bool = False) -> pd.DataFrame:
         """
-        Adds together all incoming cross-border flows to a country
+        Adds together all physical cross-border flows to a country for a given direction
         The neighbours of a country are given by the NEIGHBOURS mapping
+
+        if export is True then all export flows are returned, if False then all import flows are returned
+        some borders have more then once data points per hour. Set per_hour=True if you always want hourly data,
+        it will then thake the mean
         """
         area = lookup_area(country_code)
         imports = []
         for neighbour in NEIGHBOURS[area.name]:
             try:
-                im = self.query_crossborder_flows(country_code_from=neighbour,
-                                                  country_code_to=country_code,
-                                                  end=end,
-                                                  start=start,
-                                                  lookup_bzones=True)
+                if export:
+                    im = self.query_crossborder_flows(country_code_from=country_code,
+                                                      country_code_to=neighbour,
+                                                      end=end,
+                                                      start=start,
+                                                      lookup_bzones=True)
+                else:
+                    im = self.query_crossborder_flows(country_code_from=neighbour,
+                                                      country_code_to=country_code,
+                                                      end=end,
+                                                      start=start,
+                                                      lookup_bzones=True)
             except NoMatchingDataError:
                 continue
             im.name = neighbour
@@ -1969,7 +1980,21 @@ class EntsoePandasClient(EntsoeRawClient):
         df = df.loc[:, (df != 0).any(axis=0)]
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
+        df['sum'] = df.sum(axis=1)
+        if per_hour:
+            df = df.resample('h').mean()
+
         return df
+
+    def query_import(self, country_code: Union[Area, str], start: pd.Timestamp,
+                     end: pd.Timestamp) -> pd.DataFrame:
+        """
+        Utility function wrapper for query_sum_physical_crossborder for backwards compatibility reason
+        """
+        return self.query_physical_crossborder_allborders(country_code=country_code,
+                                                   start=start,
+                                                   end=end,
+                                                   export=False)
 
     def query_generation_import(
             self, country_code: Union[Area, str], start: pd.Timestamp,

@@ -21,7 +21,7 @@ import warnings
 warnings.filterwarnings('ignore', category=XMLParsedAsHTMLWarning)
 
 __title__ = "entsoe-py"
-__version__ = "0.5.9"
+__version__ = "0.5.10"
 __author__ = "EnergieID.be, Frank Boerman"
 __license__ = "MIT"
 
@@ -303,6 +303,15 @@ class EntsoeRawClient:
             params.update({'psrType': psr_type})
         response = self._base_request(params=params, start=start, end=end)
         return response.text
+
+    def query_intraday_wind_and_solar_forecast(
+            self, country_code: Union[Area, str], start: pd.Timestamp, end: pd.Timestamp,
+            psr_type: Optional[str] = None) -> str:
+        return self.query_wind_and_solar_forecast(country_code=country_code,
+                                                  start=start,
+                                                  end=end,
+                                                  psr_type=psr_type,
+                                                  process_type='A40')
 
     def query_generation(
             self, country_code: Union[Area, str], start: pd.Timestamp,
@@ -1216,6 +1225,18 @@ class EntsoePandasClient(EntsoeRawClient):
         return df
 
     @ProgressBar.progress_bar
+    def query_intraday_wind_and_solar_forecast(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, psr_type: Optional[str] = None) -> pd.DataFrame:
+        return self.query_wind_and_solar_forecast(country_code=country_code,
+                                                  start=start,
+                                                  end=end,
+                                                  psr_type=psr_type,
+                                                  process_type='A40')
+
+
+
+    @ProgressBar.progress_bar
     @year_limited
     def query_generation(
             self, country_code: Union[Area, str], start: pd.Timestamp,
@@ -1962,10 +1983,10 @@ class EntsoePandasClient(EntsoeRawClient):
             df = df.assign(newlevel='Actual Aggregated').set_index('newlevel', append=True).unstack('newlevel')
         df = df.truncate(before=start, after=end)
         return df
-
-    def query_import(self, country_code: Union[Area, str], start: pd.Timestamp,
-                     end: pd.Timestamp) -> pd.DataFrame:
+    def query_physical_crossborder_allborders(self, country_code: Union[Area, str], start: pd.Timestamp,
+                     end: pd.Timestamp, export: bool, per_hour: bool = False) -> pd.DataFrame:
         """
+        Adds together all physical cross-border flows to a country for a given direction
         Adds together all incoming cross-border flows to a country
         The neighbours of a country are given by the NEIGHBOURS mapping
         """
@@ -1973,11 +1994,18 @@ class EntsoePandasClient(EntsoeRawClient):
         imports = []
         for neighbour in NEIGHBOURS[area.name]:
             try:
-                im = self.query_crossborder_flows(country_code_from=neighbour,
-                                                  country_code_to=country_code,
-                                                  end=end,
-                                                  start=start,
-                                                  lookup_bzones=True)
+                if export:
+                    im = self.query_crossborder_flows(country_code_from=country_code,
+                                                      country_code_to=neighbour,
+                                                      end=end,
+                                                      start=start,
+                                                      lookup_bzones=True)
+                else:
+                    im = self.query_crossborder_flows(country_code_from=neighbour,
+                                                      country_code_to=country_code,
+                                                      end=end,
+                                                      start=start,
+                                                      lookup_bzones=True)
             except NoMatchingDataError:
                 continue
             im.name = neighbour
@@ -1987,6 +2015,9 @@ class EntsoePandasClient(EntsoeRawClient):
         df = df.loc[:, (df != 0).any(axis=0)]
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
+        df['sum'] = df.sum(axis=1)
+        if per_hour:
+            df = df.resample('h').mean()
         return df
 
     def query_generation_import(

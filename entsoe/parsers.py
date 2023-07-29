@@ -522,10 +522,17 @@ def _parse_imbalance_volumes_timeseries(soup) -> pd.DataFrame:
     -------
     pd.DataFrame
     """
-    flow_direction_factor = {
-        'A01': 1, # in
-        'A02': -1 # out
-    }[soup.find('flowdirection.direction').text]
+
+    flow_direction = soup.find('flowdirection.direction')
+    if flow_direction:
+        # time series uses flow direction codes
+        flow_direction_factor = {
+            'A01': 1, # in
+            'A02': -1 # out
+        }[flow_direction.text]
+    else:
+        # time series uses positive and negative values
+        flow_direction_factor = 1
 
     df = pd.DataFrame(columns=['Imbalance Volume'])
 
@@ -884,6 +891,8 @@ def _unavailability_gen_ts(soup: bs4.BeautifulSoup) -> list:
 
 HEADERS_UNAVAIL_TRANSM = ['created_doc_time',
                           'docstatus',
+                          'mrid',
+                          'revision'
                           'businesstype',
                           'in_domain',
                           'out_domain',

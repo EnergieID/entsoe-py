@@ -1946,6 +1946,7 @@ class EntsoePandasClient(EntsoeRawClient):
         df = df[(df['start'] < end) | (df['end'] > start)]
         return df
 
+    @ProgressBar.progress_bar
     @day_limited
     def query_generation_per_plant(
             self, country_code: Union[Area, str], start: pd.Timestamp,
@@ -1983,12 +1984,18 @@ class EntsoePandasClient(EntsoeRawClient):
             df = df.assign(newlevel='Actual Aggregated').set_index('newlevel', append=True).unstack('newlevel')
         df = df.truncate(before=start, after=end)
         return df
+
+
+    @ProgressBar.progress_bar
     def query_physical_crossborder_allborders(self, country_code: Union[Area, str], start: pd.Timestamp,
                      end: pd.Timestamp, export: bool, per_hour: bool = False) -> pd.DataFrame:
         """
         Adds together all physical cross-border flows to a country for a given direction
-        Adds together all incoming cross-border flows to a country
         The neighbours of a country are given by the NEIGHBOURS mapping
+
+        if export is True then all export flows are returned, if False then all import flows are returned
+        some borders have more then once data points per hour. Set per_hour=True if you always want hourly data,
+        it will then thake the mean
         """
         area = lookup_area(country_code)
         imports = []
@@ -2020,6 +2027,17 @@ class EntsoePandasClient(EntsoeRawClient):
             df = df.resample('h').mean()
         return df
 
+    @ProgressBar.progress_bar
+    def query_import(self, country_code: Union[Area, str], start: pd.Timestamp,
+                     end: pd.Timestamp) -> pd.DataFrame:
+        """
+        Utility function wrapper for query_sum_physical_crossborder for backwards compatibility reason
+        """
+        return self.query_physical_crossborder_allborders(country_code=country_code,
+                                                   start=start,
+                                                   end=end,
+                                                   export=False)
+    @ProgressBar.progress_bar
     def query_generation_import(
             self, country_code: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp) -> pd.DataFrame:

@@ -7,43 +7,47 @@ from functools import wraps
 from .exceptions import NoMatchingDataError, PaginationError
 import pandas as pd
 import logging
-
 from .misc import year_blocks, day_blocks, period_splitter
 
+class ProgressBar:
+    show = False
+    batch_days = 7
 
-def progress_bar(func):
-    """ Forces a weekly progress bar, if query range more than 7 days (adjustable interval)"""
+    @staticmethod
+    def progress_bar(func):
+        """ Forces a weekly progress bar, if query range more than 7 days (adjustable interval)"""
+        @wraps(func)
+        def progress_wrapper(*args, **kwargs):
+            if not ProgressBar.show:
+                result = func(*args, **kwargs)
+                return result
 
-    @wraps(func)
-    def progress_wrapper(*args, **kwargs):
-        self = args[0]
+            start = kwargs['start']
+            end = kwargs['end']
 
-        start = kwargs['start']
-        end = kwargs['end']
+            query_bins = period_splitter(start, end, days_thresh=ProgressBar.batch_days)
 
-        query_bins = period_splitter(start, end)
+            if len(query_bins) <= 1:
+                result = func(*args, **kwargs)
 
-        if len(query_bins) <= 1:
-            result = func(*args, **kwargs)
+            else:
 
-        else:
+                tqdm.tqdm._instances.clear()
+                pbar = tqdm.tqdm(range(len(query_bins)), desc="\tDownload Progress")
+                results = []
+                for i in pbar:
+                    pair = query_bins[i]
+                    pair_kwargs = kwargs.copy()
+                    pair_kwargs['start'] = pair[0]
+                    pair_kwargs['end'] = pair[1]
+                    results.append(func(*args, **pair_kwargs ))
+                    pbar.set_postfix_str(s="Reached: {}".format(pair[1].date()))
 
-            tqdm.tqdm._instances.clear()
-            pbar = tqdm.tqdm(range(len(query_bins)), desc="\tDownload Progress")
-            results = []
-            for i in pbar:
-                pair = query_bins[i]
-                pair_kwargs = kwargs.copy()
-                pair_kwargs['start'] = pair[0]
-                pair_kwargs['end'] = pair[1]
-                results.append(func(*args, **pair_kwargs ))
-                pbar.set_postfix_str(s="Reached: {}".format(pair[1].date()))
+                result = pd.concat([*results], axis = 0)
 
-            result = pd.concat([*results], axis = 0)
+            return result
 
-        return result
-
-    return progress_wrapper
+        return progress_wrapper
 def retry(func):
     """Catches connection errors, waits and retries"""
 

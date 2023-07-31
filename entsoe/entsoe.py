@@ -9,14 +9,14 @@ from bs4 import BeautifulSoup
 from bs4.builder import XMLParsedAsHTMLWarning
 
 from entsoe.exceptions import InvalidPSRTypeError, InvalidBusinessParameterError, InvalidParameterError
-from .exceptions import NoMatchingDataError, PaginationError
-from .mappings import Area, NEIGHBOURS, lookup_area
-from .parsers import parse_prices, parse_loads, parse_generation, \
+from exceptions import NoMatchingDataError, PaginationError
+from mappings import Area, NEIGHBOURS, lookup_area
+from parsers import parse_prices, parse_loads, parse_generation, \
     parse_installed_capacity_per_plant, parse_crossborder_flows, \
     parse_unavailabilities, parse_contracted_reserve, parse_imbalance_prices_zip, \
     parse_imbalance_volumes_zip, parse_netpositions, parse_procured_balancing_capacity, \
-    parse_water_hydro
-from .decorators import retry, paginated, year_limited, day_limited, documents_limited
+    parse_water_hydro,parse_aggregated_bids
+from decorators import retry, paginated, year_limited, day_limited, documents_limited
 import warnings
 
 warnings.filterwarnings('ignore', category=XMLParsedAsHTMLWarning)
@@ -176,6 +176,33 @@ class EntsoeRawClient:
         response = self._base_request(params=params, start=start, end=end)
         return response.text
 
+    def query_aggregated_bids(self, country_code: Union[Area, str],
+                              process_type: str,
+                               start: pd.Timestamp, end: pd.Timestamp) -> str:
+        """
+        Parameters
+        ----------
+        country_code : Area|str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        process_type : str
+            A51 ... aFRR; A47 ... mFRR
+            
+        Returns
+        -------
+        str
+        """
+        if process_type not in ['A51', 'A47']:
+            raise ValueError('processType allowed values: A51, A47')
+        area = lookup_area(country_code)
+        params = {
+            'documentType': 'A24',
+            'area_Domain': area.code,
+            'processType': process_type
+        }
+        response = self._base_request(params=params, start=start, end=end)
+        return response.text
+
     def query_net_position(self, country_code: Union[Area, str],
                            start: pd.Timestamp, end: pd.Timestamp, dayahead: bool = True) -> str:
         """
@@ -208,6 +235,7 @@ class EntsoeRawClient:
                    end: pd.Timestamp) -> str:
         """
         Parameters
+    
         ----------
         country_code : Area|str
         start : pd.Timestamp
@@ -1056,6 +1084,31 @@ class EntsoePandasClient(EntsoeRawClient):
         return series
 
     @year_limited
+    def query_aggregated_bids(self, country_code: Union[Area, str],
+                              process_type: str,
+                            start: pd.Timestamp, end: pd.Timestamp) -> pd.Series:
+        """
+
+        Parameters
+        ----------
+        country_code
+        start
+        end
+        process_type: str,
+
+        Returns
+        -------
+        pd.DataFrame
+        """
+        area = lookup_area(country_code)
+        text = super(EntsoePandasClient, self).query_aggregated_bids(
+            country_code=area, process_type=process_type, start=start, end=end)
+        df = parse_aggregated_bids(text)
+        df = df.tz_convert(area.tz)
+        df = df.truncate(before=start, after=end)
+        return df
+    
+    @year_limited
     def query_day_ahead_prices(
             self, country_code: Union[Area, str],
             start: pd.Timestamp,
@@ -1273,7 +1326,10 @@ class EntsoePandasClient(EntsoeRawClient):
         -------
         pd.DataFrame
         """
+        
         area = lookup_area(country_code)
+        print(area)
+        print(area.tz)
         text = super(
             EntsoePandasClient, self).query_installed_generation_capacity(
             country_code=area, start=start, end=end, psr_type=psr_type)

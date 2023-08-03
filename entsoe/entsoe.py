@@ -9,14 +9,14 @@ from bs4 import BeautifulSoup
 from bs4.builder import XMLParsedAsHTMLWarning
 
 from entsoe.exceptions import InvalidPSRTypeError, InvalidBusinessParameterError, InvalidParameterError
-from exceptions import NoMatchingDataError, PaginationError
-from mappings import Area, NEIGHBOURS, lookup_area
-from parsers import parse_prices, parse_loads, parse_generation, \
+from .exceptions import NoMatchingDataError, PaginationError
+from .mappings import Area, NEIGHBOURS, lookup_area
+from .parsers import parse_prices, parse_loads, parse_generation, \
     parse_installed_capacity_per_plant, parse_crossborder_flows, \
     parse_unavailabilities, parse_contracted_reserve, parse_imbalance_prices_zip, \
     parse_imbalance_volumes_zip, parse_netpositions, parse_procured_balancing_capacity, \
     parse_water_hydro,parse_aggregated_bids
-from decorators import retry, paginated, year_limited, day_limited, documents_limited
+from .decorators import retry, paginated, year_limited, day_limited, documents_limited
 import warnings
 
 warnings.filterwarnings('ignore', category=XMLParsedAsHTMLWarning)

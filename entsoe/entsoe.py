@@ -235,7 +235,6 @@ class EntsoeRawClient:
                    end: pd.Timestamp) -> str:
         """
         Parameters
-    
         ----------
         country_code : Area|str
         start : pd.Timestamp
@@ -1326,7 +1325,6 @@ class EntsoePandasClient(EntsoeRawClient):
         -------
         pd.DataFrame
         """
-        
         area = lookup_area(country_code)
         print(area)
         print(area.tz)

@@ -15,7 +15,6 @@ GENERATION_ELEMENT = "inBiddingZone_Domain.mRID"
 CONSUMPTION_ELEMENT = "outBiddingZone_Domain.mRID"
 
 
-
 def _extract_timeseries(xml_text):
     """
     Parameters
@@ -603,7 +602,6 @@ def _parse_imbalance_volumes_timeseries(soup) -> pd.DataFrame:
     df.set_index(['Imbalance Volume'])
 
     return df
-
 
 
 def _parse_netposition_timeseries(soup):

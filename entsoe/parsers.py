@@ -7,7 +7,7 @@ import bs4
 from bs4.builder import XMLParsedAsHTMLWarning
 import pandas as pd
 
-from mappings import PSRTYPE_MAPPINGS, DOCSTATUS, BSNTYPE, Area
+from .mappings import PSRTYPE_MAPPINGS, DOCSTATUS, BSNTYPE, Area
 
 warnings.filterwarnings('ignore', category=XMLParsedAsHTMLWarning)
 

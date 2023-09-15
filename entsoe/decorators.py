@@ -9,6 +9,8 @@ import logging
 
 from .misc import year_blocks, day_blocks
 
+logger = logging.getLogger(__name__)
+
 
 def retry(func):
     """Catches connection errors, waits and retries"""
@@ -63,7 +65,7 @@ def documents_limited(n):
                     frame = func(*args, offset=offset, **kwargs)
                     frames.append(frame)
                 except NoMatchingDataError:
-                    logging.debug(f"NoMatchingDataError: for offset {offset}")
+                    logger.debug(f"NoMatchingDataError: for offset {offset}")
                     break
 
             if len(frames) == 0:
@@ -97,7 +99,7 @@ def year_limited(func):
             try:
                 frame = func(*args, start=_start, end=_end, **kwargs)
             except NoMatchingDataError:
-                logging.debug(f"NoMatchingDataError: between {_start} and {_end}")
+                logger.debug(f"NoMatchingDataError: between {_start} and {_end}")
                 frame = None
             frames.append(frame)
 

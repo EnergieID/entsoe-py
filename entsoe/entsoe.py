@@ -16,9 +16,8 @@ from .parsers import parse_prices, parse_loads, parse_generation, \
     parse_unavailabilities, parse_contracted_reserve, parse_imbalance_prices_zip, \
     parse_imbalance_volumes_zip, parse_netpositions, parse_procured_balancing_capacity, \
     parse_water_hydro
-from .decorators import retry, paginated, year_limited, day_limited, documents_limited
+from .decorators import retry, paginated, year_limited, day_limited, documents_limited, ProgressBar
 import warnings
-
 warnings.filterwarnings('ignore', category=XMLParsedAsHTMLWarning)
 
 __title__ = "entsoe-py"
@@ -306,7 +305,8 @@ class EntsoeRawClient:
         return response.text
 
     def query_intraday_wind_and_solar_forecast(
-            self, country_code: Union[Area, str], start: pd.Timestamp, end: pd.Timestamp, psr_type: Optional[str] = None) -> str:
+            self, country_code: Union[Area, str], start: pd.Timestamp, end: pd.Timestamp,
+            psr_type: Optional[str] = None) -> str:
         return self.query_wind_and_solar_forecast(country_code=country_code,
                                                   start=start,
                                                   end=end,
@@ -1032,6 +1032,7 @@ class EntsoeRawClient:
         return content
 
 class EntsoePandasClient(EntsoeRawClient):
+    @ProgressBar.progress_bar
     @year_limited
     def query_net_position(self, country_code: Union[Area, str],
                             start: pd.Timestamp, end: pd.Timestamp, dayahead: bool = True) -> pd.Series:
@@ -1055,6 +1056,7 @@ class EntsoePandasClient(EntsoeRawClient):
         series = series.truncate(before=start, after=end)
         return series
 
+    @ProgressBar.progress_bar
     @year_limited
     def query_day_ahead_prices(
             self, country_code: Union[Area, str],
@@ -1093,6 +1095,7 @@ class EntsoePandasClient(EntsoeRawClient):
             raise NoMatchingDataError
         return series
 
+    @ProgressBar.progress_bar
     @year_limited
     def query_load(self, country_code: Union[Area, str], start: pd.Timestamp,
                    end: pd.Timestamp) -> pd.DataFrame:
@@ -1116,6 +1119,7 @@ class EntsoePandasClient(EntsoeRawClient):
         df = df.truncate(before=start, after=end)
         return df
 
+    @ProgressBar.progress_bar
     @year_limited
     def query_load_forecast(
             self, country_code: Union[Area, str], start: pd.Timestamp,
@@ -1163,6 +1167,7 @@ class EntsoePandasClient(EntsoeRawClient):
         return df_load_forecast_da.join(df_load, sort=True, how='inner')
 
 
+    @ProgressBar.progress_bar
     @year_limited
     def query_generation_forecast(
             self, country_code: Union[Area, str], start: pd.Timestamp,
@@ -1190,6 +1195,7 @@ class EntsoePandasClient(EntsoeRawClient):
         df = df.truncate(before=start, after=end)
         return df
 
+    @ProgressBar.progress_bar
     @year_limited
     def query_wind_and_solar_forecast(
             self, country_code: Union[Area, str], start: pd.Timestamp,
@@ -1218,6 +1224,7 @@ class EntsoePandasClient(EntsoeRawClient):
         df = df.truncate(before=start, after=end)
         return df
 
+    @ProgressBar.progress_bar
     def query_intraday_wind_and_solar_forecast(
             self, country_code: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp, psr_type: Optional[str] = None) -> pd.DataFrame:
@@ -1228,6 +1235,8 @@ class EntsoePandasClient(EntsoeRawClient):
                                                   process_type='A40')
 
 
+
+    @ProgressBar.progress_bar
     @year_limited
     def query_generation(
             self, country_code: Union[Area, str], start: pd.Timestamp,
@@ -1256,6 +1265,7 @@ class EntsoePandasClient(EntsoeRawClient):
         df = df.truncate(before=start, after=end)
         return df
 
+    @ProgressBar.progress_bar
     @year_limited
     def query_installed_generation_capacity(
             self, country_code: Union[Area, str], start: pd.Timestamp,
@@ -1283,6 +1293,7 @@ class EntsoePandasClient(EntsoeRawClient):
         df = df.truncate(before=start - YearBegin(), after=end + YearEnd())
         return df
 
+    @ProgressBar.progress_bar
     @year_limited
     def query_installed_generation_capacity_per_unit(
             self, country_code: Union[Area, str], start: pd.Timestamp,
@@ -1323,6 +1334,7 @@ class EntsoePandasClient(EntsoeRawClient):
         return df
 
 
+    @ProgressBar.progress_bar
     @year_limited
     def query_crossborder_flows(
             self, country_code_from: Union[Area, str],
@@ -1354,6 +1366,7 @@ class EntsoePandasClient(EntsoeRawClient):
         ts = ts.truncate(before=start, after=end)
         return ts
 
+    @ProgressBar.progress_bar
     @year_limited
     def query_scheduled_exchanges(
             self, country_code_from: Union[Area, str],
@@ -1390,6 +1403,7 @@ class EntsoePandasClient(EntsoeRawClient):
         ts = ts.truncate(before=start, after=end)
         return ts
 
+    @ProgressBar.progress_bar
     @year_limited
     def query_net_transfer_capacity_dayahead(
             self, country_code_from: Union[Area, str],
@@ -1421,6 +1435,7 @@ class EntsoePandasClient(EntsoeRawClient):
         ts = ts.truncate(before=start, after=end)
         return ts
 
+    @ProgressBar.progress_bar
     @year_limited
     def query_net_transfer_capacity_weekahead(
             self, country_code_from: Union[Area, str],
@@ -1452,6 +1467,7 @@ class EntsoePandasClient(EntsoeRawClient):
         ts = ts.truncate(before=start, after=end)
         return ts
 
+    @ProgressBar.progress_bar
     @year_limited
     def query_net_transfer_capacity_monthahead(
             self, country_code_from: Union[Area, str],
@@ -1483,6 +1499,7 @@ class EntsoePandasClient(EntsoeRawClient):
         ts = ts.truncate(before=start, after=end)
         return ts
 
+    @ProgressBar.progress_bar
     @year_limited
     def query_net_transfer_capacity_yearahead(
             self, country_code_from: Union[Area, str],
@@ -1514,6 +1531,7 @@ class EntsoePandasClient(EntsoeRawClient):
         ts = ts.truncate(before=start, after=end)
         return ts
 
+    @ProgressBar.progress_bar
     @year_limited
     def query_intraday_offered_capacity(
         self, country_code_from: Union[Area, str],
@@ -1591,6 +1609,7 @@ class EntsoePandasClient(EntsoeRawClient):
         ts = ts.truncate(before=start, after=end)
         return ts
 
+    @ProgressBar.progress_bar
     @year_limited
     def query_imbalance_prices(
             self, country_code: Union[Area, str], start: pd.Timestamp,
@@ -1616,6 +1635,7 @@ class EntsoePandasClient(EntsoeRawClient):
         df = df.truncate(before=start, after=end)
         return df
 
+    @ProgressBar.progress_bar
     @year_limited
     def query_imbalance_volumes(
             self, country_code: Union[Area, str], start: pd.Timestamp,
@@ -1675,6 +1695,7 @@ class EntsoePandasClient(EntsoeRawClient):
         df = df.truncate(before=start, after=end)
         return df
 
+    @ProgressBar.progress_bar
     @year_limited
     def query_activated_balancing_energy(
             self, country_code: Union[Area, str], start: pd.Timestamp,
@@ -1925,6 +1946,7 @@ class EntsoePandasClient(EntsoeRawClient):
         df = df[(df['start'] < end) | (df['end'] > start)]
         return df
 
+    @ProgressBar.progress_bar
     @day_limited
     def query_generation_per_plant(
             self, country_code: Union[Area, str], start: pd.Timestamp,
@@ -1963,6 +1985,8 @@ class EntsoePandasClient(EntsoeRawClient):
         df = df.truncate(before=start, after=end)
         return df
 
+
+    @ProgressBar.progress_bar
     def query_physical_crossborder_allborders(self, country_code: Union[Area, str], start: pd.Timestamp,
                      end: pd.Timestamp, export: bool, per_hour: bool = False) -> pd.DataFrame:
         """
@@ -2001,9 +2025,9 @@ class EntsoePandasClient(EntsoeRawClient):
         df['sum'] = df.sum(axis=1)
         if per_hour:
             df = df.resample('h').mean()
-
         return df
 
+    @ProgressBar.progress_bar
     def query_import(self, country_code: Union[Area, str], start: pd.Timestamp,
                      end: pd.Timestamp) -> pd.DataFrame:
         """
@@ -2013,7 +2037,7 @@ class EntsoePandasClient(EntsoeRawClient):
                                                    start=start,
                                                    end=end,
                                                    export=False)
-
+    @ProgressBar.progress_bar
     def query_generation_import(
             self, country_code: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp) -> pd.DataFrame:

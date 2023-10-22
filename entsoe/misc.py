@@ -2,6 +2,23 @@ import pandas as pd
 from dateutil import rrule
 from itertools import tee
 
+def period_splitter(start, end, days_thresh = 7):
+    days_requested = (end - start).days
+    request_bins = []
+    rolling_start = start
+    if days_requested > days_thresh:
+        rolling_end = rolling_start + pd.Timedelta(days_thresh, 'D')
+        while rolling_end < end:
+            request_bins.append((rolling_start, rolling_end))
+            rolling_start += pd.Timedelta(days_thresh, 'D')
+            rolling_end += pd.Timedelta(days_thresh, 'D')
+
+        request_bins.append((rolling_start, end))
+    else:
+        request_bins = [(start, end)]
+
+    return request_bins
+
 
 def year_blocks(start, end):
     """

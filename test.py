@@ -1,11 +1,16 @@
+import time
+
 import pandas as pd
 from settings import api_key
-from entsoe import EntsoePandasClient as Entsoe
+from entsoe import EntsoePandasClient as Entsoe, ProgressBar
+
+ProgressBar.show = True
+ProgressBar.batch_days = 30
+
 e = Entsoe(api_key=api_key, retry_count=20, retry_delay=30)
 
 start = pd.Timestamp('20170601', tz='Europe/Brussels')
 end = pd.Timestamp('20171201', tz='Europe/Brussels')
-
 #s = e.query_imbalance_prices(country_code='BE', start=start, end=end, as_dataframe=True)
 
 """domains = [["10YIT-GRTN-----B", "Italy, IT CA / MBA"],

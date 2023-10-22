@@ -2,3 +2,4 @@ requests
 pytz
 beautifulsoup4>=4.11.1
 pandas>=1.4.0
+tqdm>=4.65.0

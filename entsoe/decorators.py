@@ -71,11 +71,7 @@ def documents_limited(n):
                 raise NoMatchingDataError
 
             df = pd.concat(frames, sort=True)
-            if func.__name__ not in ('query_unavailability_of_generation_units', \
-                'query_unavailability_of_production_units', \
-                'query_unavailability_transmission', \
-                'query_withdrawn_unavailability_of_generation_units'):
-                df = df.loc[~df.index.duplicated(keep='first')]
+            df.drop_duplicates(inplace=True)
             return df
         return documents_wrapper
     return decorator
@@ -110,11 +106,7 @@ def year_limited(func):
             raise NoMatchingDataError
 
         df = pd.concat(frames, sort=True)
-        if func.__name__ not in ('query_unavailability_of_generation_units', \
-                'query_unavailability_of_production_units', \
-                'query_unavailability_transmission', \
-                'query_withdrawn_unavailability_of_generation_units'):
-                df = df.loc[~df.index.duplicated(keep='first')]
+        df.drop_duplicats(inplace=True)
         return df
 
     return year_wrapper

@@ -15,7 +15,7 @@ from .parsers import parse_prices, parse_loads, parse_generation, \
     parse_installed_capacity_per_plant, parse_crossborder_flows, \
     parse_unavailabilities, parse_contracted_reserve, parse_imbalance_prices_zip, \
     parse_imbalance_volumes_zip, parse_netpositions, parse_procured_balancing_capacity, \
-    parse_water_hydro,parse_aggregated_bids
+    parse_water_hydro,parse_aggregated_bids, parse_activated_balancing_energy_prices
 from .decorators import retry, paginated, year_limited, day_limited, documents_limited
 import warnings
 

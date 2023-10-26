@@ -264,7 +264,24 @@ def parse_crossborder_flows(xml_text):
     series = pd.concat(series)
     series = series.sort_index()
     return series
+    
+def parse_activated_balancing_energy_prices(xml_text):
+    """
+    Parameters
+    ----------
+    xml_text : str
+    tz: str
 
+    Returns
+    -------
+    pd.DataFrame
+    """
+    timeseries_blocks = _extract_timeseries(xml_text)
+    frames = (_parse_activated_balancing_energy_prices_timeseries(soup)
+              for soup in timeseries_blocks)
+    df = pd.concat(frames)
+    df.sort_index(inplace=True)
+    return df
 
 def parse_imbalance_prices(xml_text):
     """
@@ -506,6 +523,38 @@ def parse_imbalance_prices_zip(zip_contents: bytes) -> pd.DataFrame:
     frames = gen_frames(zip_contents)
     df = pd.concat(frames)
     df.sort_index(inplace=True)
+    return df
+
+def _parse_activated_balancing_energy_prices_timeseries(soup) -> pd.DataFrame:
+    """
+    Parameters
+    ----------
+    soup : bs4.element.tag
+
+    Returns
+    -------
+    pd.DataFrame
+    """
+    direction = {
+        'A01': 'Up',
+        'A02': 'Down'
+    }
+
+    flow_direction = direction[soup.find('flowdirection.direction').text]
+    period = soup.find('period')
+    start = pd.to_datetime(period.find('timeinterval').find('start').text)
+    end = pd.to_datetime(period.find('timeinterval').find('end').text)
+    resolution = _resolution_to_timedelta(period.find('resolution').text)
+    tx = pd.date_range(start=start, end=end, freq=resolution, inclusive='left')
+
+    df = pd.DataFrame(index=tx, columns=['Price', 'Direction'])
+
+    for point in period.find_all('point'):
+        idx = int(point.find('position').text)
+        df.loc[tx[idx-1], 'Price'] = float(point.find('activation_price.amount').text)
+        df.loc[tx[idx-1], 'Direction'] = flow_direction
+    
+    df.fillna(method='ffill', inplace=True)
     return df
 
 def _parse_imbalance_prices_timeseries(soup) -> pd.DataFrame:

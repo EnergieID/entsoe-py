@@ -144,7 +144,8 @@ class Area(enum.Enum):
     UA_DOBTPP =     '10Y1001A1001A869', 'Ukraine-DobTPP CTA',                           'Europe/Kiev',
     UA_BEI =        '10YUA-WEPS-----0', 'Ukraine BEI CTA',                              'Europe/Kiev',
     UA_IPS =        '10Y1001C--000182', 'Ukraine IPS CTA',                              'Europe/Kiev',
-    XK =            '10Y1001C--00100H', 'Kosovo/ XK CA / XK BZN',                       'Europe/Rome'
+    XK =            '10Y1001C--00100H', 'Kosovo/ XK CA / XK BZN',                       'Europe/Rome',
+    DE_AMP_LU =     '10Y1001C--00002H', 'Amprion LU CA',                                'Europe/Berlin'
 
 PSRTYPE_MAPPINGS = {
     'A03': 'Mixed',

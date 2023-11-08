@@ -106,7 +106,7 @@ def year_limited(func):
             raise NoMatchingDataError
 
         df = pd.concat(frames, sort=True)
-        df.drop_duplicats(inplace=True)
+        df.drop_duplicates(inplace=True)
         return df
 
     return year_wrapper

@@ -19,6 +19,7 @@ from .parsers import parse_prices, parse_loads, parse_generation, \
 from .decorators import retry, paginated, year_limited, day_limited, documents_limited
 import warnings
 
+logger = logging.getLogger(__name__)
 warnings.filterwarnings('ignore', category=XMLParsedAsHTMLWarning)
 
 __title__ = "entsoe-py"
@@ -91,7 +92,7 @@ class EntsoeRawClient:
         }
         params.update(base_params)
 
-        logging.debug(f'Performing request to {URL} with params {params}')
+        logger.debug(f'Performing request to {URL} with params {params}')
         response = self.session.get(url=URL, params=params,
                                     proxies=self.proxies, timeout=self.timeout)
         try:

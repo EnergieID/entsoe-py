@@ -751,38 +751,43 @@ def _parse_installed_capacity_per_plant(soup):
 
 
 def _parse_datetimeindex(soup, tz=None):
-    """
-    Create a datetimeindex from a parsed beautifulsoup,
-    given that it contains the elements 'start', 'end'
-    and 'resolution'
+  """
+  Create a datetimeindex from a parsed beautifulsoup,
+  given that it contains the elements 'start', 'end'
+  and 'resolution'
 
-    Parameters
-    ----------
-    soup : bs4.element.tag
-    tz: str
+  Parameters
+  ----------
+  soup : bs4.element.tag
+  tz: str
 
-    Returns
-    -------
-    pd.DatetimeIndex
-    """
-    start = pd.Timestamp(soup.find('start').text)
-    end = pd.Timestamp(soup.find_all('end')[-1].text)
-    if tz is not None:
-        start = start.tz_convert(tz)
-        end = end.tz_convert(tz)
+  Returns
+  -------
+  pd.DatetimeIndex
+  """
+  start = pd.Timestamp(soup.find('start').text)
+  end = pd.Timestamp(soup.find_all('end')[-1].text)
+  if tz is not None:
+      start = start.tz_convert(tz)
+      end = end.tz_convert(tz)
 
-    delta = _resolution_to_timedelta(res_text=soup.find('resolution').text)
-    index = pd.date_range(start=start, end=end, freq=delta, inclusive='left')
-    if tz is not None:
-        dst_jump = len(set(index.map(lambda d: d.dst()))) > 1
-        if dst_jump and delta == "7D":
-            # For a weekly granularity, if we jump over the DST date in October,
-            # date_range erronously returns an additional index element
-            # because that week contains 169 hours instead of 168.
-            index = index[:-1]
-        index = index.tz_convert("UTC")
+  delta = _resolution_to_timedelta(res_text=soup.find('resolution').text)
+  index = pd.date_range(start=start, end=end, freq=delta, inclusive='left')
+  if tz is not None:
+      dst_jump = len(set(index.map(lambda d: d.dst()))) > 1
+      if dst_jump and delta == "7D":
+          # For a weekly granularity, if we jump over the DST date in October,
+          # date_range erronously returns an additional index element
+          # because that week contains 169 hours instead of 168.
+          index = index[:-1]
+      index = index.tz_convert("UTC")
+  elif pd.Timedelta(delta) >= pd.Timedelta('1D') and end.hour == start.hour + 1:
+      # For a daily or larger granularity, if we jump over the DST date in October,
+      # date_range erronously returns an additional index element
+      # because the period contains one extra hour.
+      index = index[:-1]
 
-    return index
+  return index
 
 
 def _parse_crossborder_flows_timeseries(soup):

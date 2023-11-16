@@ -71,7 +71,7 @@ def documents_limited(n):
                 raise NoMatchingDataError
 
             df = pd.concat(frames, sort=True)
-            df.drop_duplicates(inplace=True)
+            df = df.loc[~df.index.duplicated(keep='first')]
             return df
         return documents_wrapper
     return decorator
@@ -106,7 +106,7 @@ def year_limited(func):
             raise NoMatchingDataError
 
         df = pd.concat(frames, sort=True)
-        df.drop_duplicates(inplace=True)
+        df = df.loc[~df.index.duplicated(keep='first')]
         return df
 
     return year_wrapper

@@ -1931,7 +1931,7 @@ class EntsoePandasClient(EntsoeRawClient):
             self, country_code: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp, psr_type: Optional[str] = None,
             include_eic: bool = False,
-            nett: bool = False, **kwargs) -> pd.DataFrame:
+             **kwargs) -> pd.DataFrame:
         """
         Parameters
         ----------
@@ -1940,8 +1940,6 @@ class EntsoePandasClient(EntsoeRawClient):
         end : pd.Timestamp
         psr_type : str
             filter on a single psr type
-        nett : bool
-            condense generation and consumption into a nett number
         include_eic: bool
             if True also include the eic code in the output
 

@@ -15,7 +15,7 @@ from .parsers import parse_prices, parse_loads, parse_generation, \
     parse_installed_capacity_per_plant, parse_crossborder_flows, \
     parse_unavailabilities, parse_contracted_reserve, parse_imbalance_prices_zip, \
     parse_imbalance_volumes_zip, parse_netpositions, parse_procured_balancing_capacity, \
-    parse_water_hydro
+    parse_water_hydro,parse_aggregated_bids, parse_activated_balancing_energy_prices
 from .decorators import retry, paginated, year_limited, day_limited, documents_limited
 import warnings
 
@@ -177,6 +177,33 @@ class EntsoeRawClient:
         response = self._base_request(params=params, start=start, end=end)
         return response.text
 
+    def query_aggregated_bids(self, country_code: Union[Area, str],
+                              process_type: str,
+                               start: pd.Timestamp, end: pd.Timestamp) -> str:
+        """
+        Parameters
+        ----------
+        country_code : Area|str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        process_type : str
+            A51 ... aFRR; A47 ... mFRR
+            
+        Returns
+        -------
+        str
+        """
+        if process_type not in ['A51', 'A47']:
+            raise ValueError('processType allowed values: A51, A47')
+        area = lookup_area(country_code)
+        params = {
+            'documentType': 'A24',
+            'area_Domain': area.code,
+            'processType': process_type
+        }
+        response = self._base_request(params=params, start=start, end=end)
+        return response.text
+
     def query_net_position(self, country_code: Union[Area, str],
                            start: pd.Timestamp, end: pd.Timestamp, dayahead: bool = True) -> str:
         """
@@ -209,6 +236,7 @@ class EntsoeRawClient:
                    end: pd.Timestamp) -> str:
         """
         Parameters
+    
         ----------
         country_code : Area|str
         start : pd.Timestamp
@@ -682,6 +710,52 @@ class EntsoeRawClient:
         response = self._base_request(params=params, start=start, end=end)
         return response.text
 
+    def query_activated_balancing_energy_prices(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, 
+            process_type: Optional[str] = 'A16',
+            psr_type: Optional[str] = None,
+            business_type: Optional[str] = None, 
+            standard_market_product: Optional[str] = None,
+            original_market_product: Optional[str] = None) -> bytes:
+        """
+        Parameters
+        ----------
+        country_code : Area|str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        process_type: str
+            A16 used if not provided
+        psr_type : str
+            filter query for a specific psr type
+        business_type: str
+            filter query for a specific business type
+        standard_market_product: str
+        original_market_product: str
+            filter query for a specific product
+            defaults to standard product
+        Returns
+        -------
+        bytes
+        """
+        area = lookup_area(country_code)
+        params = {
+            'documentType': 'A84',
+            'processType': process_type,
+            'controlArea_Domain': area.code,
+        }
+        if psr_type:
+            params.update({'psrType': psr_type})
+        if business_type:
+            params.update({'businessType': business_type})
+        if standard_market_product:
+            params.update({'standardMarketProduct': standard_market_product})
+        if original_market_product:
+            params.update({'originalMarketProduct': original_market_product})
+        response = self._base_request(params=params, start=start, end=end)
+        
+        return response.content
+    
     def query_imbalance_prices(
             self, country_code: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp, psr_type: Optional[str] = None) -> bytes:
@@ -1057,6 +1131,31 @@ class EntsoePandasClient(EntsoeRawClient):
         return series
 
     @year_limited
+    def query_aggregated_bids(self, country_code: Union[Area, str],
+                              process_type: str,
+                            start: pd.Timestamp, end: pd.Timestamp) -> pd.Series:
+        """
+
+        Parameters
+        ----------
+        country_code
+        start
+        end
+        process_type: str,
+
+        Returns
+        -------
+        pd.DataFrame
+        """
+        area = lookup_area(country_code)
+        text = super(EntsoePandasClient, self).query_aggregated_bids(
+            country_code=area, process_type=process_type, start=start, end=end)
+        df = parse_aggregated_bids(text)
+        df = df.tz_convert(area.tz)
+        df = df.truncate(before=start, after=end)
+        return df
+    
+    @year_limited
     def query_day_ahead_prices(
             self, country_code: Union[Area, str],
             start: pd.Timestamp,
@@ -1274,6 +1373,7 @@ class EntsoePandasClient(EntsoeRawClient):
         -------
         pd.DataFrame
         """
+        
         area = lookup_area(country_code)
         text = super(
             EntsoePandasClient, self).query_installed_generation_capacity(
@@ -1592,6 +1692,48 @@ class EntsoePandasClient(EntsoeRawClient):
         ts = ts.truncate(before=start, after=end)
         return ts
 
+    @year_limited
+    def query_activated_balancing_energy_prices(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, 
+            process_type: Optional[str] = 'A16',
+            psr_type: Optional[str] = None,
+            business_type: Optional[str] = None, 
+            standard_market_product: Optional[str] = None,
+            original_market_product: Optional[str] = None) -> pd.DataFrame:
+        """
+        Parameters
+        ----------
+        country_code : Area|str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        process_type: str
+            A16 used if not provided
+        psr_type : str
+            filter query for a specific psr type
+        business_type: str
+            filter query for a specific business type
+        standard_market_product: str
+        original_market_product: str
+            filter query for a specific product
+            defaults to standard product
+        Returns
+        -------
+        pd.DataFrame
+        """
+        area = lookup_area(country_code)
+        text = super(EntsoePandasClient, self).query_activated_balancing_energy_prices(
+            country_code=area, start=start, end=end, 
+            process_type=process_type,
+            psr_type=psr_type,
+            business_type=business_type, 
+            standard_market_product=standard_market_product,
+            original_market_product=original_market_product)
+        df = parse_activated_balancing_energy_prices(text)
+        df = df.tz_convert(area.tz)
+        df = df.truncate(before=start, after=end)
+        return df
+    
     @year_limited
     def query_imbalance_prices(
             self, country_code: Union[Area, str], start: pd.Timestamp,

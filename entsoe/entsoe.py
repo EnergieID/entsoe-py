@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 warnings.filterwarnings('ignore', category=XMLParsedAsHTMLWarning)
 
 __title__ = "entsoe-py"
-__version__ = "0.5.10"
+__version__ = "0.5.11"
 __author__ = "EnergieID.be, Frank Boerman"
 __license__ = "MIT"
 

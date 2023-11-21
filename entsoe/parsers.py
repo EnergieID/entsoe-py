@@ -112,7 +112,6 @@ def parse_loads(xml_text, process_type='A01'):
         })
 
 
-
 def parse_generation(
         xml_text: str,
         per_plant: bool = False,
@@ -265,7 +264,24 @@ def parse_crossborder_flows(xml_text):
     series = pd.concat(series)
     series = series.sort_index()
     return series
+    
+def parse_activated_balancing_energy_prices(xml_text):
+    """
+    Parameters
+    ----------
+    xml_text : str
+    tz: str
 
+    Returns
+    -------
+    pd.DataFrame
+    """
+    timeseries_blocks = _extract_timeseries(xml_text)
+    frames = (_parse_activated_balancing_energy_prices_timeseries(soup)
+              for soup in timeseries_blocks)
+    df = pd.concat(frames)
+    df.sort_index(inplace=True)
+    return df
 
 def parse_imbalance_prices(xml_text):
     """
@@ -325,6 +341,63 @@ def parse_procured_balancing_capacity(xml_text, tz):
     df.sort_index(axis=1, inplace=True)
     return df
 
+def parse_aggregated_bids(xml_text):
+    """
+
+    Parameters
+    ----------
+    xml_text : str
+
+    Returns
+    -------
+    pd.DataFrame
+    """     
+    timeseries_blocks = _extract_timeseries(xml_text)
+    frames = (_parse_aggregated_bids_timeseries(soup)
+              for soup in timeseries_blocks)
+    df = pd.concat(frames, axis=1)
+
+    df.sort_index(axis=0, inplace=True)
+    df.sort_index(axis=1, inplace=True)
+    return df
+
+def _parse_aggregated_bids_timeseries(soup):
+    """
+    Parameters
+    ----------
+    soup : bs4.element.tag
+
+    Returns
+    -------
+    pd.DataFrame
+    """
+    direction = {
+        'A01': 'Up',
+        'A02': 'Down'
+    }
+
+    flow_direction = direction[soup.find('flowdirection.direction').text]
+    period = soup.find('period')
+    start = pd.to_datetime(period.find('timeinterval').find('start').text)
+    end = pd.to_datetime(period.find('timeinterval').find('end').text)
+    resolution = _resolution_to_timedelta(period.find('resolution').text)
+    
+    tx = pd.date_range(start=start, end=end, freq=resolution, inclusive='left')
+    df = pd.DataFrame(index=tx, columns=['Offered', 'Activated'])
+    
+    points = period.find_all('point')
+    
+    for dt, point in zip(tx, points):
+        df.loc[dt, 'Offered'] = float(point.find('quantity').text)
+        df.loc[dt, 'Activated'] = float(point.find('secondaryquantity').text)
+
+    mr_id = int(soup.find('mrid').text)
+    df.columns = pd.MultiIndex.from_product(
+        [[flow_direction], [mr_id], df.columns],
+        names=('direction', 'mrid', 'unit')
+    )
+
+    return df
 
 def _parse_procured_balancing_capacity(soup, tz):
     """
@@ -430,7 +503,6 @@ def _parse_contracted_reserve_series(soup, tz, label):
     df.columns = pd.MultiIndex.from_product([df.columns, [direction]])
     return df
 
-
 def parse_imbalance_prices_zip(zip_contents: bytes) -> pd.DataFrame:
     """
     Parameters
@@ -453,6 +525,37 @@ def parse_imbalance_prices_zip(zip_contents: bytes) -> pd.DataFrame:
     df.sort_index(inplace=True)
     return df
 
+def _parse_activated_balancing_energy_prices_timeseries(soup) -> pd.DataFrame:
+    """
+    Parameters
+    ----------
+    soup : bs4.element.tag
+
+    Returns
+    -------
+    pd.DataFrame
+    """
+    direction = {
+        'A01': 'Up',
+        'A02': 'Down'
+    }
+
+    flow_direction = direction[soup.find('flowdirection.direction').text]
+    period = soup.find('period')
+    start = pd.to_datetime(period.find('timeinterval').find('start').text)
+    end = pd.to_datetime(period.find('timeinterval').find('end').text)
+    resolution = _resolution_to_timedelta(period.find('resolution').text)
+    tx = pd.date_range(start=start, end=end, freq=resolution, inclusive='left')
+
+    df = pd.DataFrame(index=tx, columns=['Price', 'Direction'])
+
+    for point in period.find_all('point'):
+        idx = int(point.find('position').text)
+        df.loc[tx[idx-1], 'Price'] = float(point.find('activation_price.amount').text)
+        df.loc[tx[idx-1], 'Direction'] = flow_direction
+    
+    df.fillna(method='ffill', inplace=True)
+    return df
 
 def _parse_imbalance_prices_timeseries(soup) -> pd.DataFrame:
     """
@@ -488,7 +591,6 @@ def _parse_imbalance_prices_timeseries(soup) -> pd.DataFrame:
 
     return df
 
-
 def parse_imbalance_volumes_zip(zip_contents: bytes) -> pd.DataFrame:
     """
     Parameters
@@ -510,7 +612,6 @@ def parse_imbalance_volumes_zip(zip_contents: bytes) -> pd.DataFrame:
     df = pd.concat(frames)
     df.sort_index(inplace=True)
     return df
-
 
 def _parse_imbalance_volumes_timeseries(soup) -> pd.DataFrame:
     """
@@ -578,7 +679,6 @@ def _parse_netposition_timeseries(soup):
 
     return series
 
-
 def _parse_price_timeseries(soup):
     """
     Parameters
@@ -601,7 +701,6 @@ def _parse_price_timeseries(soup):
 
     return series
 
-
 def _parse_load_timeseries(soup):
     """
     Parameters
@@ -623,7 +722,6 @@ def _parse_load_timeseries(soup):
     series.index = _parse_datetimeindex(soup)
 
     return series
-
 
 def _parse_generation_timeseries(soup, per_plant: bool = False, include_eic: bool = False) -> pd.Series:
     """
@@ -693,7 +791,6 @@ def _parse_generation_timeseries(soup, per_plant: bool = False, include_eic: boo
 
     return series
 
-
 def _parse_water_hydro_timeseries(soup, tz):
     """
     Parses timeseries for water reservoirs and hydro storage plants
@@ -722,7 +819,6 @@ def _parse_water_hydro_timeseries(soup, tz):
 
     return series
 
-
 def _parse_installed_capacity_per_plant(soup):
     """
     Parameters
@@ -748,7 +844,6 @@ def _parse_installed_capacity_per_plant(soup):
     series.name = soup.find('registeredresource.mrid').text
 
     return series
-
 
 def _parse_datetimeindex(soup, tz=None):
   """
@@ -788,7 +883,6 @@ def _parse_datetimeindex(soup, tz=None):
       index = index[:-1]
 
   return index
-
 
 def _parse_crossborder_flows_timeseries(soup):
     """

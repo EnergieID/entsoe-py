@@ -876,7 +876,7 @@ def _parse_datetimeindex(soup, tz=None):
           # because that week contains 169 hours instead of 168.
           index = index[:-1]
       index = index.tz_convert("UTC")
-  elif pd.Timedelta(delta) >= pd.Timedelta('1D') and end.hour == start.hour + 1:
+  elif index.to_series().diff().min() >= pd.Timedelta('1D') and end.hour == start.hour + 1:
       # For a daily or larger granularity, if we jump over the DST date in October,
       # date_range erronously returns an additional index element
       # because the period contains one extra hour.

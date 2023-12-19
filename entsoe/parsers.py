@@ -671,7 +671,7 @@ def _parse_netposition_timeseries(soup):
         factor = 1
     for point in soup.find_all('point'):
         positions.append(int(point.find('position').text))
-        quantities.append(factor * float(point.find('quantity').text))
+        quantities.append(factor * float(point.find('quantity').text.replace(',', '')))
 
     series = pd.Series(index=positions, data=quantities)
     series = series.sort_index()

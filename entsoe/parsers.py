@@ -8,7 +8,8 @@ from bs4.builder import XMLParsedAsHTMLWarning
 import pandas as pd
 
 from .mappings import PSRTYPE_MAPPINGS, DOCSTATUS, BSNTYPE, Area
-from .series_parsers import _extract_timeseries, _resolution_to_timedelta, _parse_datetimeindex, _parse_timeseries_generic
+from .series_parsers import _extract_timeseries, _resolution_to_timedelta, _parse_datetimeindex, _parse_timeseries_generic,\
+    _parse_timeseries_generic_whole
 
 warnings.filterwarnings('ignore', category=XMLParsedAsHTMLWarning)
 
@@ -223,7 +224,7 @@ def parse_installed_capacity_per_plant(xml_text):
     return df
 
 
-def parse_water_hydro(xml_text, tz):
+def parse_water_hydro(xml_text):
     """
     Parameters
     ----------
@@ -233,13 +234,8 @@ def parse_water_hydro(xml_text, tz):
     -------
     pd.Series
     """
-    all_series = []
-    for soup in _extract_timeseries(xml_text):
-        all_series.append(_parse_water_hydro_timeseries(soup, tz=tz))
 
-    series = pd.concat(all_series)
-
-    return series
+    return _parse_timeseries_generic_whole(xml_text)
 
 
 def parse_crossborder_flows(xml_text):
@@ -683,17 +679,7 @@ def _parse_load_timeseries(soup):
     -------
     pd.Series
     """
-    positions = []
-    prices = []
-    for point in soup.find_all('point'):
-        positions.append(int(point.find('position').text))
-        prices.append(float(point.find('quantity').text))
-
-    series = pd.Series(index=positions, data=prices)
-    series = series.sort_index()
-    series.index = _parse_datetimeindex(soup)
-
-    return series
+    return _parse_timeseries_generic(soup)
 
 def _parse_generation_timeseries(soup, per_plant: bool = False, include_eic: bool = False) -> pd.Series:
     """
@@ -708,19 +694,7 @@ def _parse_generation_timeseries(soup, per_plant: bool = False, include_eic: boo
     -------
     pd.Series
     """
-    positions = []
-    quantities = []
-    for point in soup.find_all('point'):
-        positions.append(int(point.find('position').text))
-        quantity = point.find('quantity')
-        if quantity is None:
-            raise LookupError(
-                f'No quantity found in this point, it should have one: {point}')
-        quantities.append(float(quantity.text))
-
-    series = pd.Series(index=positions, data=quantities)
-    series = series.sort_index()
-    series.index = _parse_datetimeindex(soup)
+    series = _parse_timeseries_generic(soup)
 
     # Check if there is a psrtype, if so, get it.
     _psrtype = soup.find('psrtype')
@@ -760,34 +734,6 @@ def _parse_generation_timeseries(soup, per_plant: bool = False, include_eic: boo
         # This will result in a multi-index upon concatenation
         name.reverse()
         series.name = tuple(name)
-
-    return series
-
-def _parse_water_hydro_timeseries(soup, tz):
-    """
-    Parses timeseries for water reservoirs and hydro storage plants
-
-    Parameters
-    ----------
-    soup : bs4.element.tag
-
-    Returns
-    -------
-    pd.Series
-    """
-
-    positions = []
-    quantities = []
-    for point in soup.find_all('point'):
-        positions.append(int(point.find('position').text))
-        quantity = point.find('quantity')
-        if quantity is None:
-            raise LookupError(
-                f'No quantity found in this point, it should have one: {point}')
-        quantities.append(float(quantity.text))
-    series = pd.Series(index=positions, data=quantities)
-    series = series.sort_index()
-    series.index = _parse_datetimeindex(soup, tz)
 
     return series
 

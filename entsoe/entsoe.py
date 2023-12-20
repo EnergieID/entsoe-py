@@ -1419,7 +1419,7 @@ class EntsoePandasClient(EntsoeRawClient):
             self).query_aggregate_water_reservoirs_and_hydro_storage(
             country_code=area, start=start, end=end)
 
-        df = parse_water_hydro(text, area.tz)
+        df = parse_water_hydro(text)
 
         return df
 

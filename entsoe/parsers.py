@@ -8,28 +8,13 @@ from bs4.builder import XMLParsedAsHTMLWarning
 import pandas as pd
 
 from .mappings import PSRTYPE_MAPPINGS, DOCSTATUS, BSNTYPE, Area
+from .series_parsers import _extract_timeseries, _resolution_to_timedelta, _parse_datetimeindex, _parse_timeseries_generic
 
 warnings.filterwarnings('ignore', category=XMLParsedAsHTMLWarning)
 
 GENERATION_ELEMENT = "inBiddingZone_Domain.mRID"
 CONSUMPTION_ELEMENT = "outBiddingZone_Domain.mRID"
 
-
-def _extract_timeseries(xml_text):
-    """
-    Parameters
-    ----------
-    xml_text : str
-
-    Yields
-    -------
-    bs4.element.tag
-    """
-    if not xml_text:
-        return
-    soup = bs4.BeautifulSoup(xml_text, 'html.parser')
-    for timeseries in soup.find_all('timeseries'):
-        yield timeseries
 
 
 def parse_prices(xml_text):
@@ -48,7 +33,7 @@ def parse_prices(xml_text):
         '60T': []
     }
     for soup in _extract_timeseries(xml_text):
-        soup_series = _parse_price_timeseries(soup)
+        soup_series = _parse_timeseries_generic(soup, 'price.amount')
         series[soup_series.index.freqstr].append(soup_series)
 
     for freq, freq_series in series.items():
@@ -68,12 +53,21 @@ def parse_netpositions(xml_text):
     -------
     pd.Series
     """
-    series = []
+    series_all = []
     for soup in _extract_timeseries(xml_text):
-        series.append(_parse_netposition_timeseries(soup))
-    series = pd.concat(series)
-    series = series.sort_index()
-    return series
+        series = _parse_timeseries_generic(soup)
+        if 'REGION' in soup.find('out_domain.mrid').text:
+            factor = -1  # flow is import so negative
+        else:
+            factor = 1
+        # for some reason some values have sign flipped in api output. this is probably a bug,
+        # take the absolute value and correct for region
+        #TODO: possible change this or remove this warning after helpdesk got back to me
+        series_all.append(factor*series.abs())
+
+    series_all = pd.concat(series_all).sort_index()
+    return series_all
+
 
 
 def parse_loads(xml_text, process_type='A01'):
@@ -679,28 +673,6 @@ def _parse_netposition_timeseries(soup):
 
     return series
 
-def _parse_price_timeseries(soup):
-    """
-    Parameters
-    ----------
-    soup : bs4.element.tag
-
-    Returns
-    -------
-    pd.Series
-    """
-    positions = []
-    prices = []
-    for point in soup.find_all('point'):
-        positions.append(int(point.find('position').text))
-        prices.append(float(point.find('price.amount').text))
-
-    series = pd.Series(index=positions, data=prices)
-    series = series.sort_index()
-    series.index = _parse_datetimeindex(soup)
-
-    return series
-
 def _parse_load_timeseries(soup):
     """
     Parameters
@@ -845,45 +817,6 @@ def _parse_installed_capacity_per_plant(soup):
 
     return series
 
-def _parse_datetimeindex(soup, tz=None):
-  """
-  Create a datetimeindex from a parsed beautifulsoup,
-  given that it contains the elements 'start', 'end'
-  and 'resolution'
-
-  Parameters
-  ----------
-  soup : bs4.element.tag
-  tz: str
-
-  Returns
-  -------
-  pd.DatetimeIndex
-  """
-  start = pd.Timestamp(soup.find('start').text)
-  end = pd.Timestamp(soup.find_all('end')[-1].text)
-  if tz is not None:
-      start = start.tz_convert(tz)
-      end = end.tz_convert(tz)
-
-  delta = _resolution_to_timedelta(res_text=soup.find('resolution').text)
-  index = pd.date_range(start=start, end=end, freq=delta, inclusive='left')
-  if tz is not None:
-      dst_jump = len(set(index.map(lambda d: d.dst()))) > 1
-      if dst_jump and delta == "7D":
-          # For a weekly granularity, if we jump over the DST date in October,
-          # date_range erronously returns an additional index element
-          # because that week contains 169 hours instead of 168.
-          index = index[:-1]
-      index = index.tz_convert("UTC")
-  elif index.to_series().diff().min() >= pd.Timedelta('1D') and end.hour == start.hour + 1:
-      # For a daily or larger granularity, if we jump over the DST date in October,
-      # date_range erronously returns an additional index element
-      # because the period contains one extra hour.
-      index = index[:-1]
-
-  return index
-
 def _parse_crossborder_flows_timeseries(soup):
     """
     Parameters
@@ -907,27 +840,7 @@ def _parse_crossborder_flows_timeseries(soup):
     return series
 
 
-def _resolution_to_timedelta(res_text: str) -> str:
-    """
-    Convert an Entsoe resolution to something that pandas can understand
-    """
-    resolutions = {
-        'PT60M': '60min',
-        'P1Y': '12M',
-        'PT15M': '15min',
-        'PT30M': '30min',
-        'P1D': '1D',
-        'P7D': '7D',
-        'P1M': '1M',
-    }
-    delta = resolutions.get(res_text)
-    if delta is None:
-        raise NotImplementedError("Sorry, I don't know what to do with the "
-                                  "resolution '{}', because there was no "
-                                  "documentation to be found of this format. "
-                                  "Everything is hard coded. Please open an "
-                                  "issue.".format(res_text))
-    return delta
+
 
 
 # Define inverse bidding zone dico to look up bidding zone labels from the

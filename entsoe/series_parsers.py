@@ -89,14 +89,15 @@ def _parse_timeseries_generic(soup, label='quantity', to_float=True):
 
     series = pd.Series(data)
     series.sort_index()
+    index = _parse_datetimeindex(soup)
     if soup.find('curvetype').text == 'A03':
         # with A03 its possible that positions are missing, this is when values are repeated
         # see docs: https://eepublicdownloads.entsoe.eu/clean-documents/EDI/Library/cim_based/Introduction_of_different_Timeseries_possibilities__curvetypes__with_ENTSO-E_electronic_document_v1.4.pdf
         # so lets do reindex on a continious range which creates gaps if positions are missing
         # then forward fill, so repeat last valid value, to fill the gaps
-        series = series.reindex(list(range(series.index.min(), series.index.max() + 1))).ffill()
+        series = series.reindex(list(range(1, len(index)+1))).ffill()
 
-    series.index = _parse_datetimeindex(soup)
+    series.index = index
     if to_float:
         series = series.astype(float)
 

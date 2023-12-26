@@ -98,6 +98,19 @@ def year_limited(func):
         for _start, _end in blocks:
             try:
                 frame = func(*args, start=_start, end=_end, **kwargs)
+                # Due to partial matching func may return data indexed by
+                # timestamps outside _start and _end. In order to avoid
+                # (unintentionally) repeating records, frames are truncated to
+                # left-open intervals. Additionally, second disjunct forces the
+                # earliest block to be a closed interval.
+                #
+                # If there are repeating records in a single frame (e.g. due
+                # to corrections) then the result will also have them.
+                interval_mask = (
+                    ((frame.index > _start) & (frame.index <= _end))
+                    | (frame.index == start)
+                )
+                frame = frame.loc[interval_mask]
             except NoMatchingDataError:
                 logger.debug(f"NoMatchingDataError: between {_start} and {_end}")
                 frame = None
@@ -108,7 +121,6 @@ def year_limited(func):
             raise NoMatchingDataError
 
         df = pd.concat(frames, sort=True)
-        df = df.loc[~df.index.duplicated(keep='first')]
         return df
 
     return year_wrapper

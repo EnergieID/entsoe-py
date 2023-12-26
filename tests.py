@@ -135,6 +135,27 @@ class EntsoePandasClientTest(EntsoeRawClientTest):
         )
         self.assertIsInstance(ts, pd.DataFrame)
 
+    def test_year_limited_truncation(self):
+        """
+        This is a specific example of polish operator correcting the data
+        i.e. there was an additional monthly auction for this period.
+        This results in duplicated time indices.
+
+        source: https://www.pse.pl/web/pse-eng/cross-border-electricity-exchange/auction-office/rzeszow-chmielnicka-interconnection/auction-results # noqa
+        """
+        start = pd.Timestamp('2023-07-17 00:00:00', tz='Europe/Warsaw')
+        end = pd.Timestamp('2023-08-01 00:00:00', tz='Europe/Warsaw')
+        ts = self.client.query_offered_capacity(
+            'UA_IPS', 'PL',
+            start=start, end=end,
+            contract_marketagreement_type='A03',
+            implicit=False
+        )
+        total_hours = int((end - start).total_seconds()/60/60)
+        # Expected behaviour is to keep both initial data and corrections
+        # and leave the deduplication to the user.
+        self.assertEqual(total_hours*2, ts.shape[0])
+
 
 if __name__ == '__main__':
     unittest.main()

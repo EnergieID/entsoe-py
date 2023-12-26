@@ -88,7 +88,10 @@ def year_limited(func):
         if start is None or end is None:
             raise Exception('Please specify the start and end date explicity with start=<date> when calling this '
                             'function')
-        if type(start) != pd.Timestamp or type(end) != pd.Timestamp:
+        if (
+            not isinstance(start, pd.Timestamp)
+            or not isinstance(end, pd.Timestamp)
+        ):
             raise Exception('Please use a timezoned pandas object for start and end')
         if start.tzinfo is None or end.tzinfo is None:
             raise Exception('Please use a timezoned pandas object for start and end')

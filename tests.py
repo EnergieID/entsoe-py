@@ -156,6 +156,26 @@ class EntsoePandasClientTest(EntsoeRawClientTest):
         # and leave the deduplication to the user.
         self.assertEqual(total_hours*2, ts.shape[0])
 
+    def test_documents_limited_truncation(self):
+        ts = pd.DatetimeIndex(
+            ["2022-03-01", "2022-03-11", "2022-03-21", "2022-04-01"],
+            tz="Europe/Berlin"
+        )
+        part_dfs = []
+        for i in range(len(ts) - 1):
+            df = self.client.query_contracted_reserve_prices(
+                'DE_LU', start=ts[i], end=ts[i+1],
+                type_marketagreement_type='A01'
+            )
+            part_dfs.append(df)
+        df_parts = pd.concat(part_dfs)
+        df_full = self.client.query_contracted_reserve_prices(
+            'DE_LU', start=ts[0], end=ts[-1],
+            type_marketagreement_type='A01'
+        )
+        self.assertEqual(df_parts.shape, df_full.shape)
+        self.assertTrue(all(df_parts.isna().sum() == df_full.isna().sum()))
+
 
 if __name__ == '__main__':
     unittest.main()

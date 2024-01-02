@@ -77,10 +77,19 @@ def documents_limited(n):
                 raise NoMatchingDataError
 
             df = pd.concat(frames, sort=True)
-            df = df.loc[~df.index.duplicated(keep='first')]
+            # For same indices pick last valid value
+            if df.index.has_duplicates:
+                df = df.groupby(df.index).agg(deduplicate_documents_limited)
             return df
         return documents_wrapper
     return decorator
+
+
+def deduplicate_documents_limited(group):
+    if group.shape[0] == 1:
+        return group
+    else:
+        return group.ffill().iloc[[-1]]
 
 
 def year_limited(func):

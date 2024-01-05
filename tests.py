@@ -135,6 +135,47 @@ class EntsoePandasClientTest(EntsoeRawClientTest):
         )
         self.assertIsInstance(ts, pd.DataFrame)
 
+    def test_year_limited_truncation(self):
+        """
+        This is a specific example of polish operator correcting the data
+        i.e. there was an additional monthly auction for this period.
+        This results in duplicated time indices.
+
+        source: https://www.pse.pl/web/pse-eng/cross-border-electricity-exchange/auction-office/rzeszow-chmielnicka-interconnection/auction-results # noqa
+        """
+        start = pd.Timestamp('2023-07-17 00:00:00', tz='Europe/Warsaw')
+        end = pd.Timestamp('2023-08-01 00:00:00', tz='Europe/Warsaw')
+        ts = self.client.query_offered_capacity(
+            'UA_IPS', 'PL',
+            start=start, end=end,
+            contract_marketagreement_type='A03',
+            implicit=False
+        )
+        total_hours = int((end - start).total_seconds()/60/60)
+        # Expected behaviour is to keep both initial data and corrections
+        # and leave the deduplication to the user.
+        self.assertEqual(total_hours*2, ts.shape[0])
+
+    def test_documents_limited_truncation(self):
+        ts = pd.DatetimeIndex(
+            ["2022-03-01", "2022-03-11", "2022-03-21", "2022-04-01"],
+            tz="Europe/Berlin"
+        )
+        part_dfs = []
+        for i in range(len(ts) - 1):
+            df = self.client.query_contracted_reserve_prices(
+                'DE_LU', start=ts[i], end=ts[i+1],
+                type_marketagreement_type='A01'
+            )
+            part_dfs.append(df)
+        df_parts = pd.concat(part_dfs)
+        df_full = self.client.query_contracted_reserve_prices(
+            'DE_LU', start=ts[0], end=ts[-1],
+            type_marketagreement_type='A01'
+        )
+        self.assertEqual(df_parts.shape, df_full.shape)
+        self.assertTrue(all(df_parts.isna().sum() == df_full.isna().sum()))
+
 
 if __name__ == '__main__':
     unittest.main()

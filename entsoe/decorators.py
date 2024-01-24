@@ -117,21 +117,25 @@ def year_limited(func):
 
         blocks = year_blocks(start, end)
         frames = []
+        is_first_frame = True  # Assumes blocks are sorted
         for _start, _end in blocks:
             try:
                 frame = func(*args, start=_start, end=_end, **kwargs)
                 # Due to partial matching func may return data indexed by
                 # timestamps outside _start and _end. In order to avoid
                 # (unintentionally) repeating records, frames are truncated to
-                # left-open intervals. Additionally, second disjunct forces the
-                # earliest block to be a closed interval.
+                # left-open intervals (or closed interval in the case of the
+                # earliest block).
                 #
                 # If there are repeating records in a single frame (e.g. due
                 # to corrections) then the result will also have them.
-                interval_mask = (
-                    ((frame.index > _start) & (frame.index <= _end))
-                    | (frame.index == start)
-                )
+                if is_first_frame:
+                    interval_mask = frame.index <= _end
+                else:
+                    interval_mask = (
+                        (frame.index <= _end)
+                        & (frame.index > _start)
+                    )
                 frame = frame.loc[interval_mask]
             except NoMatchingDataError:
                 logger.debug(
@@ -139,6 +143,7 @@ def year_limited(func):
                 )
                 frame = None
             frames.append(frame)
+            is_first_frame = False
 
         if sum([f is None for f in frames]) == len(frames):
             # All the data returned are void

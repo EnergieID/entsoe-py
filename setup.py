@@ -53,6 +53,7 @@ setup(
         # that you indicate whether you support Python 2, Python 3 or both.
         'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: 3.10',
+        'Programming Language :: Python :: 3.11'
     ],
 
     keywords='ENTSO-E data api energy',
@@ -67,7 +68,7 @@ setup(
 
     # List run-time dependencies here.  These will be installed by pip when
     # your project is installed.
-    install_requires=['requests', 'pytz', 'beautifulsoup4>=4.11.1', 'pandas>=1.4.0'],
+    install_requires=['requests', 'pytz', 'beautifulsoup4>=4.11.1', 'pandas>=2.2.0'],
 
     include_package_data=True,
 )

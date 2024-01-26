@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 warnings.filterwarnings('ignore', category=XMLParsedAsHTMLWarning)
 
 __title__ = "entsoe-py"
-__version__ = "0.6.2"
+__version__ = "0.6.3"
 __author__ = "EnergieID.be, Frank Boerman"
 __license__ = "MIT"
 
@@ -1160,12 +1160,12 @@ class EntsoePandasClient(EntsoeRawClient):
             self, country_code: Union[Area, str],
             start: pd.Timestamp,
             end: pd.Timestamp,
-            resolution: List[Literal['60T', '30T', '15T']] = '60T') -> pd.Series:
+            resolution: List[Literal['60min', '30min', '15min']] = '60min') -> pd.Series:
         """
         Parameters
         ----------
-        resolution: either 60T for hourly values, 
-            30T for half-hourly values or 15T for quarterly values, throws error if type is not available
+        resolution: either 60min for hourly values,
+            30min for half-hourly values or 15min for quarterly values, throws error if type is not available
         country_code : Area|str
         start : pd.Timestamp
         end : pd.Timestamp
@@ -1174,8 +1174,8 @@ class EntsoePandasClient(EntsoeRawClient):
         -------
         pd.Series
         """
-        if resolution not in ['60T', '30T', '15T']:
-            raise InvalidParameterError('Please choose either 60T, 30T or 15T')
+        if resolution not in ['60min', '30min', '15min']:
+            raise InvalidParameterError('Please choose either 60min, 30min or 15min')
         area = lookup_area(country_code)
         # we do here extra days at start and end to fix issue 187
         text = super(EntsoePandasClient, self).query_day_ahead_prices(

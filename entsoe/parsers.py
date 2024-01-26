@@ -525,26 +525,37 @@ def _parse_activated_balancing_energy_prices_timeseries(soup) -> pd.DataFrame:
     -------
     pd.DataFrame
     """
-    direction = {
+    direction_options = {
         'A01': 'Up',
         'A02': 'Down'
     }
 
-    flow_direction = direction[soup.find('flowdirection.direction').text]
+    reserve_type_options = {
+        'A95': 'FCR',
+        'A96': 'aFRR',
+        'A97': 'mFRR',
+        'A98': 'RR'
+    }
+
+
+    flow_direction = direction_options[soup.find('flowdirection.direction').text]
+    reserve_type = reserve_type_options[soup.find('businesstype').text]
     period = soup.find('period')
     start = pd.to_datetime(period.find('timeinterval').find('start').text)
     end = pd.to_datetime(period.find('timeinterval').find('end').text)
     resolution = _resolution_to_timedelta(period.find('resolution').text)
     tx = pd.date_range(start=start, end=end, freq=resolution, inclusive='left')
 
-    df = pd.DataFrame(index=tx, columns=['Price', 'Direction'])
+    df = pd.DataFrame(index=tx, columns=['Price', 'Direction', 'ReserveType'])
 
     for point in period.find_all('point'):
         idx = int(point.find('position').text)
         df.loc[tx[idx-1], 'Price'] = float(point.find('activation_price.amount').text)
         df.loc[tx[idx-1], 'Direction'] = flow_direction
+        df.loc[tx[idx - 1], 'ReserveType'] = reserve_type
     
-    df.fillna(method='ffill', inplace=True)
+    #df.fillna(method='ffill', inplace=True)
+    df = df.infer_objects(copy=False).ffill()
     return df
 
 def _parse_imbalance_prices_timeseries(soup) -> pd.DataFrame:

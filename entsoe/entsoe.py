@@ -813,7 +813,6 @@ class EntsoeRawClient:
             end: pd.Timestamp, process_type: str,
             type_marketagreement_type: Optional[str] = None) -> bytes:
         """
-        Activated Balancing Energy [17.1.E]
         Parameters
         ----------
         country_code : Area|str
@@ -1794,7 +1793,6 @@ class EntsoePandasClient(EntsoeRawClient):
             end: pd.Timestamp,
             type_marketagreement_type: Optional[str] = None) -> bytes:
         """
-        Activated Balancing Energy [17.1.E]
         Parameters
         ----------
         country_code : Area|str

@@ -29,9 +29,9 @@ def parse_prices(xml_text):
     pd.Series
     """
     series = {
-        '15T': [],
-        '30T': [],
-        '60T': []
+        '15min': [],
+        '30min': [],
+        '60min': []
     }
     for soup in _extract_timeseries(xml_text):
         soup_series = _parse_timeseries_generic(soup, 'price.amount')

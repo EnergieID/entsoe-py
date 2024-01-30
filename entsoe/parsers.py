@@ -379,7 +379,9 @@ def _parse_aggregated_bids_timeseries(soup):
     
     for dt, point in zip(tx, points):
         df.loc[dt, 'Offered'] = float(point.find('quantity').text)
-        df.loc[dt, 'Activated'] = float(point.find('secondaryquantity').text)
+        activated = point.find('secondaryquantity')
+        if activated is not None:
+            df.loc[dt, 'Activated'] = float(activated.text)
 
     mr_id = int(soup.find('mrid').text)
     df.columns = pd.MultiIndex.from_product(

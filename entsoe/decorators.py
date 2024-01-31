@@ -77,9 +77,10 @@ def documents_limited(n):
                 raise NoMatchingDataError
 
             df = pd.concat(frames, sort=True)
-            # For same indices pick last valid value
-            if df.index.has_duplicates:
-                df = df.groupby(df.index).agg(deduplicate_documents_limited)
+            if func.__name__ != '_query_unavailability':
+                # For same indices pick last valid value
+                if df.index.has_duplicates:
+                    df = df.groupby(df.index).agg(deduplicate_documents_limited)
             return df
         return documents_wrapper
     return decorator
@@ -121,22 +122,23 @@ def year_limited(func):
         for _start, _end in blocks:
             try:
                 frame = func(*args, start=_start, end=_end, **kwargs)
-                # Due to partial matching func may return data indexed by
-                # timestamps outside _start and _end. In order to avoid
-                # (unintentionally) repeating records, frames are truncated to
-                # left-open intervals (or closed interval in the case of the
-                # earliest block).
-                #
-                # If there are repeating records in a single frame (e.g. due
-                # to corrections) then the result will also have them.
-                if is_first_frame:
-                    interval_mask = frame.index <= _end
-                else:
-                    interval_mask = (
-                        (frame.index <= _end)
-                        & (frame.index > _start)
-                    )
-                frame = frame.loc[interval_mask]
+                if func.__name__ != '_query_unavailability':
+                    # Due to partial matching func may return data indexed by
+                    # timestamps outside _start and _end. In order to avoid
+                    # (unintentionally) repeating records, frames are truncated to
+                    # left-open intervals (or closed interval in the case of the
+                    # earliest block).
+                    #
+                    # If there are repeating records in a single frame (e.g. due
+                    # to corrections) then the result will also have them.
+                    if is_first_frame:
+                        interval_mask = frame.index <= _end
+                    else:
+                        interval_mask = (
+                            (frame.index <= _end)
+                            & (frame.index > _start)
+                        )
+                    frame = frame.loc[interval_mask]
             except NoMatchingDataError:
                 logger.debug(
                     f"NoMatchingDataError: between {_start} and {_end}"

@@ -122,7 +122,7 @@ def year_limited(func):
         for _start, _end in blocks:
             try:
                 frame = func(*args, start=_start, end=_end, **kwargs)
-                if func.__name__ != '_query_unavailability':
+                if func.__name__ != '_query_unavailability' and isinstance(frame.index, pd.DatetimeIndex):
                     # Due to partial matching func may return data indexed by
                     # timestamps outside _start and _end. In order to avoid
                     # (unintentionally) repeating records, frames are truncated to

@@ -96,9 +96,9 @@ def parse_loads(xml_text, process_type='A01'):
         for soup in _extract_timeseries(xml_text):
             t = _parse_load_timeseries(soup)
             if soup.find('businesstype').text == 'A60':
-                series_min = series_min.append(t)
+                series_min = pd.concat([series_min, t])
             elif soup.find('businesstype').text == 'A61':
-                series_max = series_max.append(t)
+                series_max = pd.concat([series_max, t])
             else:
                 continue
         return pd.DataFrame({

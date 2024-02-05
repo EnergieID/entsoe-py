@@ -2132,7 +2132,7 @@ class EntsoePandasClient(EntsoeRawClient):
                 continue
             im.name = neighbour
             imports.append(im)
-        df = pd.concat(imports, axis=1)
+        df = pd.concat(imports, axis=1, sort=True)
         # drop columns that contain only zero's
         df = df.loc[:, (df != 0).any(axis=0)]
         df = df.tz_convert(area.tz)

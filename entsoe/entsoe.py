@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 warnings.filterwarnings('ignore', category=XMLParsedAsHTMLWarning)
 
 __title__ = "entsoe-py"
-__version__ = "0.6.6"
+__version__ = "0.6.7"
 __author__ = "EnergieID.be, Frank Boerman"
 __license__ = "MIT"
 
@@ -1259,7 +1259,7 @@ class EntsoePandasClient(EntsoeRawClient):
         """
         df_load_forecast_da = self.query_load_forecast(country_code, start=start, end=end)
         df_load = self.query_load(country_code, start=start, end=end)
-        return df_load_forecast_da.join(df_load, sort=True, how='inner')
+        return df_load_forecast_da.join(df_load, sort=True, how='outer')
 
 
     @year_limited
@@ -2139,7 +2139,7 @@ class EntsoePandasClient(EntsoeRawClient):
         df = df.truncate(before=start, after=end)
         df['sum'] = df.sum(axis=1)
         if per_hour:
-            df = df.resample('h').mean()
+            df = df.resample('h').first()
 
         return df
 

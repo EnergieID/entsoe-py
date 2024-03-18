@@ -1,5 +1,6 @@
 import logging
 from typing import Union, Optional, Dict, List, Literal
+from importlib.metadata import version
 
 import pandas as pd
 from pandas.tseries.offsets import YearBegin, YearEnd
@@ -23,7 +24,7 @@ logger = logging.getLogger(__name__)
 warnings.filterwarnings('ignore', category=XMLParsedAsHTMLWarning)
 
 __title__ = "entsoe-py"
-__version__ = "0.6.7"
+__version__ = version("entsoe-py")
 __author__ = "EnergieID.be, Frank Boerman"
 __license__ = "MIT"
 

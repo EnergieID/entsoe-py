@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "entsoe-py"
+version = "0.6.7"
+dependencies = [
+    "requests",
+    "pytz",
+    "beautifulsoup4>=4.11.1",
+    "pandas>=2.2.0",
+]
+
+requires-python = ">=3.9"
+authors = [
+  {name = "EnergieID.be", email = "jan@energieid.be"},
+  {name = "Frank Boerman", email = "frank@fboerman.nl"},
+]
+maintainers = [
+  {name = "EnergieID.be", email = "jan@energieid.be"},
+  {name = "Frank Boerman", email = "frank@fboerman.nl"},
+]
+description = "A python API wrapper for ENTSO-E"
+readme = "README.md"
+license = {text = "MIT License"}
+keywords = ["ENTSO-E", "data", "API", "energy"]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Developers",
+  "Topic :: Scientific/Engineering",
+]
+
+[tool.setuptools.packages.find]
+where = ["entsoe"]
+include = ["."]
+
+
+[project.urls]
+Homepage = "https://github.com/EnergieID/entsoe-py"
+Repository = "https://github.com/EnergieID/entsoe-py.git"
+"Bug Tracker" = "https://github.com/EnergieID/entsoe-py/issues"

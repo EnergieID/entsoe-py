@@ -82,19 +82,11 @@ class EntsoeRawClient:
         -------
         requests.Response
         """
-        start_str = self._datetime_to_str(start)
-        end_str = self._datetime_to_str(end)
+        prepared_request = self.prepare_base_request(params=params, start=start, end=end)
 
-        base_params = {
-            'securityToken': self.api_key,
-            'periodStart': start_str,
-            'periodEnd': end_str
-        }
-        params.update(base_params)
-
-        logger.debug(f'Performing request to {URL} with params {params}')
-        response = self.session.get(url=URL, params=params,
-                                    proxies=self.proxies, timeout=self.timeout)
+        logger.debug(f'Performing request to {prepared_request.url}')
+        response = self.session.send(request=prepared_request,
+                                     proxies=self.proxies, timeout=self.timeout)
         try:
             response.raise_for_status()
         except requests.HTTPError as e:
@@ -124,14 +116,52 @@ class EntsoeRawClient:
                         f"documents and cannot be fulfilled as is.")
             raise e
         else:
-            # ENTSO-E has changed their server to also respond with 200 if there is no data but all parameters are valid
-            # this means we need to check the contents for this error even when status code 200 is returned
-            # to prevent parsing the full response do a text matching instead of full parsing
-            # also only do this when response type content is text and not for example a zip file
-            if response.headers.get('content-type', '') == 'application/xml':
-                if 'No matching data found' in response.text:
-                    raise NoMatchingDataError
+            self.validate_base_response(response)
             return response
+        
+    def prepare_base_request(self, params: Dict, start: pd.Timestamp,
+                             end: pd.Timestamp) -> requests.PreparedRequest:
+        """
+        Parameters
+        ----------
+        params : dict
+        start : pd.Timestamp
+        end : pd.Timestamp
+        
+        Returns
+        -------
+        requests.PreparedRequest
+        """
+        start_str = self._datetime_to_str(start)
+        end_str = self._datetime_to_str(end)
+
+        base_params = {
+            'securityToken': self.api_key,
+            'periodStart': start_str,
+            'periodEnd': end_str
+        }
+        params.update(base_params)
+        req = requests.Request(
+            method='GET',
+            url=URL,
+            params=params
+        )
+        return req.prepare()
+    
+    @staticmethod
+    def validate_base_response(response: requests.Response) -> None:
+        """
+        Parameters
+        ----------
+        response : requests.Response
+        """
+        # ENTSO-E has changed their server to also respond with 200 if there is no data but all parameters are valid
+        # this means we need to check the contents for this error even when status code 200 is returned
+        # to prevent parsing the full response do a text matching instead of full parsing
+        # also only do this when response type content is text and not for example a zip file
+        if response.headers.get('content-type', '') == 'application/xml':
+            if 'No matching data found' in response.text:
+                raise NoMatchingDataError
 
     @staticmethod
     def _datetime_to_str(dtm: pd.Timestamp) -> str:

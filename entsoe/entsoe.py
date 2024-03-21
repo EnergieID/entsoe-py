@@ -1231,14 +1231,13 @@ class EntsoePandasClient(EntsoeRawClient):
             start=start-pd.Timedelta(days=1),
             end=end+pd.Timedelta(days=1)
         )
-        series = parse_prices(text)[resolution]
-        if len(series) == 0:
-            raise NoMatchingDataError
-        series = series.tz_convert(area.tz)
-        series = series.truncate(before=start, after=end)
-        # because of the above fix we need to check again if any valid data exists after truncating
-        if len(series) == 0:
-            raise NoMatchingDataError
+        series = parse_prices(
+            xml_text=text,
+            tz=area.tz,
+            resolution=resolution,
+            start=start,
+            end=end
+        )
         return series
 
     @year_limited

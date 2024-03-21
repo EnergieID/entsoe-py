@@ -176,6 +176,40 @@ class EntsoePandasClientTest(EntsoeRawClientTest):
         self.assertEqual(df_parts.shape, df_full.shape)
         self.assertTrue(all(df_parts.isna().sum() == df_full.isna().sum()))
 
+    def test_query_contracted_reserve_prices(self):
+        df = self.client.query_contracted_reserve_prices(
+            country_code='NO_2', 
+            type_marketagreement_type='A01',
+            start=self.start,
+            end=self.end)
+        self.assertIsInstance(df, pd.DataFrame)
+
+    def test_query_contracted_reserve_prices_no_available_prices(self):
+        with self.assertRaises(NoMatchingDataError):
+            self.client.query_contracted_reserve_prices(
+                country_code='NO_2', 
+                type_marketagreement_type='A01',
+                start=pd.Timestamp('20240120', tz='Europe/Oslo'),
+                end=pd.Timestamp('20240121', tz='Europe/Oslo'))
+
+    def test_query_contracted_reserve_prices_procured_capacity_afrr(self):
+        df = self.client.query_contracted_reserve_prices_procured_capacity(
+            country_code='NO_2', 
+            process_type='A51',
+            type_marketagreement_type='A01',
+            start=pd.Timestamp('20240120', tz='Europe/Oslo'),
+            end=pd.Timestamp('20240121', tz='Europe/Oslo'))
+        self.assertIsInstance(df, pd.DataFrame)
+
+    def test_query_contracted_reserve_prices_procured_capacity_afrr_no_available_prices(self):
+        with self.assertRaises(NoMatchingDataError):
+            self.client.query_contracted_reserve_prices_procured_capacity(
+                country_code='NO_2', 
+                process_type='A51',
+                type_marketagreement_type='A01',
+                start=pd.Timestamp('20240101', tz='Europe/Oslo'),
+                end=pd.Timestamp('20240118', tz='Europe/Oslo'))
+
 
 if __name__ == '__main__':
     unittest.main()

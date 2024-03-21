@@ -906,6 +906,44 @@ class EntsoeRawClient:
         response = self._base_request(params=params, start=start, end=end)
         return response.text
 
+    def query_contracted_reserve_prices_procured_capacity(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, process_type: str, 
+            type_marketagreement_type: str, psr_type: Optional[str] = None,
+            offset: int = 0) -> str:
+        """
+        Parameters
+        ----------
+        country_code : Area|str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        process_type : str
+            type of process (see mappings.PROCESSTYPE)
+        type_marketagreement_type : str
+            type of contract (see mappings.MARKETAGREEMENTTYPE)
+        psr_type : str
+            filter query for a specific psr type
+        offset : int
+            offset for querying more than 100 documents
+
+        Returns
+        -------
+        str
+        """
+        area = lookup_area(country_code)
+        params = {
+            'documentType': 'A81', # [M] A81 = Contracted reserves
+            'businessType': 'B95', # [M] B95 = Procured capacity
+            'processType': process_type, # [M*] A51 = Automatic frequency restoration reserve; A52 =  Frequency containment reserve; A47 = Manual frequency restoration reserve; A46 = Replacement reserve
+            'controlArea_Domain': area.code,
+            'type_MarketAgreement.Type': type_marketagreement_type,
+            'offset': offset
+        }
+        if psr_type:
+            params.update({'psrType': psr_type})
+        response = self._base_request(params=params, start=start, end=end)
+        return response.text
+
     def query_contracted_reserve_amount(
             self, country_code: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp, type_marketagreement_type: str,
@@ -1883,6 +1921,47 @@ class EntsoePandasClient(EntsoeRawClient):
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df
+    
+    @year_limited
+    @paginated
+    @documents_limited(100)
+    def query_contracted_reserve_prices_procured_capacity(
+            self,
+            country_code: Union[Area, str],
+            process_type: str,
+            type_marketagreement_type: str,
+            start: pd.Timestamp,
+            end: pd.Timestamp,
+            psr_type: Optional[str] = None,
+            offset: int = 0) -> pd.DataFrame:
+        """
+        Parameters
+        ----------
+        country_code : Area, str
+        process_type : str
+            type of process (see mappings.PROCESSTYPE)
+        type_marketagreement_type : str
+            type of contract (see mappings.MARKETAGREEMENTTYPE)
+        start : pd.Timestamp
+        end : pd.Timestamp
+        psr_type : str
+            filter query for a specific psr type
+        offset : int
+            offset for querying more than 100 documents
+
+        Returns
+        -------
+        pd.DataFrame
+        """
+        area = lookup_area(country_code)
+        text = super(EntsoePandasClient, self).query_contracted_reserve_prices_procured_capacity(
+            country_code=area, start=start, end=end,
+            process_type=process_type, type_marketagreement_type=type_marketagreement_type,
+            psr_type=psr_type, offset=offset)
+        df = parse_contracted_reserve(text, area.tz, "procurement_price.amount")
+        df = df.tz_convert(area.tz)
+        df = df.truncate(before=start, after=end)
+        return df    
 
     @year_limited
     @paginated

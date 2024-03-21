@@ -82,7 +82,7 @@ class EntsoeRawClient:
         -------
         requests.Response
         """
-        prepared_request = self.prepare_base_request(params=params, start=start, end=end)
+        prepared_request = self._prepare_base_request(params=params, start=start, end=end)
         return self._do_prepared_request(prepared_request)
         
     def _do_prepared_request(self, prepared_request: requests.PreparedRequest) -> requests.Response:
@@ -136,7 +136,7 @@ class EntsoeRawClient:
                     raise NoMatchingDataError
             return response
         
-    def prepare_base_request(self, params: Dict, start: pd.Timestamp,
+    def _prepare_base_request(self, params: Dict, start: pd.Timestamp,
                              end: pd.Timestamp) -> requests.PreparedRequest:
         """
         Parameters
@@ -224,7 +224,7 @@ class EntsoeRawClient:
                 'in_Domain': area.code,
                 'out_Domain': area.code
           }
-          return self.prepare_base_request(params=params, start=start, end=end)
+          return self._prepare_base_request(params=params, start=start, end=end)
 
     def query_aggregated_bids(self, country_code: Union[Area, str],
                               process_type: str,

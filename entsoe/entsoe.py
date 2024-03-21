@@ -83,7 +83,18 @@ class EntsoeRawClient:
         requests.Response
         """
         prepared_request = self.prepare_base_request(params=params, start=start, end=end)
-
+        return self._do_prepared_request(prepared_request)
+        
+    def _do_prepared_request(self, prepared_request: requests.PreparedRequest) -> requests.Response:
+        """
+        Parameters
+        ----------
+        prepared_request : requests.PreparedRequest
+        
+        Returns
+        -------
+        requests.Response
+        """
         logger.debug(f'Performing request to {prepared_request.url}')
         response = self.session.send(request=prepared_request,
                                      proxies=self.proxies, timeout=self.timeout)
@@ -116,7 +127,13 @@ class EntsoeRawClient:
                         f"documents and cannot be fulfilled as is.")
             raise e
         else:
-            self.validate_base_response(response)
+            # ENTSO-E has changed their server to also respond with 200 if there is no data but all parameters are valid
+            # this means we need to check the contents for this error even when status code 200 is returned
+            # to prevent parsing the full response do a text matching instead of full parsing
+            # also only do this when response type content is text and not for example a zip file
+            if response.headers.get('content-type', '') == 'application/xml':
+                if 'No matching data found' in response.text:
+                    raise NoMatchingDataError
             return response
         
     def prepare_base_request(self, params: Dict, start: pd.Timestamp,
@@ -147,22 +164,7 @@ class EntsoeRawClient:
             params=params
         )
         return req.prepare()
-    
-    @staticmethod
-    def validate_base_response(response: requests.Response) -> None:
-        """
-        Parameters
-        ----------
-        response : requests.Response
-        """
-        # ENTSO-E has changed their server to also respond with 200 if there is no data but all parameters are valid
-        # this means we need to check the contents for this error even when status code 200 is returned
-        # to prevent parsing the full response do a text matching instead of full parsing
-        # also only do this when response type content is text and not for example a zip file
-        if response.headers.get('content-type', '') == 'application/xml':
-            if 'No matching data found' in response.text:
-                raise NoMatchingDataError
-
+        
     @staticmethod
     def _datetime_to_str(dtm: pd.Timestamp) -> str:
         """
@@ -198,14 +200,31 @@ class EntsoeRawClient:
         -------
         str
         """
-        area = lookup_area(country_code)
-        params = {
-            'documentType': 'A44',
-            'in_Domain': area.code,
-            'out_Domain': area.code
-        }
-        response = self._base_request(params=params, start=start, end=end)
+        prepared_request = self.prepare_query_day_ahead_prices(country_code=country_code,
+                                                               start=start, end=end)
+        response = self._do_prepared_request(prepared_request)
         return response.text
+    
+    def prepare_query_day_ahead_prices(self, country_code: Union[Area, str],
+                                 start: pd.Timestamp, end: pd.Timestamp) -> requests.PreparedRequest:
+          """
+          Parameters
+          ----------
+          country_code : Area|str
+          start : pd.Timestamp
+          end : pd.Timestamp
+    
+          Returns
+          -------
+          requests.PreparedRequest
+          """
+          area = lookup_area(country_code)
+          params = {
+                'documentType': 'A44',
+                'in_Domain': area.code,
+                'out_Domain': area.code
+          }
+          return self.prepare_base_request(params=params, start=start, end=end)
 
     def query_aggregated_bids(self, country_code: Union[Area, str],
                               process_type: str,

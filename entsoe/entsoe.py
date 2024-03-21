@@ -1159,7 +1159,7 @@ class EntsoePandasClient(EntsoeRawClient):
             self, country_code: Union[Area, str],
             start: pd.Timestamp,
             end: pd.Timestamp,
-            resolution: List[Literal['60min', '30min', '15min']] = '60min') -> pd.Series:
+            resolution: Literal['60min', '30min', '15min'] = '60min') -> pd.Series:
         """
         Parameters
         ----------

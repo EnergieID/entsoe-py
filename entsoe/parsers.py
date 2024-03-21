@@ -1,12 +1,13 @@
 import sys
 import zipfile
 from io import BytesIO
-from typing import Union
+from typing import Literal, Union
 import warnings
 import bs4
 from bs4.builder import XMLParsedAsHTMLWarning
 import pandas as pd
 
+from .exceptions import NoMatchingDataError
 from .mappings import PSRTYPE_MAPPINGS, DOCSTATUS, BSNTYPE, Area
 from .series_parsers import _extract_timeseries, _resolution_to_timedelta, _parse_datetimeindex, _parse_timeseries_generic,\
     _parse_timeseries_generic_whole
@@ -18,11 +19,24 @@ CONSUMPTION_ELEMENT = "outBiddingZone_Domain.mRID"
 
 
 
-def parse_prices(xml_text):
+def parse_prices(
+        xml_text: str,
+        tz: str,
+        resolution: Literal['15min', '30min', '60min'],
+        start: pd.Timestamp,
+        end: pd.Timestamp) -> pd.Series:
     """
+    Parse day-ahead prices.
+
+    Also performs tz conversion and truncation.
+
     Parameters
     ----------
     xml_text : str
+    tz : str
+    resolution : Literal['15min', '30min', '60min']
+    start : pd.Timestamp
+    end : pd.Timestamp
 
     Returns
     -------
@@ -40,6 +54,14 @@ def parse_prices(xml_text):
     for freq, freq_series in series.items():
         if len(freq_series) > 0:
             series[freq] = pd.concat(freq_series).sort_index()
+    series = series[resolution]
+    if len(series) == 0:
+        raise NoMatchingDataError
+    series = series.tz_convert(tz)
+    series = series.truncate(before=start, after=end)
+    # because of the above fix we need to check again if any valid data exists after truncating
+    if len(series) == 0:
+        raise NoMatchingDataError
     return series
 
 

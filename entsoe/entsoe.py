@@ -945,6 +945,7 @@ class EntsoeRawClient:
             end: pd.Timestamp, doctype: str, docstatus: Optional[str] = None,
             periodstartupdate: Optional[pd.Timestamp] = None,
             periodendupdate: Optional[pd.Timestamp] = None,
+            mRID=None,
             offset: int = 0) -> bytes:
         """
         Generic unavailibility query method.
@@ -979,6 +980,8 @@ class EntsoeRawClient:
             params['periodStartUpdate'] = self._datetime_to_str(
                 periodstartupdate)
             params['periodEndUpdate'] = self._datetime_to_str(periodendupdate)
+        if mRID:
+            params['mRID'] = mRID
         response = self._base_request(params=params, start=start, end=end)
         return response.content
 
@@ -987,6 +990,7 @@ class EntsoeRawClient:
             end: pd.Timestamp, docstatus: Optional[str] = None,
             periodstartupdate: Optional[pd.Timestamp] = None,
             periodendupdate: Optional[pd.Timestamp] = None,
+            mRID = None,
             offset: int = 0) -> bytes:
         """
         This endpoint serves ZIP files.
@@ -1010,14 +1014,15 @@ class EntsoeRawClient:
         content = self._query_unavailability(
             country_code=country_code, start=start, end=end, doctype="A80",
             docstatus=docstatus, periodstartupdate=periodstartupdate,
-            periodendupdate=periodendupdate, offset=offset)
+            periodendupdate=periodendupdate, mRID=mRID, offset=offset)
         return content
 
     def query_unavailability_of_production_units(
             self, country_code: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp, docstatus: Optional[str] = None,
             periodstartupdate: Optional[pd.Timestamp] = None,
-            periodendupdate: Optional[pd.Timestamp] = None) -> bytes:
+            periodendupdate: Optional[pd.Timestamp] = None,
+            mRID: Optional[str] = None) -> bytes:
         """
         This endpoint serves ZIP files.
         The query is limited to 200 items per request.
@@ -1038,7 +1043,8 @@ class EntsoeRawClient:
         content = self._query_unavailability(
             country_code=country_code, start=start, end=end, doctype="A77",
             docstatus=docstatus, periodstartupdate=periodstartupdate,
-            periodendupdate=periodendupdate)
+            periodendupdate=periodendupdate,
+            mRID = mRID)
         return content
 
     def query_unavailability_transmission(
@@ -1088,7 +1094,7 @@ class EntsoeRawClient:
 
     def query_withdrawn_unavailability_of_generation_units(
             self, country_code: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp) -> bytes:
+            end: pd.Timestamp, mRID: Optional[str] = None) -> bytes:
         """
         Parameters
         ----------
@@ -1102,7 +1108,7 @@ class EntsoeRawClient:
         """
         content = self._query_unavailability(
             country_code=country_code, start=start, end=end,
-            doctype="A80", docstatus='A13')
+            doctype="A80", docstatus='A13', mRID=mRID)
         return content
 
 class EntsoePandasClient(EntsoeRawClient):
@@ -1930,6 +1936,7 @@ class EntsoePandasClient(EntsoeRawClient):
             end: pd.Timestamp, doctype: str, docstatus: Optional[str] = None,
             periodstartupdate: Optional[pd.Timestamp] = None,
             periodendupdate: Optional[pd.Timestamp] = None,
+            mRID: Optional[str] = None,
             offset: int = 0) -> pd.DataFrame:
         """
         Parameters
@@ -1951,7 +1958,7 @@ class EntsoePandasClient(EntsoeRawClient):
         content = super(EntsoePandasClient, self)._query_unavailability(
             country_code=area, start=start, end=end, doctype=doctype,
             docstatus=docstatus, periodstartupdate=periodstartupdate,
-            periodendupdate=periodendupdate, offset=offset)
+            periodendupdate=periodendupdate, mRID=mRID, offset=offset)
         df = parse_unavailabilities(content, doctype)
         df = df.tz_convert(area.tz)
         df['start'] = df['start'].apply(lambda x: x.tz_convert(area.tz))
@@ -1963,7 +1970,8 @@ class EntsoePandasClient(EntsoeRawClient):
             self, country_code: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp, docstatus: Optional[str] = None,
             periodstartupdate: Optional[pd.Timestamp] = None,
-            periodendupdate: Optional[pd.Timestamp] = None) -> pd.DataFrame:
+            periodendupdate: Optional[pd.Timestamp] = None, 
+            mRID = None) -> pd.DataFrame:
         """
         Parameters
         ----------
@@ -1981,14 +1989,15 @@ class EntsoePandasClient(EntsoeRawClient):
         df = self._query_unavailability(
             country_code=country_code, start=start, end=end, doctype="A80",
             docstatus=docstatus, periodstartupdate=periodstartupdate,
-            periodendupdate=periodendupdate)
+            periodendupdate=periodendupdate, mRID=mRID)
         return df
 
     def query_unavailability_of_production_units(
             self, country_code: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp, docstatus: Optional[str] = None,
             periodstartupdate: Optional[pd.Timestamp] = None,
-            periodendupdate: Optional[pd.Timestamp] = None) -> pd.DataFrame:
+            periodendupdate: Optional[pd.Timestamp] = None,
+            mRID: Optional[str] = None) -> pd.DataFrame:
         """
         Parameters
         ----------
@@ -2006,7 +2015,7 @@ class EntsoePandasClient(EntsoeRawClient):
         df = self._query_unavailability(
             country_code=country_code, start=start, end=end, doctype="A77",
             docstatus=docstatus, periodstartupdate=periodstartupdate,
-            periodendupdate=periodendupdate)
+            periodendupdate=periodendupdate, mRID=mRID)
         return df
 
     @paginated

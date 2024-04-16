@@ -106,6 +106,7 @@ class Area(enum.Enum):
     MT =            '10Y1001A1001A93C', 'Malta, Malta BZ / CA / MBA',                   'Europe/Malta',
     ME =            '10YCS-CG-TSO---S', 'Montenegro, CGES BZ / CA / MBA',               'Europe/Podgorica',
     GB =            '10YGB----------A', 'National Grid BZ / CA/ MBA',                   'Europe/London',
+    GE =            '10Y1001A1001B012', 'Georgia',                                      'Asia/Tbilisi',
     GB_IFA =        '10Y1001C--00098F', 'GB(IFA) BZN',                                  'Europe/London',
     GB_IFA2 =       '17Y0000009369493', 'GB(IFA2) BZ',                                  'Europe/London',
     GB_ELECLINK =   '11Y0-0000-0265-K', 'GB(ElecLink) BZN',                             'Europe/London',

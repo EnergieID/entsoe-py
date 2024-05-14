@@ -834,12 +834,11 @@ class EntsoePandasClient(EntsoeRawClient):
         -------
         pd.DataFrame
         """
-        content = super(EntsoePandasClient,
+        df = super(EntsoePandasClient,
                         self).query_unavailability_of_generation_units(
             country_code=country_code, start=start, end=end,
             docstatus=docstatus,  periodstartupdate = periodstartupdate,
             periodendupdate = periodendupdate)
-        df = parse_unavailabilities(content)
         df = df.tz_convert(TIMEZONE_MAPPINGS[country_code])
         df['start'] = df['start'].apply(lambda x: x.tz_convert(TIMEZONE_MAPPINGS[country_code]))
         df['end'] = df['end'].apply(lambda x: x.tz_convert(TIMEZONE_MAPPINGS[country_code]))

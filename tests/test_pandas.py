@@ -1,15 +1,19 @@
 from itertools import product
+import os
 
+from dotenv import load_dotenv
 from entsoe import EntsoePandasClient
 import pandas as pd
 import pytest
 
-from settings import api_key
+load_dotenv()
+
+API_KEY = os.getenv("API_KEY")
 
 
 @pytest.fixture
 def client():
-    yield EntsoePandasClient(api_key=api_key)
+    yield EntsoePandasClient(api_key=API_KEY)
 
 
 @pytest.fixture

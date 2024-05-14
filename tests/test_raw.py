@@ -1,17 +1,21 @@
 from itertools import product
+import os
 
 from bs4 import BeautifulSoup
+from dotenv import load_dotenv
 from entsoe import EntsoeRawClient
 from entsoe.exceptions import PaginationError
 import pandas as pd
 import pytest
 
-from settings import api_key
+load_dotenv()
+
+API_KEY = os.getenv("API_KEY")
 
 
 @pytest.fixture
 def client():
-    yield EntsoeRawClient(api_key=api_key)
+    yield EntsoeRawClient(api_key=API_KEY)
 
 
 def valid_xml(s: str) -> bool:

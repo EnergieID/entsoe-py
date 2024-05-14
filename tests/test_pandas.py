@@ -105,7 +105,7 @@ def test_crossborder_queries(
 def test_query_offered_capacity(client, country_code_from, country_code_to, start, end):
     contract_marketagreement_type = "A01"
     result = client.query_offered_capacity(
-        country_code_from, country_code_to, start, end, contract_marketagreement_type, implicit=True
+        country_code_from, country_code_to, contract_marketagreement_type, start=start, end=end, implicit=True
     )
     assert not result.empty
 

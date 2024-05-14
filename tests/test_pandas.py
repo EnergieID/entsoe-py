@@ -50,11 +50,12 @@ COUNTRY_CODES_TO = ["DE_LU"]  # Germany-Luxembourg
 BASIC_QUERIES_SERIES = [
     "query_day_ahead_prices",
     "query_net_position",
-    "query_load",
-    "query_load_forecast",
+    "query_aggregate_water_reservoirs_and_hydro_storage",
 ]
 
 BASIC_QUERIES_DATAFRAME = [
+    "query_load",
+    "query_load_forecast",
     "query_wind_and_solar_forecast",
     "query_generation_forecast",
     "query_generation",
@@ -100,6 +101,15 @@ def test_crossborder_queries(
     result = getattr(client, query)(country_code_from, country_code_to, start=start, end=end)
     assert not result.empty
 
+
+def test_query_offered_capacity(client, country_code_from, country_code_to, start, end):
+    contract_marketagreement_type = "A01"
+    result = client.query_offered_capacity(
+        country_code_from, country_code_to, start, end, contract_marketagreement_type, implicit=True
+    )
+    assert not result.empty
+
+
 # pandas.DataFrames
 
 @pytest.mark.parametrize(
@@ -114,7 +124,7 @@ def test_basic_queries_dataframe(client, query, country_code, start, end):
 def test_query_contracted_reserve_prices(client, country_code, start, end):
     type_marketagreement_type = "A01"
     result = client.query_contracted_reserve_prices(
-        country_code, start=start, end=end, type_marketagreement_type=type_marketagreement_type
+        country_code, start=start, end=end, type_marketagreement_type=type_marketagreement_type, psr_type=None 
     )
     assert not result.empty
 
@@ -122,7 +132,7 @@ def test_query_contracted_reserve_prices(client, country_code, start, end):
 def test_query_contracted_reserve_amount(client, country_code, start, end):
     type_marketagreement_type = "A01"
     result = client.query_contracted_reserve_amount(
-        country_code, start=start, end=end, type_marketagreement_type=type_marketagreement_type
+        country_code, start=start, end=end, type_marketagreement_type=type_marketagreement_type, psr_type=None
     )
     assert not result.empty
 
@@ -145,6 +155,6 @@ def test_query_procured_balancing_capacity_process_type_not_allowed(client, coun
 def test_query_procured_balancing_capacity(client, country_code, start, end):
     process_type = "A47"
     result = client.query_procured_balancing_capacity(
-        country_code, start=start, end=end, process_type=process_type
+        country_code, start=start, end=end, process_type=process_type, type_marketagreement_type=None
     )
     assert not result.empty

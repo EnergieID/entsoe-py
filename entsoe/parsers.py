@@ -938,11 +938,19 @@ def _available_period(timeseries: bs4.BeautifulSoup) -> list:
     # if not timeseries:
     #    return
     for period in timeseries.find_all('available_period'):
-        start, end = pd.Timestamp(period.timeinterval.start.text), pd.Timestamp(
+        start_p, end_p = pd.Timestamp(period.timeinterval.start.text), pd.Timestamp(
             period.timeinterval.end.text)
         res = period.resolution.text
-        pstn, qty = period.point.position.text, period.point.quantity.text
-        yield [start, end, res, pstn, qty]
+        pts = timeseries.find_all('point')
+        for idx, pt in enumerate(pts):
+            pstn, qty = pt.position.text, pt.quantity.text
+            start = start_p + (pd.Timedelta(res) * (int(pstn) - 1))
+            if idx < (len(pts) - 1):
+                pstn_next = pts[idx + 1].position.text
+                end = start_p + (pd.Timedelta(res) * (int(pstn_next) - 1))
+            else:
+                end = end_p
+            yield [start, end, res, pstn, qty]
 
 
 def _outage_parser(xml_file: bytes, headers, ts_func) -> pd.DataFrame:

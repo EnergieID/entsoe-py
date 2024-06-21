@@ -941,7 +941,7 @@ def _available_period(timeseries: bs4.BeautifulSoup) -> list:
         start_p, end_p = pd.Timestamp(period.timeinterval.start.text), pd.Timestamp(
             period.timeinterval.end.text)
         res = period.resolution.text
-        pts = timeseries.find_all('point')
+        pts = period.find_all('point')
         for idx, pt in enumerate(pts):
             pstn, qty = pt.position.text, pt.quantity.text
             start = start_p + (pd.Timedelta(res) * (int(pstn) - 1))

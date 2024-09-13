@@ -182,7 +182,8 @@ PSRTYPE_MAPPINGS = {
     'B21': 'AC Link',
     'B22': 'DC Link',
     'B23': 'Substation',
-    'B24': 'Transformer'}
+    'B24': 'Transformer',
+    'B25': 'Energy storage'}
 
 # https://transparency.entsoe.eu/content/static_content/Static%20content/web%20api/Guide.html#_docstatus
 DOCSTATUS = {'A01': 'Intermediate',

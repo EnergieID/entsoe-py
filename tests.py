@@ -1,5 +1,6 @@
 import unittest
 
+import numpy as np
 import pandas as pd
 from bs4 import BeautifulSoup
 
@@ -209,6 +210,57 @@ class EntsoePandasClientTest(EntsoeRawClientTest):
                 type_marketagreement_type='A01',
                 start=pd.Timestamp('20240101', tz='Europe/Oslo'),
                 end=pd.Timestamp('20240118', tz='Europe/Oslo'))
+
+    def test_da_prices(self):
+        self.expected_data = [
+            74.18, 72.52, 73.36, 74.20, 72.33, 77.10, 103.00, 127.79,
+            141.37, 116.57, 100.11, 76.39, 68.61, 59.30, 50.00, 49.10,
+            57.88, 77.42, 100.20, 137.24, 123.70, 99.90, 99.90, 90.00
+        ]
+
+        start = pd.Timestamp(year=2024, month=10, day=4).tz_localize("Europe/Paris")
+        end = start + pd.DateOffset(hours=23)
+
+        self.expected_index = pd.date_range(start=start, end=end, freq="h")
+        self.expected_series = pd.Series(data=self.expected_data, index=self.expected_index)
+
+
+        actual_series = self.client.query_day_ahead_prices(country_code="FR", start=start,
+                                           end=end)
+
+        print(actual_series)
+
+        pd.testing.assert_series_equal(actual_series, self.expected_series)
+
+
+    def test_when_starting_value_missing(self):
+
+        with self.assertRaises(AssertionError):
+
+            # Need to think about how to handle missing data. I'm pretty confident this first 40 is actually missing
+            # and has been forward filled. In my opinion, we should replace it with a NaN, rather than forward filling.
+
+            # The reason it hasn't in this case is because there is a buffer in the internal query, so the query isn't
+            # really "starting" on the missing value.
+
+            self.expected_data = [
+                np.nan, 17.80, 8.00, 32.57, 57.17, 77.63, 86.74, 74.61,
+                63.96, 52.65, 40.00, 31.67, 24.47, 15.10, 14.00, 47.88,
+                74.61, 125.98, 122.31, 101.33, 91.48, 84.02
+            ]
+
+            # The data from 2am Paris time is missing and you can see that it has been forward filled on entsoe. I'm
+            # checking that this doesn't fall over.
+
+            start = pd.Timestamp(year=2024, month=10, day=3, hour=2).tz_localize("Europe/Paris")
+            end = pd.Timestamp(year=2024, month=10, day=3, hour=23).tz_localize("Europe/Paris")
+
+            self.expected_index = pd.date_range(start=start, end=end, freq="h")
+            self.expected_series = pd.Series(data=self.expected_data, index=self.expected_index)
+
+            actual_series = self.client.query_day_ahead_prices(country_code="FR", start=start, end=end)
+
+            pd.testing.assert_series_equal(actual_series, self.expected_series)
 
 
 if __name__ == '__main__':

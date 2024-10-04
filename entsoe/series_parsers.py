@@ -40,6 +40,27 @@ def _resolution_to_timedelta(res_text: str) -> str:
                                   "issue.".format(res_text))
     return delta
 
+
+def _timeseries_frequencies_to_timedelta(freq_text: str) -> str:
+    time_mapping = {
+        '15T': '15min',
+        '30T': '30min',
+        '1H': '60min',
+        '1h': '60min',
+        'h': '60min',
+        '0.25H': '15min',
+        '0.5H': '30min',
+    }
+
+    delta = time_mapping.get(freq_text)
+    if delta is None:
+        raise NotImplementedError("Sorry, I don't know what to do with the "
+                                  "resolution '{}', because there was no "
+                                  "documentation to be found of this format. "
+                                  "Everything is hard coded. Please open an "
+                                  "issue.".format(freq_text))
+    return delta
+
 def _parse_datetimeindex(soup, tz=None):
   """
   Create a datetimeindex from a parsed beautifulsoup,
@@ -80,27 +101,79 @@ def _parse_datetimeindex(soup, tz=None):
   return index
 
 def _parse_timeseries_generic(soup, label='quantity', to_float=True):
-    data = {}
-    for point in soup.find_all('point'):
-        value = point.find(label).text
-        if to_float:
-            value = value.replace(',', '')
-        data[int(point.find('position').text)] = value
+    # Create a list to store all time series data
 
-    series = pd.Series(data)
-    series.sort_index()
-    index = _parse_datetimeindex(soup)
+    # Fun fact: the <timeinterval> don't seem to be sorted. So earlier time intervals are not necessarily before
+    # later time intervals. Weird!
+
+    all_data = []
+
+    overall_start = pd.Timestamp(year=2300, month=1, day=1).tz_localize("Europe/Amsterdam")
+    overall_end = pd.Timestamp(year=1900, month=1, day=1).tz_localize("Europe/Amsterdam")
+
+    # Iterate over each period
+    for period in soup.find_all("period"):
+
+        # For each period, I'm checking which start time it corresponds to.
+        start_time_str = period.find("start").text
+        end_time_str = period.find("end").text
+        resolution_str = period.find("resolution").text  # PT6H, PT30M, etc.
+        start_time = pd.to_datetime(start_time_str)
+        end_time = pd.to_datetime(end_time_str)
+
+
+        # I'm keeping track of the overall intended start and the intended end point, incase the data for the intended
+        # start/end has gone missing.
+        #
+        if start_time < overall_start:
+            overall_start = start_time
+
+        if end_time > overall_end:
+            overall_end = end_time
+
+        # Convert ISO 8601 duration to a pandas Timedelta
+        resolution_timedelta = pd.to_timedelta(resolution_str)
+
+        # Loop over each point and extract position
+        for point in period.find_all("point"):
+            position = int(point.find("position").text)
+            value = point.find(label).text
+            if to_float:
+                value = float(value)
+
+            # Calculate the timestamp for this point based on the position and resolution
+            timestamp = start_time + resolution_timedelta * (position - 1)
+
+            # Append the data
+            all_data.append([timestamp, value])
+
+    # Create a DataFrame from the combined data
+    df_combined = pd.DataFrame(all_data, columns=['Timestamp', label])
+
+    # Reindex the DataFrame to include the complete range
+    df_combined.set_index('Timestamp', inplace=True)
+
     if soup.find('curvetype').text == 'A03':
         # with A03 its possible that positions are missing, this is when values are repeated
         # see docs: https://eepublicdownloads.entsoe.eu/clean-documents/EDI/Library/cim_based/Introduction_of_different_Timeseries_possibilities__curvetypes__with_ENTSO-E_electronic_document_v1.4.pdf
-        # so lets do reindex on a continious range which creates gaps if positions are missing
-        # then forward fill, so repeat last valid value, to fill the gaps
-        series = series.reindex(list(range(1, len(index)+1))).ffill()
+        # I am creating a range from the
 
-    series.index = index
-    if to_float:
-        series = series.astype(float)
+        # Create a complete date range for the specified periods using the maximum resolution. If I hadn't logged
+        # the overall start and end, the index would have been the wrong length if either of these edge cases
+        # were missing in the data returned from Entsoe. Given that we are using a forward fill, if the first value is
+        # missing, it should show as NaN.
 
+        complete_range = pd.date_range(start=overall_start,
+                                       end=overall_end,
+                                       freq=resolution_timedelta)
+
+        df_combined = df_combined.reindex(complete_range)
+
+        # Forward fill missing values
+        df_combined[label] = df_combined[label].ffill()
+
+    series = df_combined[label]
+    series.name = None
     return series
 
 def _parse_timeseries_generic_whole(xml_text, label='quantity', to_float=True):

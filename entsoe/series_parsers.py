@@ -108,8 +108,8 @@ def _parse_timeseries_generic(soup, label='quantity', to_float=True):
 
     all_data = []
 
-    overall_start = pd.Timestamp(year=2300, month=1, day=1).tz_localize("Europe/Amsterdam")
-    overall_end = pd.Timestamp(year=1900, month=1, day=1).tz_localize("Europe/Amsterdam")
+    overall_start = pd.Timestamp(year=2300, month=1, day=1).tz_localize("utc")
+    overall_end = pd.Timestamp(year=1900, month=1, day=1).tz_localize("utc")
 
     # Iterate over each period
     for period in soup.find_all("period"):

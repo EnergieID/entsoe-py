@@ -82,19 +82,22 @@ class EntsoeRawClient:
         -------
         requests.Response
         """
-        start_str = self._datetime_to_str(start)
-        end_str = self._datetime_to_str(end)
-
-        base_params = {
-            'securityToken': self.api_key,
-            'periodStart': start_str,
-            'periodEnd': end_str
-        }
-        params.update(base_params)
-
-        logger.debug(f'Performing request to {URL} with params {params}')
-        response = self.session.get(url=URL, params=params,
-                                    proxies=self.proxies, timeout=self.timeout)
+        prepared_request = self._prepare_base_request(params=params, start=start, end=end)
+        return self._do_prepared_request(prepared_request)
+        
+    def _do_prepared_request(self, prepared_request: requests.PreparedRequest) -> requests.Response:
+        """
+        Parameters
+        ----------
+        prepared_request : requests.PreparedRequest
+        
+        Returns
+        -------
+        requests.Response
+        """
+        logger.debug(f'Performing request to {prepared_request.url}')
+        response = self.session.send(request=prepared_request,
+                                     proxies=self.proxies, timeout=self.timeout)
         try:
             response.raise_for_status()
         except requests.HTTPError as e:
@@ -132,7 +135,36 @@ class EntsoeRawClient:
                 if 'No matching data found' in response.text:
                     raise NoMatchingDataError
             return response
+        
+    def _prepare_base_request(self, params: Dict, start: pd.Timestamp,
+                             end: pd.Timestamp) -> requests.PreparedRequest:
+        """
+        Parameters
+        ----------
+        params : dict
+        start : pd.Timestamp
+        end : pd.Timestamp
+        
+        Returns
+        -------
+        requests.PreparedRequest
+        """
+        start_str = self._datetime_to_str(start)
+        end_str = self._datetime_to_str(end)
 
+        base_params = {
+            'securityToken': self.api_key,
+            'periodStart': start_str,
+            'periodEnd': end_str
+        }
+        params.update(base_params)
+        req = requests.Request(
+            method='GET',
+            url=URL,
+            params=params
+        )
+        return req.prepare()
+        
     @staticmethod
     def _datetime_to_str(dtm: pd.Timestamp) -> str:
         """
@@ -168,14 +200,31 @@ class EntsoeRawClient:
         -------
         str
         """
-        area = lookup_area(country_code)
-        params = {
-            'documentType': 'A44',
-            'in_Domain': area.code,
-            'out_Domain': area.code
-        }
-        response = self._base_request(params=params, start=start, end=end)
+        prepared_request = self.prepare_query_day_ahead_prices(country_code=country_code,
+                                                               start=start, end=end)
+        response = self._do_prepared_request(prepared_request)
         return response.text
+    
+    def prepare_query_day_ahead_prices(self, country_code: Union[Area, str],
+                                 start: pd.Timestamp, end: pd.Timestamp) -> requests.PreparedRequest:
+          """
+          Parameters
+          ----------
+          country_code : Area|str
+          start : pd.Timestamp
+          end : pd.Timestamp
+    
+          Returns
+          -------
+          requests.PreparedRequest
+          """
+          area = lookup_area(country_code)
+          params = {
+                'documentType': 'A44',
+                'in_Domain': area.code,
+                'out_Domain': area.code
+          }
+          return self._prepare_base_request(params=params, start=start, end=end)
 
     def query_aggregated_bids(self, country_code: Union[Area, str],
                               process_type: str,
@@ -1226,14 +1275,13 @@ class EntsoePandasClient(EntsoeRawClient):
             start=start-pd.Timedelta(days=1),
             end=end+pd.Timedelta(days=1)
         )
-        series = parse_prices(text)[resolution]
-        if len(series) == 0:
-            raise NoMatchingDataError
-        series = series.tz_convert(area.tz)
-        series = series.truncate(before=start, after=end)
-        # because of the above fix we need to check again if any valid data exists after truncating
-        if len(series) == 0:
-            raise NoMatchingDataError
+        series = parse_prices(
+            xml_text=text,
+            tz=area.tz,
+            resolution=resolution,
+            start=start,
+            end=end
+        )
         return series
 
     @year_limited

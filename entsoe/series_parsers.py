@@ -1,6 +1,6 @@
 import bs4
 import pandas as pd
-
+from functools import reduce
 
 def _extract_timeseries(xml_text):
     """
@@ -80,6 +80,13 @@ def _parse_datetimeindex(soup, tz=None):
   return index
 
 def _parse_timeseries_generic(soup, label='quantity', to_float=True):
+    periods = []
+    for period in soup.find_all('period'):
+        period_soup = bs4.BeautifulSoup(str(period), 'html.parser')
+        periods.append(_parse_timeseries_generic_period(period_soup, soup, label, to_float))
+    return reduce(lambda s1, s2: s1.combine_first(s2), periods)
+
+def _parse_timeseries_generic_period(soup, whole_soup, label='quantity', to_float=True):
     data = {}
     for point in soup.find_all('point'):
         value = point.find(label).text
@@ -90,7 +97,7 @@ def _parse_timeseries_generic(soup, label='quantity', to_float=True):
     series = pd.Series(data)
     series.sort_index()
     index = _parse_datetimeindex(soup)
-    if soup.find('curvetype').text == 'A03':
+    if whole_soup.find('curvetype').text == 'A03':
         # with A03 its possible that positions are missing, this is when values are repeated
         # see docs: https://eepublicdownloads.entsoe.eu/clean-documents/EDI/Library/cim_based/Introduction_of_different_Timeseries_possibilities__curvetypes__with_ENTSO-E_electronic_document_v1.4.pdf
         # so lets do reindex on a continious range which creates gaps if positions are missing

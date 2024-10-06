@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 warnings.filterwarnings('ignore', category=XMLParsedAsHTMLWarning)
 
 __title__ = "entsoe-py"
-__version__ = "0.6.8"
+__version__ = "0.6.9"
 __author__ = "EnergieID.be, Frank Boerman"
 __license__ = "MIT"
 
@@ -1152,7 +1152,7 @@ class EntsoeRawClient:
 class EntsoePandasClient(EntsoeRawClient):
     @year_limited
     def query_net_position(self, country_code: Union[Area, str],
-                            start: pd.Timestamp, end: pd.Timestamp, dayahead: bool = True) -> pd.Series:
+                            start: pd.Timestamp, end: pd.Timestamp, dayahead: bool = True, resolution: Literal['60min', '30min', '15min'] = '60min') -> pd.Series:
         """
 
         Parameters
@@ -1168,7 +1168,7 @@ class EntsoePandasClient(EntsoeRawClient):
         area = lookup_area(country_code)
         text = super(EntsoePandasClient, self).query_net_position(
             country_code=area, start=start, end=end, dayahead=dayahead)
-        series = parse_netpositions(text)
+        series = parse_netpositions(text, resolution=resolution)
         series = series.tz_convert(area.tz)
         series = series.truncate(before=start, after=end)
         return series

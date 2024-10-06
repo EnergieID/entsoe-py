@@ -17,7 +17,6 @@ GENERATION_ELEMENT = "inBiddingZone_Domain.mRID"
 CONSUMPTION_ELEMENT = "outBiddingZone_Domain.mRID"
 
 
-
 def parse_prices(xml_text):
     """
     Parameters
@@ -35,15 +34,18 @@ def parse_prices(xml_text):
     }
     for soup in _extract_timeseries(xml_text):
         soup_series = _parse_timeseries_generic(soup, 'price.amount')
-        series[soup_series.index.freqstr].append(soup_series)
+        for key in series.keys():
+            series[key].append(soup_series[key])
 
     for freq, freq_series in series.items():
-        if len(freq_series) > 0:
+        try:
             series[freq] = pd.concat(freq_series).sort_index()
+        except ValueError:
+            series[freq] = pd.Series()
     return series
 
 
-def parse_netpositions(xml_text):
+def parse_netpositions(xml_text, resolution):
     """
 
     Parameters
@@ -56,7 +58,7 @@ def parse_netpositions(xml_text):
     """
     series_all = []
     for soup in _extract_timeseries(xml_text):
-        series = _parse_timeseries_generic(soup)
+        series = _parse_timeseries_generic(soup)[resolution]
         if 'REGION' in soup.find('out_domain.mrid').text:
             factor = -1  # flow is import so negative
         else:
@@ -692,7 +694,7 @@ def _parse_load_timeseries(soup):
     -------
     pd.Series
     """
-    return _parse_timeseries_generic(soup)
+    return _parse_timeseries_generic(soup, merge_series=True)
 
 def _parse_generation_timeseries(soup, per_plant: bool = False, include_eic: bool = False) -> pd.Series:
     """
@@ -707,7 +709,10 @@ def _parse_generation_timeseries(soup, per_plant: bool = False, include_eic: boo
     -------
     pd.Series
     """
-    series = _parse_timeseries_generic(soup)
+    # should never have duplicated timestamps when differing time resolution.
+    # so simply concat all possibilities
+    series = _parse_timeseries_generic(soup, merge_series=True)
+
 
     # Check if there is a psrtype, if so, get it.
     _psrtype = soup.find('psrtype')

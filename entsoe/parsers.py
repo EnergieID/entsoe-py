@@ -59,6 +59,8 @@ def parse_netpositions(xml_text, resolution):
     series_all = []
     for soup in _extract_timeseries(xml_text):
         series = _parse_timeseries_generic(soup)[resolution]
+        if series is None:
+            continue
         if 'REGION' in soup.find('out_domain.mrid').text:
             factor = -1  # flow is import so negative
         else:

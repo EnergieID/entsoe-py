@@ -69,7 +69,8 @@ def parse_netpositions(xml_text, resolution):
         # take the absolute value and correct for region
         #TODO: possible change this or remove this warning after helpdesk got back to me
         series_all.append(factor*series.abs())
-
+    if len(series_all) == 0:
+        return pd.Series()
     series_all = pd.concat(series_all).sort_index()
     return series_all
 

@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 warnings.filterwarnings('ignore', category=XMLParsedAsHTMLWarning)
 
 __title__ = "entsoe-py"
-__version__ = "0.6.10"
+__version__ = "0.6.11"
 __author__ = "EnergieID.be, Frank Boerman"
 __license__ = "MIT"
 
@@ -1169,6 +1169,8 @@ class EntsoePandasClient(EntsoeRawClient):
         text = super(EntsoePandasClient, self).query_net_position(
             country_code=area, start=start, end=end, dayahead=dayahead)
         series = parse_netpositions(text, resolution=resolution)
+        if len(series) == 0:
+            raise NoMatchingDataError
         series = series.tz_convert(area.tz)
         series = series.truncate(before=start, after=end)
         return series

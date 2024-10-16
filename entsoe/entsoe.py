@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 warnings.filterwarnings('ignore', category=XMLParsedAsHTMLWarning)
 
 __title__ = "entsoe-py"
-__version__ = "0.6.11"
+__version__ = "0.6.12"
 __author__ = "EnergieID.be, Frank Boerman"
 __license__ = "MIT"
 
@@ -156,7 +156,8 @@ class EntsoeRawClient:
         return ret_str
 
     def query_day_ahead_prices(self, country_code: Union[Area, str],
-                               start: pd.Timestamp, end: pd.Timestamp) -> str:
+                               start: pd.Timestamp, end: pd.Timestamp,
+                               offset: int = 0) -> str:
         """
         Parameters
         ----------
@@ -172,7 +173,8 @@ class EntsoeRawClient:
         params = {
             'documentType': 'A44',
             'in_Domain': area.code,
-            'out_Domain': area.code
+            'out_Domain': area.code,
+            'offset': offset
         }
         response = self._base_request(params=params, start=start, end=end)
         return response.text
@@ -1199,8 +1201,8 @@ class EntsoePandasClient(EntsoeRawClient):
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df
-    
-    @year_limited
+
+    # we need to do offset, but we also want to pad the days so wrap it in an internal call
     def query_day_ahead_prices(
             self, country_code: Union[Area, str],
             start: pd.Timestamp,
@@ -1223,17 +1225,34 @@ class EntsoePandasClient(EntsoeRawClient):
             raise InvalidParameterError('Please choose either 60min, 30min or 15min')
         area = lookup_area(country_code)
         # we do here extra days at start and end to fix issue 187
-        text = super(EntsoePandasClient, self).query_day_ahead_prices(
-            country_code=area,
+        series = self._query_day_ahead_prices(
+            area,
             start=start-pd.Timedelta(days=1),
-            end=end+pd.Timedelta(days=1)
+            end=end+pd.Timedelta(days=1),
+            resolution=resolution
         )
-        series = parse_prices(text)[resolution]
-        if len(series) == 0:
-            raise NoMatchingDataError
-        series = series.tz_convert(area.tz)
         series = series.truncate(before=start, after=end)
         # because of the above fix we need to check again if any valid data exists after truncating
+        if len(series) == 0:
+            raise NoMatchingDataError
+        return series
+
+    @year_limited
+    @documents_limited(100)
+    def _query_day_ahead_prices(
+            self, area: Area,
+            start: pd.Timestamp,
+            end: pd.Timestamp,
+            resolution: Literal['60min', '30min', '15min'] = '60min',
+            offset: int = 0) -> pd.Series:
+        text = super(EntsoePandasClient, self).query_day_ahead_prices(
+            area,
+            start=start,
+            end=end,
+            offset=offset
+        )
+        series = parse_prices(text)[resolution]
+
         if len(series) == 0:
             raise NoMatchingDataError
         return series

@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 warnings.filterwarnings('ignore', category=XMLParsedAsHTMLWarning)
 
 __title__ = "entsoe-py"
-__version__ = "0.6.12"
+__version__ = "0.6.13"
 __author__ = "EnergieID.be, Frank Boerman"
 __license__ = "MIT"
 
@@ -1231,6 +1231,7 @@ class EntsoePandasClient(EntsoeRawClient):
             end=end+pd.Timedelta(days=1),
             resolution=resolution
         )
+        series = series.tz_convert(area.tz)
         series = series.truncate(before=start, after=end)
         # because of the above fix we need to check again if any valid data exists after truncating
         if len(series) == 0:

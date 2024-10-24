@@ -31,6 +31,7 @@ def _resolution_to_timedelta(res_text: str) -> str:
         'P1D': '1D',
         'P7D': '7D',
         'P1M': '1MS',
+        'PT1M': '1min'
     }
     delta = resolutions.get(res_text)
     if delta is None:
@@ -82,14 +83,14 @@ def _parse_datetimeindex(soup, tz=None):
     return index
 
 
-def _parse_timeseries_generic(soup, label='quantity', to_float=True, merge_series=False):
+def _parse_timeseries_generic(soup, label='quantity', to_float=True, merge_series=False, period_name='period'):
     series = {
         '15min': [],
         '30min': [],
         '60min': []
     }
 
-    for period in soup.find_all('period'):
+    for period in soup.find_all(period_name):
         data = {}
         start = pd.Timestamp(period.find('start').text)
         end = pd.Timestamp(period.find('end').text)

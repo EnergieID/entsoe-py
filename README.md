@@ -57,6 +57,7 @@ client.query_imbalance_prices(country_code, start, end, psr_type=None)
 client.query_unavailability_of_generation_units(country_code, start, end, docstatus=None, periodstartupdate=None, periodendupdate=None)
 client.query_unavailability_of_production_units(country_code, start, end, docstatus=None, periodstartupdate=None, periodendupdate=None)
 client.query_unavailability_transmission(country_code_from, country_code_to, start, end, docstatus=None, periodstartupdate=None, periodendupdate=None)
+client.query_unavailability_of_offshore_grid(area_code, start, end)
 client.query_withdrawn_unavailability_of_generation_units(country_code, start, end)
 ```
 #### Dump result to file
@@ -134,6 +135,7 @@ client.query_unavailability_of_generation_units(country_code, start=start, end=e
 client.query_unavailability_of_production_units(country_code, start, end, docstatus=None, periodstartupdate=None, periodendupdate=None)
 client.query_unavailability_transmission(country_code_from, country_code_to, start=start, end=end, docstatus=None, periodstartupdate=None, periodendupdate=None)
 client.query_withdrawn_unavailability_of_generation_units(country_code, start, end)
+client.query_unavailability_of_offshore_grid(area_code, start, end)
 client.query_physical_crossborder_allborders(country_code, start, end, export=True)
 client.query_generation_import(country_code, start, end)
 client.query_procured_balancing_capacity(country_code, process_type, start=start, end=end, type_marketagreement_type=None)

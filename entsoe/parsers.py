@@ -942,6 +942,21 @@ def parse_unavailabilities(response: bytes, doctype: str) -> pd.DataFrame:
     return df
 
 
+def parse_offshore_unavailability(response: bytes) -> pd.DataFrame:
+    """
+    offshore has slightly different structure so use seperate parser. this also enables using the new generic parsers as well
+    """
+    df = {}
+    with zipfile.ZipFile(BytesIO(response), 'r') as arc:
+        for f in arc.infolist():
+            if f.filename.endswith('xml'):
+                for series in _extract_timeseries(arc.read(f)):
+                    asset = series.find('Asset_RegisteredResource'.lower())
+                    name = "|".join([asset.find(x).text for x in ['mrid', 'name', 'location.name']])
+                    df[name] = _parse_timeseries_generic(series, merge_series=True, period_name='windpowerfeedin_period')
+    return pd.DataFrame(df)
+
+
 def _available_period(timeseries: bs4.BeautifulSoup) -> list:
     # if not timeseries:
     #    return

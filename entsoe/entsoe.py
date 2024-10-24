@@ -15,7 +15,8 @@ from .parsers import parse_prices, parse_loads, parse_generation, \
     parse_installed_capacity_per_plant, parse_crossborder_flows, \
     parse_unavailabilities, parse_contracted_reserve, parse_imbalance_prices_zip, \
     parse_imbalance_volumes_zip, parse_netpositions, parse_procured_balancing_capacity, \
-    parse_water_hydro,parse_aggregated_bids, parse_activated_balancing_energy_prices
+    parse_water_hydro,parse_aggregated_bids, parse_activated_balancing_energy_prices, \
+    parse_offshore_unavailability
 from .decorators import retry, paginated, year_limited, day_limited, documents_limited
 import warnings
 
@@ -23,7 +24,7 @@ logger = logging.getLogger(__name__)
 warnings.filterwarnings('ignore', category=XMLParsedAsHTMLWarning)
 
 __title__ = "entsoe-py"
-__version__ = "0.6.14"
+__version__ = "0.6.15"
 __author__ = "EnergieID.be, Frank Boerman"
 __license__ = "MIT"
 
@@ -1057,6 +1058,11 @@ class EntsoeRawClient:
             periodendupdate=periodendupdate, mRID=mRID, offset=offset)
         return content
 
+    def query_unavailability_of_offshore_grid(self, area_code: Union[Area, str], start: pd.Timestamp, end: pd.Timestamp):
+        return self._query_unavailability(
+            country_code=area_code, start=start, end=end, doctype='A79'
+        )
+
     def query_unavailability_of_production_units(
             self, country_code: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp, docstatus: Optional[str] = None,
@@ -2066,6 +2072,16 @@ class EntsoePandasClient(EntsoeRawClient):
         df['end'] = df['end'].apply(lambda x: x.tz_convert(area.tz))
         df = df[(df['start'] < end) | (df['end'] > start)]
         return df
+
+    def query_unavailability_of_offshore_grid(self, area_code: Union[Area, str],
+                                              start: pd.Timestamp, end: pd.Timestamp
+                                              ) -> pd.DataFrame:
+        zipfile = super(EntsoePandasClient, self)._query_unavailability(
+            country_code=area_code, start=start, end=end, doctype='A79'
+        )
+        df = parse_offshore_unavailability(zipfile)
+        return df
+
 
     def query_unavailability_of_generation_units(
             self, country_code: Union[Area, str], start: pd.Timestamp,

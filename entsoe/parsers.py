@@ -17,7 +17,6 @@ GENERATION_ELEMENT = "inBiddingZone_Domain.mRID"
 CONSUMPTION_ELEMENT = "outBiddingZone_Domain.mRID"
 
 
-
 def parse_prices(xml_text):
     """
     Parameters
@@ -35,15 +34,18 @@ def parse_prices(xml_text):
     }
     for soup in _extract_timeseries(xml_text):
         soup_series = _parse_timeseries_generic(soup, 'price.amount')
-        series[soup_series.index.freqstr].append(soup_series)
+        for key in series.keys():
+            series[key].append(soup_series[key])
 
     for freq, freq_series in series.items():
-        if len(freq_series) > 0:
+        try:
             series[freq] = pd.concat(freq_series).sort_index()
+        except ValueError:
+            series[freq] = pd.Series()
     return series
 
 
-def parse_netpositions(xml_text):
+def parse_netpositions(xml_text, resolution):
     """
 
     Parameters
@@ -56,7 +58,9 @@ def parse_netpositions(xml_text):
     """
     series_all = []
     for soup in _extract_timeseries(xml_text):
-        series = _parse_timeseries_generic(soup)
+        series = _parse_timeseries_generic(soup)[resolution]
+        if series is None:
+            continue
         if 'REGION' in soup.find('out_domain.mrid').text:
             factor = -1  # flow is import so negative
         else:
@@ -65,7 +69,8 @@ def parse_netpositions(xml_text):
         # take the absolute value and correct for region
         #TODO: possible change this or remove this warning after helpdesk got back to me
         series_all.append(factor*series.abs())
-
+    if len(series_all) == 0:
+        return pd.Series()
     series_all = pd.concat(series_all).sort_index()
     return series_all
 
@@ -692,7 +697,7 @@ def _parse_load_timeseries(soup):
     -------
     pd.Series
     """
-    return _parse_timeseries_generic(soup)
+    return _parse_timeseries_generic(soup, merge_series=True)
 
 def _parse_generation_timeseries(soup, per_plant: bool = False, include_eic: bool = False) -> pd.Series:
     """
@@ -707,7 +712,10 @@ def _parse_generation_timeseries(soup, per_plant: bool = False, include_eic: boo
     -------
     pd.Series
     """
-    series = _parse_timeseries_generic(soup)
+    # should never have duplicated timestamps when differing time resolution.
+    # so simply concat all possibilities
+    series = _parse_timeseries_generic(soup, merge_series=True)
+
 
     # Check if there is a psrtype, if so, get it.
     _psrtype = soup.find('psrtype')
@@ -932,6 +940,21 @@ def parse_unavailabilities(response: bytes, doctype: str) -> pd.DataFrame:
     df.set_index('created_doc_time', inplace=True)
     df.sort_index(inplace=True)
     return df
+
+
+def parse_offshore_unavailability(response: bytes) -> pd.DataFrame:
+    """
+    offshore has slightly different structure so use seperate parser. this also enables using the new generic parsers as well
+    """
+    df = {}
+    with zipfile.ZipFile(BytesIO(response), 'r') as arc:
+        for f in arc.infolist():
+            if f.filename.endswith('xml'):
+                for series in _extract_timeseries(arc.read(f)):
+                    asset = series.find('Asset_RegisteredResource'.lower())
+                    name = "|".join([asset.find(x).text for x in ['mrid', 'name', 'location.name']])
+                    df[name] = _parse_timeseries_generic(series, merge_series=True, period_name='windpowerfeedin_period')
+    return pd.DataFrame(df)
 
 
 def _available_period(timeseries: bs4.BeautifulSoup) -> list:

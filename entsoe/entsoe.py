@@ -15,7 +15,8 @@ from .parsers import parse_prices, parse_loads, parse_generation, \
     parse_installed_capacity_per_plant, parse_crossborder_flows, \
     parse_unavailabilities, parse_contracted_reserve, parse_imbalance_prices_zip, \
     parse_imbalance_volumes_zip, parse_netpositions, parse_procured_balancing_capacity, \
-    parse_water_hydro,parse_aggregated_bids, parse_activated_balancing_energy_prices
+    parse_water_hydro,parse_aggregated_bids, parse_activated_balancing_energy_prices, \
+    parse_offshore_unavailability
 from .decorators import retry, paginated, year_limited, day_limited, documents_limited
 import warnings
 
@@ -23,7 +24,7 @@ logger = logging.getLogger(__name__)
 warnings.filterwarnings('ignore', category=XMLParsedAsHTMLWarning)
 
 __title__ = "entsoe-py"
-__version__ = "0.6.8"
+__version__ = "0.6.15"
 __author__ = "EnergieID.be, Frank Boerman"
 __license__ = "MIT"
 
@@ -156,7 +157,8 @@ class EntsoeRawClient:
         return ret_str
 
     def query_day_ahead_prices(self, country_code: Union[Area, str],
-                               start: pd.Timestamp, end: pd.Timestamp) -> str:
+                               start: pd.Timestamp, end: pd.Timestamp,
+                               offset: int = 0) -> str:
         """
         Parameters
         ----------
@@ -172,7 +174,8 @@ class EntsoeRawClient:
         params = {
             'documentType': 'A44',
             'in_Domain': area.code,
-            'out_Domain': area.code
+            'out_Domain': area.code,
+            'offset': offset
         }
         response = self._base_request(params=params, start=start, end=end)
         return response.text
@@ -983,6 +986,7 @@ class EntsoeRawClient:
             end: pd.Timestamp, doctype: str, docstatus: Optional[str] = None,
             periodstartupdate: Optional[pd.Timestamp] = None,
             periodendupdate: Optional[pd.Timestamp] = None,
+            mRID=None,
             offset: int = 0) -> bytes:
         """
         Generic unavailibility query method.
@@ -1017,6 +1021,8 @@ class EntsoeRawClient:
             params['periodStartUpdate'] = self._datetime_to_str(
                 periodstartupdate)
             params['periodEndUpdate'] = self._datetime_to_str(periodendupdate)
+        if mRID:
+            params['mRID'] = mRID
         response = self._base_request(params=params, start=start, end=end)
         return response.content
 
@@ -1025,6 +1031,7 @@ class EntsoeRawClient:
             end: pd.Timestamp, docstatus: Optional[str] = None,
             periodstartupdate: Optional[pd.Timestamp] = None,
             periodendupdate: Optional[pd.Timestamp] = None,
+            mRID = None,
             offset: int = 0) -> bytes:
         """
         This endpoint serves ZIP files.
@@ -1048,14 +1055,20 @@ class EntsoeRawClient:
         content = self._query_unavailability(
             country_code=country_code, start=start, end=end, doctype="A80",
             docstatus=docstatus, periodstartupdate=periodstartupdate,
-            periodendupdate=periodendupdate, offset=offset)
+            periodendupdate=periodendupdate, mRID=mRID, offset=offset)
         return content
+
+    def query_unavailability_of_offshore_grid(self, area_code: Union[Area, str], start: pd.Timestamp, end: pd.Timestamp):
+        return self._query_unavailability(
+            country_code=area_code, start=start, end=end, doctype='A79'
+        )
 
     def query_unavailability_of_production_units(
             self, country_code: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp, docstatus: Optional[str] = None,
             periodstartupdate: Optional[pd.Timestamp] = None,
-            periodendupdate: Optional[pd.Timestamp] = None) -> bytes:
+            periodendupdate: Optional[pd.Timestamp] = None,
+            mRID: Optional[str] = None) -> bytes:
         """
         This endpoint serves ZIP files.
         The query is limited to 200 items per request.
@@ -1076,7 +1089,8 @@ class EntsoeRawClient:
         content = self._query_unavailability(
             country_code=country_code, start=start, end=end, doctype="A77",
             docstatus=docstatus, periodstartupdate=periodstartupdate,
-            periodendupdate=periodendupdate)
+            periodendupdate=periodendupdate,
+            mRID = mRID)
         return content
 
     def query_unavailability_transmission(
@@ -1126,7 +1140,7 @@ class EntsoeRawClient:
 
     def query_withdrawn_unavailability_of_generation_units(
             self, country_code: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp) -> bytes:
+            end: pd.Timestamp, mRID: Optional[str] = None) -> bytes:
         """
         Parameters
         ----------
@@ -1140,13 +1154,13 @@ class EntsoeRawClient:
         """
         content = self._query_unavailability(
             country_code=country_code, start=start, end=end,
-            doctype="A80", docstatus='A13')
+            doctype="A80", docstatus='A13', mRID=mRID)
         return content
 
 class EntsoePandasClient(EntsoeRawClient):
     @year_limited
     def query_net_position(self, country_code: Union[Area, str],
-                            start: pd.Timestamp, end: pd.Timestamp, dayahead: bool = True) -> pd.Series:
+                            start: pd.Timestamp, end: pd.Timestamp, dayahead: bool = True, resolution: Literal['60min', '30min', '15min'] = '60min') -> pd.Series:
         """
 
         Parameters
@@ -1162,7 +1176,9 @@ class EntsoePandasClient(EntsoeRawClient):
         area = lookup_area(country_code)
         text = super(EntsoePandasClient, self).query_net_position(
             country_code=area, start=start, end=end, dayahead=dayahead)
-        series = parse_netpositions(text)
+        series = parse_netpositions(text, resolution=resolution)
+        if len(series) == 0:
+            raise NoMatchingDataError
         series = series.tz_convert(area.tz)
         series = series.truncate(before=start, after=end)
         return series
@@ -1191,8 +1207,8 @@ class EntsoePandasClient(EntsoeRawClient):
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df
-    
-    @year_limited
+
+    # we need to do offset, but we also want to pad the days so wrap it in an internal call
     def query_day_ahead_prices(
             self, country_code: Union[Area, str],
             start: pd.Timestamp,
@@ -1215,17 +1231,35 @@ class EntsoePandasClient(EntsoeRawClient):
             raise InvalidParameterError('Please choose either 60min, 30min or 15min')
         area = lookup_area(country_code)
         # we do here extra days at start and end to fix issue 187
-        text = super(EntsoePandasClient, self).query_day_ahead_prices(
-            country_code=area,
+        series = self._query_day_ahead_prices(
+            area,
             start=start-pd.Timedelta(days=1),
-            end=end+pd.Timedelta(days=1)
+            end=end+pd.Timedelta(days=1),
+            resolution=resolution
         )
-        series = parse_prices(text)[resolution]
-        if len(series) == 0:
-            raise NoMatchingDataError
-        series = series.tz_convert(area.tz)
+        series = series.tz_convert(area.tz).sort_index()
         series = series.truncate(before=start, after=end)
         # because of the above fix we need to check again if any valid data exists after truncating
+        if len(series) == 0:
+            raise NoMatchingDataError
+        return series
+
+    @year_limited
+    @documents_limited(100)
+    def _query_day_ahead_prices(
+            self, area: Area,
+            start: pd.Timestamp,
+            end: pd.Timestamp,
+            resolution: Literal['60min', '30min', '15min'] = '60min',
+            offset: int = 0) -> pd.Series:
+        text = super(EntsoePandasClient, self).query_day_ahead_prices(
+            area,
+            start=start,
+            end=end,
+            offset=offset
+        )
+        series = parse_prices(text)[resolution]
+
         if len(series) == 0:
             raise NoMatchingDataError
         return series
@@ -2009,6 +2043,7 @@ class EntsoePandasClient(EntsoeRawClient):
             end: pd.Timestamp, doctype: str, docstatus: Optional[str] = None,
             periodstartupdate: Optional[pd.Timestamp] = None,
             periodendupdate: Optional[pd.Timestamp] = None,
+            mRID: Optional[str] = None,
             offset: int = 0) -> pd.DataFrame:
         """
         Parameters
@@ -2030,7 +2065,7 @@ class EntsoePandasClient(EntsoeRawClient):
         content = super(EntsoePandasClient, self)._query_unavailability(
             country_code=area, start=start, end=end, doctype=doctype,
             docstatus=docstatus, periodstartupdate=periodstartupdate,
-            periodendupdate=periodendupdate, offset=offset)
+            periodendupdate=periodendupdate, mRID=mRID, offset=offset)
         df = parse_unavailabilities(content, doctype)
         df = df.tz_convert(area.tz)
         df['start'] = df['start'].apply(lambda x: x.tz_convert(area.tz))
@@ -2038,11 +2073,22 @@ class EntsoePandasClient(EntsoeRawClient):
         df = df[(df['start'] < end) | (df['end'] > start)]
         return df
 
+    def query_unavailability_of_offshore_grid(self, area_code: Union[Area, str],
+                                              start: pd.Timestamp, end: pd.Timestamp
+                                              ) -> pd.DataFrame:
+        zipfile = super(EntsoePandasClient, self)._query_unavailability(
+            country_code=area_code, start=start, end=end, doctype='A79'
+        )
+        df = parse_offshore_unavailability(zipfile)
+        return df
+
+
     def query_unavailability_of_generation_units(
             self, country_code: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp, docstatus: Optional[str] = None,
             periodstartupdate: Optional[pd.Timestamp] = None,
-            periodendupdate: Optional[pd.Timestamp] = None) -> pd.DataFrame:
+            periodendupdate: Optional[pd.Timestamp] = None, 
+            mRID = None) -> pd.DataFrame:
         """
         Parameters
         ----------
@@ -2060,14 +2106,15 @@ class EntsoePandasClient(EntsoeRawClient):
         df = self._query_unavailability(
             country_code=country_code, start=start, end=end, doctype="A80",
             docstatus=docstatus, periodstartupdate=periodstartupdate,
-            periodendupdate=periodendupdate)
+            periodendupdate=periodendupdate, mRID=mRID)
         return df
 
     def query_unavailability_of_production_units(
             self, country_code: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp, docstatus: Optional[str] = None,
             periodstartupdate: Optional[pd.Timestamp] = None,
-            periodendupdate: Optional[pd.Timestamp] = None) -> pd.DataFrame:
+            periodendupdate: Optional[pd.Timestamp] = None,
+            mRID: Optional[str] = None) -> pd.DataFrame:
         """
         Parameters
         ----------
@@ -2085,7 +2132,7 @@ class EntsoePandasClient(EntsoeRawClient):
         df = self._query_unavailability(
             country_code=country_code, start=start, end=end, doctype="A77",
             docstatus=docstatus, periodstartupdate=periodstartupdate,
-            periodendupdate=periodendupdate)
+            periodendupdate=periodendupdate, mRID=mRID)
         return df
 
     @paginated

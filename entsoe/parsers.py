@@ -796,9 +796,18 @@ def _parse_crossborder_flows_timeseries(soup):
         positions.append(int(point.find('position').text))
         flows.append(float(point.find('quantity').text))
 
+    # Create series with numeric position index
     series = pd.Series(index=positions, data=flows)
     series = series.sort_index()
-    series.index = _parse_datetimeindex(soup)
+
+    # Get datetime index
+    datetime_index = _parse_datetimeindex(soup)
+
+    # Map position numbers to datetime points
+    series.index = [datetime_index[pos - 1] for pos in series.index]
+
+    # Reindex to full datetime range to ensure all points exist
+    series = series.reindex(datetime_index)
 
     return series
 

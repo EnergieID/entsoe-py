@@ -253,12 +253,8 @@ def parse_crossborder_flows(xml_text):
     -------
     pd.Series
     """
-    series = []
-    for soup in _extract_timeseries(xml_text):
-        series.append(_parse_crossborder_flows_timeseries(soup))
-    series = pd.concat(series)
-    series = series.sort_index()
-    return series
+    return _parse_timeseries_generic_whole(xml_text, to_float=True)
+
     
 def parse_activated_balancing_energy_prices(xml_text):
     """

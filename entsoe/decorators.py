@@ -136,7 +136,7 @@ def year_limited(func):
                     else:
                         interval_mask = (
                             (frame.index <= _end)
-                            & (frame.index > _start)
+                            & (frame.index > frames[-1].index[-1])
                         )
                     frame = frame.loc[interval_mask]
             except NoMatchingDataError:

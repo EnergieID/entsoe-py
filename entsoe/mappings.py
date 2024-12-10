@@ -328,7 +328,7 @@ NEIGHBOURS = {
     'RS': ['AL', 'BA', 'BG', 'HR', 'HU', 'ME', 'MK', 'RO'],
     'PL': ['CZ', 'DE_AT_LU', 'DE_LU', 'LT', 'SE_4', 'SK', 'UA'],
     'ME': ['AL', 'BA', 'RS'],
-    'DK_1': ['DE_AT_LU', 'DE_LU', 'DK_2', 'NO_2', 'SE_3', 'NL'],
+    'DK_1': ['DE_AT_LU', 'DE_LU', 'DK_2', 'NO_2', 'SE_3', 'NL', 'GB'],
     'RO': ['BG', 'HU', 'RS', 'UA'],
     'LT': ['BY', 'LV', 'PL', 'RU_KGD', 'SE_4'],
     'BG': ['GR', 'MK', 'RO', 'RS', 'TR'],

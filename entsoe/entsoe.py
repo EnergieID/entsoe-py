@@ -1186,7 +1186,7 @@ class EntsoePandasClient(EntsoeRawClient):
     @year_limited
     def query_aggregated_bids(self, country_code: Union[Area, str],
                               process_type: str,
-                            start: pd.Timestamp, end: pd.Timestamp) -> pd.Series:
+                              start: pd.Timestamp, end: pd.Timestamp) -> pd.DataFrame:
         """
 
         Parameters

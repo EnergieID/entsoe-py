@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 warnings.filterwarnings('ignore', category=XMLParsedAsHTMLWarning)
 
 __title__ = "entsoe-py"
-__version__ = "0.6.17"
+__version__ = "0.6.18"
 __author__ = "EnergieID.be, Frank Boerman"
 __license__ = "MIT"
 
@@ -1262,14 +1262,16 @@ class EntsoePandasClient(EntsoeRawClient):
         series = series_all[resolution]
         # For now Day Ahead SDAC should always return at least 60 min
         # if there is either no 60 min data at all or 60 and 15/30 but none overlapping then force it to be 60 min
-        if resolution == '60min' and len(series_all['60min']) == 0:
-            for res in ['15min', '30min']:
-                if len(series_all[res]) != 0:
-                    return series_all[res].resample('h').first()
-        elif resolution == '60min' and sum([len(x) > 0 for x in series_all.values()]) > 1:
-            for res in ['15min', '30min']:
-                if len(series_all['60min'].index.intersection(series_all[res])) == 0 and len(series_all[res]) > 0:
-                    return pd.concat([series_all['60min'], series_all[res]]).resample('h').first()
+        # due to the existence of EXAA prices that are published as day ahead, this should not happen for DE_LU and AT!
+        if area.name not in ['DE_LU', 'AT']:
+            if resolution == '60min' and len(series_all['60min']) == 0:
+                for res in ['15min', '30min']:
+                    if len(series_all[res]) != 0:
+                        return series_all[res].resample('h').first()
+            elif resolution == '60min' and sum([len(x) > 0 for x in series_all.values()]) > 1:
+                for res in ['15min', '30min']:
+                    if len(series_all['60min'].index.intersection(series_all[res])) == 0 and len(series_all[res]) > 0:
+                        return pd.concat([series_all['60min'], series_all[res]]).resample('h').first()
 
         if len(series) == 0:
             raise NoMatchingDataError

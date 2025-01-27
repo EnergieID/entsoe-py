@@ -374,7 +374,8 @@ class EntsoeRawClient:
 
     def query_generation_per_plant(
             self, country_code: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp, psr_type: Optional[str] = None, **kwargs) -> str:
+            end: pd.Timestamp, psr_type: Optional[str] = None,
+            eic_code: Optional[str] = None, **kwargs) -> str:
         """
         Parameters
         ----------
@@ -383,6 +384,8 @@ class EntsoeRawClient:
         end : pd.Timestamp
         psr_type : str
             filter on a single psr type
+        eic_code : str
+            filter on a single Generation Unit using its EIC Code
 
         Returns
         -------
@@ -396,6 +399,8 @@ class EntsoeRawClient:
         }
         if psr_type:
             params.update({'psrType': psr_type})
+        if eic_code:
+            params.update({'registeredResource': eic_code})
         response = self._base_request(params=params, start=start, end=end)
         return response.text
 
@@ -2210,7 +2215,8 @@ class EntsoePandasClient(EntsoeRawClient):
             self, country_code: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp, psr_type: Optional[str] = None,
             include_eic: bool = False,
-             **kwargs) -> pd.DataFrame:
+            eic_code: Optional[str] = None,
+            **kwargs) -> pd.DataFrame:
         """
         Parameters
         ----------
@@ -2221,6 +2227,8 @@ class EntsoePandasClient(EntsoeRawClient):
             filter on a single psr type
         include_eic: bool
             if True also include the eic code in the output
+        eic_code : str
+            filter on a single Generation Unit using its EIC Code
 
         Returns
         -------
@@ -2228,7 +2236,9 @@ class EntsoePandasClient(EntsoeRawClient):
         """
         area = lookup_area(country_code)
         text = super(EntsoePandasClient, self).query_generation_per_plant(
-            country_code=area, start=start, end=end, psr_type=psr_type)
+            country_code=area, start=start, end=end, psr_type=psr_type,
+            eic_code=eic_code,
+        )
         df = parse_generation(text, per_plant=True, include_eic=include_eic)
         df.columns = df.columns.set_levels(df.columns.levels[0].str.encode('latin-1').str.decode('utf-8'), level=0)
         df = df.tz_convert(area.tz)

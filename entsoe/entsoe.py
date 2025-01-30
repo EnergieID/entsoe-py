@@ -453,6 +453,33 @@ class EntsoeRawClient:
         response = self._base_request(params=params, start=start, end=end)
         return response.text
 
+    def query_production_and_generation_units(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, psr_type: Optional[str] = None) -> str:
+        """
+        Parameters
+        ----------
+        country_code : Area|str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        psr_type : str
+            filter query for a specific psr type
+
+        Returns
+        -------
+        str
+        """
+        area = lookup_area(country_code)
+        params = {
+            'documentType': 'A95',
+            'businessType': 'B11',
+            'BiddingZone_Domain': area.code,
+        }
+        if psr_type:
+            params.update({'psrType': psr_type})
+        response = self._base_request(params=params, start=start, end=end)
+        return response.text
+
     def query_aggregate_water_reservoirs_and_hydro_storage(self, country_code: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp) -> str:
         """

@@ -30,6 +30,7 @@ class EntsoeRawClientTest(unittest.TestCase):
             self.client.query_generation,
             self.client.query_generation_forecast,
             self.client.query_installed_generation_capacity,
+            self.client.query_production_and_generation_units,
             # these give back a zip so disabled for testing right now
             #self.client.query_imbalance_prices,
             #self.client.query_imbalance_volumes,

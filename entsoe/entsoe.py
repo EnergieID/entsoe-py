@@ -12,7 +12,7 @@ from entsoe.exceptions import InvalidPSRTypeError, InvalidBusinessParameterError
 from .exceptions import NoMatchingDataError, PaginationError
 from .mappings import Area, NEIGHBOURS, lookup_area
 from .parsers import parse_prices, parse_loads, parse_generation, \
-    parse_installed_capacity_per_plant, parse_crossborder_flows, \
+    parse_installed_capacity_per_plant, parse_crossborder_flows, parse_production_and_generation_units, \
     parse_unavailabilities, parse_contracted_reserve, parse_imbalance_prices_zip, \
     parse_imbalance_volumes_zip, parse_netpositions, parse_procured_balancing_capacity, \
     parse_water_hydro,parse_aggregated_bids, parse_activated_balancing_energy_prices, \
@@ -70,28 +70,33 @@ class EntsoeRawClient:
         self.timeout = timeout
 
     @retry
-    def _base_request(self, params: Dict, start: pd.Timestamp,
-                      end: pd.Timestamp) -> requests.Response:
+    def _base_request(self, params: Dict, start: Optional[pd.Timestamp] = None,
+                      end: Optional[pd.Timestamp] = None, Implementation_DateAndOrTime: Optional[pd.Timestamp] = None) -> requests.Response:
         """
         Parameters
         ----------
         params : dict
-        start : pd.Timestamp
-        end : pd.Timestamp
+        start : pd.Timestamp, optional
+        end : pd.Timestamp, optional
+        Implementation_DateAndOrTime : pd.Timestamp, optional
 
         Returns
         -------
         requests.Response
         """
-        start_str = self._datetime_to_str(start)
-        end_str = self._datetime_to_str(end)
+        if start is not None and end is not None:
+            start_str = self._datetime_to_str(start)
+            end_str = self._datetime_to_str(end)
 
-        base_params = {
-            'securityToken': self.api_key,
-            'periodStart': start_str,
-            'periodEnd': end_str
-        }
-        params.update(base_params)
+            base_params = {
+                'securityToken': self.api_key,
+                'periodStart': start_str,
+                'periodEnd': end_str
+            }
+            params.update(base_params)
+        elif Implementation_DateAndOrTime is not None:
+            params["Implementation_DateAndOrTime"] = Implementation_DateAndOrTime.strftime('%Y-%m-%d')
+            params['securityToken'] = self.api_key
 
         logger.debug(f'Performing request to {URL} with params {params}')
         response = self.session.get(url=URL, params=params,
@@ -454,8 +459,8 @@ class EntsoeRawClient:
         return response.text
 
     def query_production_and_generation_units(
-            self, country_code: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp, psr_type: Optional[str] = None) -> str:
+            self, country_code: Union[Area, str], Implementation_DateAndOrTime: pd.Timestamp,
+            psr_type: Optional[str] = None) -> str:
         """
         Parameters
         ----------
@@ -477,7 +482,7 @@ class EntsoeRawClient:
         }
         if psr_type:
             params.update({'psrType': psr_type})
-        response = self._base_request(params=params, start=start, end=end)
+        response = self._base_request(params=params, Implementation_DateAndOrTime=Implementation_DateAndOrTime)
         return response.text
 
     def query_aggregate_water_reservoirs_and_hydro_storage(self, country_code: Union[Area, str], start: pd.Timestamp,
@@ -1519,6 +1524,30 @@ class EntsoePandasClient(EntsoeRawClient):
             country_code=area, start=start, end=end, psr_type=psr_type)
         df = parse_installed_capacity_per_plant(text)
         return df
+
+
+    def query_production_and_generation_units(
+            self, country_code: Union[Area, str], Implementation_DateAndOrTime: pd.Timestamp, psr_type: Optional[str] = None) -> pd.DataFrame:
+        """
+        Parameters
+        ----------
+        country_code : Area|str
+        Implementation_DateAndOrTime : pd.Timestamp
+        psr_type : str
+            filter query for a specific psr type
+
+        Returns
+        -------
+        pd.DataFrame
+        """
+        area = lookup_area(country_code)
+        text = super(
+            EntsoePandasClient,
+            self).query_production_and_generation_units(
+            country_code=area, Implementation_DateAndOrTime=Implementation_DateAndOrTime, psr_type=psr_type)
+        df = parse_production_and_generation_units(text)
+        return df
+
 
     @year_limited
     @paginated

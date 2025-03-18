@@ -228,6 +228,67 @@ def parse_installed_capacity_per_plant(xml_text):
     #    df['Status'] = df['Status'].map(BSNTYPE)
     return df
 
+def parse_production_and_generation_units(xml_text):
+    """
+    Parameters
+    ----------
+    xml_text : str
+
+    Returns
+    ------- 
+    pd.DataFrame
+    """
+    all_series = {}
+    soup = bs4.BeautifulSoup(xml_text, 'xml')
+    for timeseries in soup.find_all('TimeSeries'):
+        mkt_psrtype = timeseries.find('MktPSRType')
+        psrtype = mkt_psrtype.find('psrType').text
+        production_type = PSRTYPE_MAPPINGS.get(psrtype, psrtype)
+        high_voltage_limit = mkt_psrtype.find('production_PowerSystemResources.highVoltageLimit').text
+        nominal_p = mkt_psrtype.find('nominalIP_PowerSystemResources.nominalP').text
+        resource_mrid = timeseries.find('registeredResource.mRID').text
+        resource_name = timeseries.find('registeredResource.name').text
+        resource_location = timeseries.find('registeredResource.location.name').text
+        bidding_zone = timeseries.find('biddingZone_Domain.mRID').text
+        implementation_date = timeseries.find('implementation_DateAndOrTime.date').text
+
+        for generating_unit in mkt_psrtype.find_all('GeneratingUnit_PowerSystemResources'):
+            unit_mrid = generating_unit.find('mRID').text
+            unit_name = generating_unit.find('name').text
+            unit_nominal_p = generating_unit.find('nominalP').text
+            unit_psrtype = generating_unit.find('generatingUnit_PSRType.psrType').text
+            unit_location = generating_unit.find('generatingUnit_Location.name').text
+
+            series = pd.Series({
+                'ValidFrom': implementation_date,
+                'ValidTo': None,  # No valid to date provided
+                'ProductionUnitCode': resource_mrid,
+                'ProductionUnitName': resource_name,
+                'ProductionUnitStatus': None,  # No status provided
+                'ProductionUnitType': production_type,
+                'ProductionUnitLocation': resource_location,
+                'ProductionUnitInstalledCapacity(MW)': nominal_p,
+                'ProductionUnitVoltage(kV)': high_voltage_limit,
+                'AreaCode': bidding_zone,
+                'AreaDisplayName': None,  # No area display name provided
+                'AreaTypeCode': None,  # No area type code provided
+                'MapCode': None,  # No map code provided
+                'GenerationUnitCode': unit_mrid,
+                'GenerationUnitName': unit_name,
+                'GenerationUnitStatus': None,  # No status provided
+                'GenerationUnitType': PSRTYPE_MAPPINGS.get(unit_psrtype, unit_psrtype),
+                'GenerationUnitLocation': unit_location,
+                'GenerationUnitInstalledCapacity(MW)': unit_nominal_p,
+                'UpdateTime(UTC)': None  # No update time provided
+            })
+
+            all_series[unit_mrid] = series
+
+    df = pd.DataFrame.from_dict(all_series, orient='index')
+    df['ProductionUnitName'] = df['ProductionUnitName'].str.encode('latin-1').str.decode('utf-8')
+    df['GenerationUnitName'] = df['GenerationUnitName'].str.encode('latin-1').str.decode('utf-8')
+    return df
+
 
 def parse_water_hydro(xml_text):
     """

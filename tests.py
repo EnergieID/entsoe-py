@@ -12,8 +12,8 @@ class EntsoeRawClientTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.client = EntsoeRawClient(api_key=api_key)
-        cls.start = pd.Timestamp('20180101', tz='Europe/Brussels')
-        cls.end = pd.Timestamp('20180107', tz='Europe/Brussels')
+        cls.start = pd.Timestamp('20230101', tz='Europe/Brussels')
+        cls.end = pd.Timestamp('20240101', tz='Europe/Brussels')
         cls.country_code = 'BE'
 
     def test_datetime_to_str(self):
@@ -74,6 +74,20 @@ class EntsoeRawClientTest(unittest.TestCase):
             process_type='A51'
         )
         self.assertIsInstance(text, bytes)
+        try:
+            BeautifulSoup(text, 'html.parser')
+        except Exception as e:
+            self.fail(f'Parsing of response failed with exception: {e}')
+
+    def test_query_production_and_generation_units(self):
+
+        # start=pd.Timestamp('20210101', tz='Europe/Brussels'),
+        # end=pd.Timestamp('20210102', tz='Europe/Brussels'),
+        Implementation_DateAndOrTime = pd.Timestamp('20210101', tz='Europe/Brussels')
+
+        text = self.client.query_production_and_generation_units(
+            country_code='BE', Implementation_DateAndOrTime=Implementation_DateAndOrTime)
+        self.assertIsInstance(text, str)
         try:
             BeautifulSoup(text, 'html.parser')
         except Exception as e:
@@ -210,6 +224,12 @@ class EntsoePandasClientTest(EntsoeRawClientTest):
                 type_marketagreement_type='A01',
                 start=pd.Timestamp('20240101', tz='Europe/Oslo'),
                 end=pd.Timestamp('20240118', tz='Europe/Oslo'))
+            
+    def test_query_production_and_generation_units(self):
+        Implementation_DateAndOrTime = pd.Timestamp('20210101', tz='Europe/Brussels')
+        ts = self.client.query_production_and_generation_units(
+            country_code='BE', Implementation_DateAndOrTime=Implementation_DateAndOrTime)
+        self.assertIsInstance(ts, pd.DataFrame)
 
 
 if __name__ == '__main__':

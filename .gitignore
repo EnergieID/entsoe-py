@@ -112,3 +112,4 @@ settings.py
 
 # user settings, for example to store api key
 secret.py
+.vscode/settings.json

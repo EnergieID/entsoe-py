@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import Union, Optional, Dict, List, Literal
 
 import pandas as pd
@@ -28,7 +29,7 @@ __version__ = "0.6.18"
 __author__ = "EnergieID.be, Frank Boerman"
 __license__ = "MIT"
 
-URL = 'https://web-api.tp.entsoe.eu/api'
+URL = os.getenv("ENTSOE_ENDPOINT_URL") or "https://web-api.tp.entsoe.eu/api"
 
 
 class EntsoeRawClient:

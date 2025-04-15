@@ -161,3 +161,8 @@ For bidding zone that have changed (splitted/merged) some codes are only valid f
 | DE | No Value | No Value | No Value | No Value | No Value | No Value | No Value |
 | DE_LU | No Value | No Value | No Value | yes | yes | yes | yes |
 | AT | No Value | No Value | No Value | yes | yes | yes | yes |
+
+### Environment variables
+| Variables | Description |
+| -- | -- |
+| ENTSOE_ENDPOINT_URL | Override the default ENTSO-E API endpoint URL. |

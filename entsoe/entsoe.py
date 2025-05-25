@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 warnings.filterwarnings('ignore', category=XMLParsedAsHTMLWarning)
 
 __title__ = "entsoe-py"
-__version__ = "0.6.18"
+__version__ = "0.6.19"
 __author__ = "EnergieID.be, Frank Boerman"
 __license__ = "MIT"
 
@@ -44,7 +44,7 @@ class EntsoeRawClient:
 
     def __init__(
             self, api_key: str, session: Optional[requests.Session] = None,
-            retry_count: int = 1, retry_delay: int = 0,
+            retry_count: int = 3, retry_delay: int = 10,
             proxies: Optional[Dict] = None, timeout: Optional[int] = None):
         """
         Parameters

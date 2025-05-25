@@ -2,7 +2,7 @@ import logging
 from functools import wraps
 from socket import gaierror
 from time import sleep
-
+from http.client import RemoteDisconnected
 import pandas as pd
 import requests
 
@@ -22,7 +22,10 @@ def retry(func):
         for _ in range(self.retry_count):
             try:
                 result = func(*args, **kwargs)
-            except (requests.ConnectionError, gaierror) as e:
+            # Apart from common (ConnectionError and gaierror) errors, in certain
+            # cases (e.g. with scheduled commercial exchanges), the connection with
+            # ENTSO-e's can break with a RemoteDisconnected exception
+            except (requests.ConnectionError, gaierror, RemoteDisconnected) as e:
                 error = e
                 logger.warning(
                     "Connection Error, "

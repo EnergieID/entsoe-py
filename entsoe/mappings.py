@@ -363,4 +363,11 @@ NEIGHBOURS = {
     'IT_CALA': ['IT_SICI', 'IT_SUD'],
     'MT': ['IT_SICI'],
     'HR': ['BA', 'HU', 'RS', 'SI']
+    'AL': ['GR', 'XR', 'ME', 'RS'],
+    'DK': ['DE', 'NL', 'NO', 'SE', 'GB'],
+    'MD': ['RO', 'UA_IPS'],
+    'NO': ['DK', 'FI', 'DE', 'NL', 'SE', 'GB'],
+    'SE': ['DK', 'FI', 'DE', 'LT', 'NO', 'PL'],
+    'UA_IPS': ['BY', 'HU', 'MD', 'PL', 'RO', 'RU', 'SK'],
+    'XK': ['AL', 'ME', 'MK']
 }

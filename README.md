@@ -7,7 +7,7 @@ Documentation of the API found on https://transparency.entsoe.eu/content/static_
 `python3 -m pip install entsoe-py`
 
 ## Usage
-The package comes with 2 clients:
+The package comes with 2 clients for the REST API:
 - [`EntsoeRawClient`](#EntsoeRawClient): Returns data in its raw format, usually XML or a ZIP-file containing XML's
 - [`EntsoePandasClient`](#EntsoePandasClient): Returns data parsed as a Pandas Series or DataFrame
 ### <a name="EntsoeRawClient"></a>EntsoeRawClient
@@ -146,6 +146,23 @@ See a list of all IO-methods on https://pandas.pydata.org/pandas-docs/stable/io.
 ```python
 ts = client.query_day_ahead_prices(country_code, start=start, end=end)
 ts.to_csv('outfile.csv')
+```
+
+### Download from ENTSOE File Library
+To download from the file libary, which replaced the old SFTP use the ```files``` subpackage with the ```EntsoeFileClient```
+
+```python
+from entsoe.files import EntsoeFileClient
+
+client = EntsoeFileClient(username=<YOUR ENTSOE USERNAME>, pwd=<YOUR ENTSOE PASSWORD>)
+# this returns a dict of {filename: unique_id}:
+file_list = client.list_folder('AcceptedAggregatedOffers_17.1.D')
+
+# either download one file by name:
+df = client.download_single_file(folder='AcceptedAggregatedOffers_17.1.D', filename=list(file_list.keys())[0])
+
+# or download multiple by unique_id:
+df = client.download_multiple_files(['a1a82b3f-c453-4181-8d20-ad39c948d4b0', '64e47e15-bac6-4212-b2dd-9667bdf33b5d'])
 ```
 
 ### Mappings

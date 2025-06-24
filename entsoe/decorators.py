@@ -139,16 +139,16 @@ def year_limited(func):
                     else:
                         interval_mask = (
                             (frame.index <= _end)
-                            & (frame.index > _start)
+                            & (frame.index > frames[-1].index[-1])
                         )
                     frame = frame.loc[interval_mask]
+                is_first_frame = False
             except NoMatchingDataError:
                 logger.debug(
                     f"NoMatchingDataError: between {_start} and {_end}"
                 )
                 frame = None
             frames.append(frame)
-            is_first_frame = False
 
         if sum([f is None for f in frames]) == len(frames):
             # All the data returned are void

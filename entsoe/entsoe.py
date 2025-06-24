@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 warnings.filterwarnings('ignore', category=XMLParsedAsHTMLWarning)
 
 __title__ = "entsoe-py"
-__version__ = "0.6.19"
+__version__ = "0.7.0"
 __author__ = "EnergieID.be, Frank Boerman"
 __license__ = "MIT"
 
@@ -65,6 +65,9 @@ class EntsoeRawClient:
         if session is None:
             session = requests.Session()
         self.session = session
+        self.session.headers.update({
+            'user-agent': f'entsoe-py {__version__} (github.com/EnergieID/entsoe-py)'
+        })
         self.proxies = proxies
         self.retry_count = retry_count
         self.retry_delay = retry_delay

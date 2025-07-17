@@ -598,13 +598,13 @@ def _parse_imbalance_prices_timeseries(soup, include_resolution=False) -> pd.Dat
         if period is not None and period.find('resolution') is not None:
             resolution = period.find('resolution').text
         if 'Long' in df.columns:
-            df['resolution_long'] = resolution
+            df['Resolution Long'] = resolution
         else:
-            df['resolution_long'] = None
+            df['Resolution Long'] = None
         if 'Short' in df.columns:
-            df['resolution_short'] = resolution
+            df['Resolution Short'] = resolution
         else:
-            df['resolution_short'] = None
+            df['Resolution Short'] = None
     return df
 
 def parse_imbalance_volumes_zip(zip_contents: bytes, include_resolution:bool = False) -> pd.DataFrame:
@@ -664,7 +664,7 @@ def _parse_imbalance_volumes_timeseries(soup, include_resolution) -> pd.DataFram
             df.loc[dt, 'Imbalance Volume'] = \
                 float(point.find('quantity').text) * flow_direction_factor
         if include_resolution:
-            df["resolution"] = resolution
+            df["Resolution"] = resolution
     df.set_index(['Imbalance Volume'])
 
     return df

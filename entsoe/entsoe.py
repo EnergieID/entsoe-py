@@ -1851,6 +1851,10 @@ class EntsoePandasClient(EntsoeRawClient):
         df = parse_imbalance_prices_zip(zip_contents=archive, include_resolution=include_resolution)
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
+        # 
+        if include_resolution:
+            df = df.rename(columns={'Resolution Long': 'Resolution'})
+            df.drop(columns=['Resolution Short'], inplace=True)
         return df
 
     @year_limited

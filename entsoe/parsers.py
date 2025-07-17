@@ -274,18 +274,18 @@ def parse_activated_balancing_energy_prices(xml_text):
     df.sort_index(inplace=True)
     return df
 
-def parse_imbalance_prices(xml_text):
+def parse_imbalance_prices(xml_text, include_resolution=False):
     """
     Parameters
     ----------
     xml_text : str
-
+    include_resolution: bool
     Returns
     -------
     pd.DataFrame
     """
     timeseries_blocks = _extract_timeseries(xml_text)
-    frames = (_parse_imbalance_prices_timeseries(soup)
+    frames = (_parse_imbalance_prices_timeseries(soup, include_resolution)
               for soup in timeseries_blocks)
     df = pd.concat(frames, axis=1)
     df = df.stack().unstack()  # ad-hoc fix to prevent column splitting by NaNs
@@ -293,18 +293,18 @@ def parse_imbalance_prices(xml_text):
     return df
 
 
-def parse_imbalance_volumes(xml_text):
+def parse_imbalance_volumes(xml_text, include_resolution=False):
     """
     Parameters
     ----------
     xml_text : str
-
+    include_resolution: bool
     Returns
     -------
     pd.DataFrame
     """
     timeseries_blocks = _extract_timeseries(xml_text)
-    frames = (_parse_imbalance_volumes_timeseries(soup)
+    frames = (_parse_imbalance_volumes_timeseries(soup, include_resolution)
               for soup in timeseries_blocks)
     df = pd.concat(frames, axis=1)
     df = df.stack().unstack()  # ad-hoc fix to prevent column splitting by NaNs
@@ -496,12 +496,12 @@ def _parse_contracted_reserve_series(soup, tz, label):
     df.columns = pd.MultiIndex.from_product([df.columns, [direction]])
     return df
 
-def parse_imbalance_prices_zip(zip_contents: bytes) -> pd.DataFrame:
+def parse_imbalance_prices_zip(zip_contents: bytes, include_resolution=False) -> pd.DataFrame:
     """
     Parameters
     ----------
     zip_contents : bytes
-
+    include_resolution: bool
     Returns
     -------
     pd.DataFrame
@@ -510,7 +510,7 @@ def parse_imbalance_prices_zip(zip_contents: bytes) -> pd.DataFrame:
         with zipfile.ZipFile(BytesIO(archive), 'r') as arc:
             for f in arc.infolist():
                 if f.filename.endswith('xml'):
-                    frame = parse_imbalance_prices(xml_text=arc.read(f))
+                    frame = parse_imbalance_prices(xml_text=arc.read(f), include_resolution= include_resolution)
                     yield frame
 
     frames = gen_frames(zip_contents)
@@ -561,12 +561,12 @@ def _parse_activated_balancing_energy_prices_timeseries(soup) -> pd.DataFrame:
     df = df.infer_objects(copy=False).ffill()
     return df
 
-def _parse_imbalance_prices_timeseries(soup) -> pd.DataFrame:
+def _parse_imbalance_prices_timeseries(soup, include_resolution=False) -> pd.DataFrame:
     """
     Parameters
     ----------
     soup : bs4.element.tag
-
+    include_resolution: bool
     Returns
     -------
     pd.DataFrame
@@ -592,15 +592,27 @@ def _parse_imbalance_prices_timeseries(soup) -> pd.DataFrame:
     df.columns.name = None
     df.rename(columns={'A04': 'Long', 'A05': 'Short',
                        'None': 'Price for Consumption'}, inplace=True)
-
+    if include_resolution:
+        period = soup.find('period')
+        resolution = None
+        if period is not None and period.find('resolution') is not None:
+            resolution = period.find('resolution').text
+        if 'Long' in df.columns:
+            df['resolution_long'] = resolution
+        else:
+            df['resolution_long'] = None
+        if 'Short' in df.columns:
+            df['resolution_short'] = resolution
+        else:
+            df['resolution_short'] = None
     return df
 
-def parse_imbalance_volumes_zip(zip_contents: bytes) -> pd.DataFrame:
+def parse_imbalance_volumes_zip(zip_contents: bytes, include_resolution: False) -> pd.DataFrame:
     """
     Parameters
     ----------
     zip_contents : bytes
-
+    include_resolution : bool
     Returns
     -------
     pd.DataFrame
@@ -609,7 +621,7 @@ def parse_imbalance_volumes_zip(zip_contents: bytes) -> pd.DataFrame:
         with zipfile.ZipFile(BytesIO(archive), 'r') as arc:
             for f in arc.infolist():
                 if f.filename.endswith('xml'):
-                    frame = parse_imbalance_volumes(xml_text=arc.read(f))
+                    frame = parse_imbalance_volumes(xml_text=arc.read(f), include_resolution=include_resolution)
                     yield frame
 
     frames = gen_frames(zip_contents)
@@ -617,12 +629,12 @@ def parse_imbalance_volumes_zip(zip_contents: bytes) -> pd.DataFrame:
     df.sort_index(inplace=True)
     return df
 
-def _parse_imbalance_volumes_timeseries(soup) -> pd.DataFrame:
+def _parse_imbalance_volumes_timeseries(soup, include_resolution) -> pd.DataFrame:
     """
     Parameters
     ----------
     soup : bs4.element.tag
-
+    include_resolution: bool
     Returns
     -------
     pd.DataFrame
@@ -651,7 +663,8 @@ def _parse_imbalance_volumes_timeseries(soup) -> pd.DataFrame:
         for dt, point in zip(tx, points):
             df.loc[dt, 'Imbalance Volume'] = \
                 float(point.find('quantity').text) * flow_direction_factor
-
+        if include_resolution:
+            df["resolution"] = resolution
     df.set_index(['Imbalance Volume'])
 
     return df

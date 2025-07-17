@@ -1830,7 +1830,7 @@ class EntsoePandasClient(EntsoeRawClient):
     @year_limited
     def query_imbalance_prices(
             self, country_code: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp, psr_type: Optional[str] = None, include_resolution = False) -> pd.DataFrame:
+            end: pd.Timestamp, psr_type: Optional[str] = None, include_resolution: bool = False) -> pd.DataFrame:
         """
         Parameters
         ----------

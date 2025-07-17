@@ -496,7 +496,7 @@ def _parse_contracted_reserve_series(soup, tz, label):
     df.columns = pd.MultiIndex.from_product([df.columns, [direction]])
     return df
 
-def parse_imbalance_prices_zip(zip_contents: bytes, include_resolution=False) -> pd.DataFrame:
+def parse_imbalance_prices_zip(zip_contents: bytes, include_resolution: bool =False) -> pd.DataFrame:
     """
     Parameters
     ----------
@@ -607,7 +607,7 @@ def _parse_imbalance_prices_timeseries(soup, include_resolution=False) -> pd.Dat
             df['resolution_short'] = None
     return df
 
-def parse_imbalance_volumes_zip(zip_contents: bytes, include_resolution: False) -> pd.DataFrame:
+def parse_imbalance_volumes_zip(zip_contents: bytes, include_resolution:bool = False) -> pd.DataFrame:
     """
     Parameters
     ----------

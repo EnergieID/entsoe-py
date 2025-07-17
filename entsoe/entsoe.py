@@ -1830,7 +1830,7 @@ class EntsoePandasClient(EntsoeRawClient):
     @year_limited
     def query_imbalance_prices(
             self, country_code: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp, psr_type: Optional[str] = None) -> pd.DataFrame:
+            end: pd.Timestamp, psr_type: Optional[str] = None, include_resolution: bool = False) -> pd.DataFrame:
         """
         Parameters
         ----------
@@ -1839,7 +1839,8 @@ class EntsoePandasClient(EntsoeRawClient):
         end : pd.Timestamp
         psr_type : str
             filter query for a specific psr type
-
+        include_resolution: bool
+            Add resolution columns to the result
         Returns
         -------
         pd.DataFrame
@@ -1847,15 +1848,19 @@ class EntsoePandasClient(EntsoeRawClient):
         area = lookup_area(country_code)
         archive = super(EntsoePandasClient, self).query_imbalance_prices(
             country_code=area, start=start, end=end, psr_type=psr_type)
-        df = parse_imbalance_prices_zip(zip_contents=archive)
+        df = parse_imbalance_prices_zip(zip_contents=archive, include_resolution=include_resolution)
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
+        # 
+        if include_resolution:
+            df = df.rename(columns={'Resolution Long': 'Resolution'})
+            df.drop(columns=['Resolution Short'], inplace=True)
         return df
 
     @year_limited
     def query_imbalance_volumes(
             self, country_code: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp, psr_type: Optional[str] = None) -> pd.DataFrame:
+            end: pd.Timestamp, psr_type: Optional[str] = None, include_resolution=False) -> pd.DataFrame:
         """
         Parameters
         ----------
@@ -1864,7 +1869,8 @@ class EntsoePandasClient(EntsoeRawClient):
         end : pd.Timestamp
         psr_type : str
             filter query for a specific psr type
-
+        include_resolution: bool
+            include resolution column in the result
         Returns
         -------
         pd.DataFrame
@@ -1872,7 +1878,7 @@ class EntsoePandasClient(EntsoeRawClient):
         area = lookup_area(country_code)
         archive = super(EntsoePandasClient, self).query_imbalance_volumes(
             country_code=area, start=start, end=end, psr_type=psr_type)
-        df = parse_imbalance_volumes_zip(zip_contents=archive)
+        df = parse_imbalance_volumes_zip(zip_contents=archive, include_resolution=include_resolution)
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df

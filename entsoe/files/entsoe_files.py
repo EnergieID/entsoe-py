@@ -1,4 +1,4 @@
-from typing import Optional, Dict
+from typing import IO, Optional, Dict
 import requests
 from entsoe import __version__
 import pandas as pd
@@ -80,9 +80,10 @@ class EntsoeFileClient:
         return {x['name']: x['fileId'] for x in data['contentItemList']}
 
     @check_expired
-    def download_single_file(self, folder, filename) -> pd.DataFrame:
+    def download_single_file_raw(self, folder, filename) -> bytes:
         """
-        download a file by filename, it is important to split folder and filename here
+        download a file by filename, it is important to split folder and filename here.
+        Returns the direct response from the ENTSO-E file api, which is in the format of a Zip file.
         """
         if not folder.endswith('/'):
             folder += '/'
@@ -98,14 +99,20 @@ class EntsoeFileClient:
                                   'Content-Type': 'application/json'
                               })
         r.raise_for_status()
-        stream = BytesIO(r.content)
+
+    def download_single_file(self, folder, filename) -> pd.DataFrame:
+        """
+        download a file by filename, it is important to split folder and filename here.
+        """
+        content = self.download_single_file_raw(folder, filename)
+        stream = BytesIO(content)
         stream.seek(0)
         zf = zipfile.ZipFile(stream)
         with zf.open(zf.filelist[0].filename) as file:
             return pd.read_csv(file, sep='\t')
 
     @check_expired
-    def download_multiple_files(self, file_ids: list) -> pd.DataFrame:
+    def download_multiple_files_raw(self, file_ids: list) -> bytes:
         """
         for now when downloading multiple files only list of file ids is supported by this package
         """
@@ -121,7 +128,11 @@ class EntsoeFileClient:
                               },
                               proxies=self.proxies, timeout=self.timeout)
         r.raise_for_status()
-        stream = BytesIO(r.content)
+        return r.content
+
+    def download_multiple_files(self, file_ids: list) -> pd.DataFrame:
+        content = self.download_multiple_files_raw(file_ids)
+        stream = BytesIO(content)
         stream.seek(0)
         zf = zipfile.ZipFile(stream)
         df = []
@@ -130,4 +141,3 @@ class EntsoeFileClient:
                 df.append(pd.read_csv(file, sep='\t'))
 
         return pd.concat(df)
-

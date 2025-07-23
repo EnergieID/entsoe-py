@@ -16,7 +16,7 @@ jobs:
           script: |
             const owner = context.repo.owner;
             const repo = context.repo.repo;
-            const myUsername = owner;
+            const myUsername = fboerman;
             
             // Get all open issues
             const issues = await github.rest.issues.listForRepo({

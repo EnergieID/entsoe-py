@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 warnings.filterwarnings('ignore', category=XMLParsedAsHTMLWarning)
 
 __title__ = "entsoe-py"
-__version__ = "0.7.0"
+__version__ = "0.7.1"
 __author__ = "EnergieID.be, Frank Boerman"
 __license__ = "MIT"
 
@@ -43,7 +43,7 @@ class EntsoeRawClient:
         """
 
     def __init__(
-            self, api_key: str, session: Optional[requests.Session] = None,
+            self, api_key: str = None, session: Optional[requests.Session] = None,
             retry_count: int = 3, retry_delay: int = 10,
             proxies: Optional[Dict] = None, timeout: Optional[int] = None):
         """
@@ -62,6 +62,8 @@ class EntsoeRawClient:
         if api_key is None:
             raise TypeError("API key cannot be None")
         self.api_key = api_key
+        if self.api_key is None:
+            self.api_key = os.getenv("ENTSOE_API_KEY")
         if session is None:
             session = requests.Session()
         self.session = session

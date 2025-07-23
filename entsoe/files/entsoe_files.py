@@ -6,6 +6,7 @@ import json
 from io import BytesIO
 import zipfile
 from .decorators import check_expired
+import os
 
 # DOCS for entsoe file library: https://transparencyplatform.zendesk.com/hc/en-us/articles/35960137882129-File-Library-Guide
 # postman description: https://documenter.getpostman.com/view/28274243/2sB2qgfz3W
@@ -14,13 +15,18 @@ from .decorators import check_expired
 class EntsoeFileClient:
     BASEURL = "https://fms.tp.entsoe.eu/"
 
-    def __init__(self, username: str, pwd: str, session: Optional[requests.Session] = None,
+    def __init__(self, username: str = None, pwd: str = None, session: Optional[requests.Session] = None,
                  proxies: Optional[Dict] = None, timeout: Optional[int] = None
                  ):
         self.proxies = proxies
         self.timeout = timeout
         self.username = username
+        if self.username is None:
+            self.username = os.getenv('ENTSOE_USERNAME')
         self.pwd = pwd
+        if self.pwd is None:
+            self.pwd = os.getenv('ENTSOE_PWD')
+
         if session is None:
             session = requests.Session()
         self.session = session
@@ -99,6 +105,7 @@ class EntsoeFileClient:
                                   'Content-Type': 'application/json'
                               })
         r.raise_for_status()
+        return r.content
 
     def download_single_file(self, folder, filename) -> pd.DataFrame:
         """

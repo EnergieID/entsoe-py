@@ -1,0 +1,89 @@
+name: Close Stale Issues
+
+on:
+  schedule:
+    - cron: '0 5 * * *'
+  workflow_dispatch:
+
+jobs:
+  close-stale-issues:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Close stale issues where I was last commenter
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const myUsername = owner;
+            
+            // Get all open issues
+            const issues = await github.rest.issues.listForRepo({
+              owner,
+              repo,
+              state: 'open',
+              per_page: 100
+            });
+            
+            for (const issue of issues.data) {
+              // Skip pull requests
+              if (issue.pull_request) continue;
+              
+              // Check if issue is older than 30 days
+              const issueDate = new Date(issue.updated_at);
+              const thirtyDaysAgo = new Date();
+              thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+              
+              if (issueDate > thirtyDaysAgo) {
+                console.log(`Issue #${issue.number} is not stale enough, skipping`);
+                continue;
+              }
+              
+              // Get comments for this issue
+              const comments = await github.rest.issues.listComments({
+                owner,
+                repo,
+                issue_number: issue.number
+              });
+              
+              // Check if there are any comments and if the last one is from me
+              let shouldClose = false;
+              
+              if (comments.data.length === 0) {
+                // No comments, check if the issue author is me
+                if (issue.user.login === myUsername) {
+                  shouldClose = true;
+                  console.log(`Issue #${issue.number}: No comments, but I'm the author`);
+                }
+              } else {
+                // Check if last comment is from me
+                const lastComment = comments.data[comments.data.length - 1];
+                if (lastComment.user.login === myUsername) {
+                  shouldClose = true;
+                  console.log(`Issue #${issue.number}: Last comment is from me`);
+                }
+              }
+              
+              if (shouldClose) {
+                // Add a final comment before closing
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: issue.number,
+                  body: 'Automatically closing this issue due to 30+ days of inactivity after my last comment. Feel free to reopen if you have new information and the issue still persists'
+                });
+                
+                // Close the issue
+                await github.rest.issues.update({
+                  owner,
+                  repo,
+                  issue_number: issue.number,
+                  state: 'closed'
+                });
+                
+                console.log(`Closed issue #${issue.number}: ${issue.title}`);
+              } else {
+                console.log(`Issue #${issue.number}: Last comment not from me, skipping`);
+              }
+            }

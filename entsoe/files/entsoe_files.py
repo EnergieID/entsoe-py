@@ -27,6 +27,9 @@ class EntsoeFileClient:
         if self.pwd is None:
             self.pwd = os.getenv('ENTSOE_PWD')
 
+        if self.username is None or self.pwd is None:
+            raise Exception('username and password must be set')
+
         if session is None:
             session = requests.Session()
         self.session = session

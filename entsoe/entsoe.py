@@ -59,11 +59,11 @@ class EntsoeRawClient:
             requests proxies
         timeout : int
         """
-        if api_key is None:
-            raise TypeError("API key cannot be None")
         self.api_key = api_key
         if self.api_key is None:
             self.api_key = os.getenv("ENTSOE_API_KEY")
+        if self.api_key is None:
+            raise TypeError("API key cannot be None")
         if session is None:
             session = requests.Session()
         self.session = session

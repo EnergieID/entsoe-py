@@ -79,7 +79,9 @@ def documents_limited(n):
                 # All the data returned are void
                 raise NoMatchingDataError
 
-            df = pd.concat(frames, sort=True)
+            df = pd.concat(
+                [frame for frame in frames if not frame.empty and not frame.isna().all().all()],
+                sort=True)
             if func.__name__ != '_query_unavailability':
                 # For same indices pick last valid value
                 if df.index.has_duplicates:

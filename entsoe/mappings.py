@@ -333,7 +333,7 @@ NEIGHBOURS = {
     'HU': ['AT', 'HR', 'RO', 'RS', 'SI', 'SK', 'UA'],
     'IT_NORD': ['CH', 'DE_AT_LU', 'FR', 'SI', 'AT', 'IT_CNOR'],
     'ES': ['FR', 'PT'],
-    'SI': ['AT', 'DE_AT_LU', 'HR', 'IT_NORD'],
+    'SI': ['AT', 'DE_AT_LU', 'HR', 'IT_NORD', 'HU'],
     'RS': ['AL', 'BA', 'BG', 'HR', 'HU', 'ME', 'MK', 'RO'],
     'PL': ['CZ', 'DE_AT_LU', 'DE_LU', 'LT', 'SE_4', 'SK', 'UA'],
     'ME': ['AL', 'BA', 'RS'],

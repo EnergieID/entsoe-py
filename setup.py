@@ -71,4 +71,5 @@ setup(
     install_requires=['requests', 'pytz', 'beautifulsoup4>=4.11.1', 'pandas>=2.2.0'],
 
     include_package_data=True,
+    package_data={"entsoe": ["py.typed"]}
 )

@@ -6,12 +6,15 @@ import warnings
 import bs4
 from bs4.builder import XMLParsedAsHTMLWarning
 import pandas as pd
+import logging
 
 from .mappings import PSRTYPE_MAPPINGS, DOCSTATUS, BSNTYPE, Area
 from .series_parsers import _extract_timeseries, _resolution_to_timedelta, _parse_datetimeindex, _parse_timeseries_generic,\
     _parse_timeseries_generic_whole
 
 warnings.filterwarnings('ignore', category=XMLParsedAsHTMLWarning)
+
+logger = logging.getLogger(__name__)
 
 GENERATION_ELEMENT = "inBiddingZone_Domain.mRID"
 CONSUMPTION_ELEMENT = "outBiddingZone_Domain.mRID"
@@ -57,9 +60,14 @@ def parse_netpositions(xml_text, resolution):
     pd.Series
     """
     series_all = []
+    available_resolutions = {'15min': False, '30min': False, '60min': False}
     for soup in _extract_timeseries(xml_text):
-        series = _parse_timeseries_generic(soup)[resolution]
-        if series is None:
+        series_all_resolutions = _parse_timeseries_generic(soup)
+        for key in available_resolutions:
+            if series_all_resolutions[key] is not None:
+                available_resolutions[key] = True
+        series_requested_resolution = series_all_resolutions[resolution]
+        if series_requested_resolution is None:
             continue
         if 'REGION' in soup.find('out_domain.mrid').text:
             factor = -1  # flow is import so negative
@@ -68,11 +76,24 @@ def parse_netpositions(xml_text, resolution):
         # for some reason some values have sign flipped in api output. this is probably a bug,
         # take the absolute value and correct for region
         #TODO: possible change this or remove this warning after helpdesk got back to me
-        series_all.append(factor*series.abs())
+        series_all.append(factor*series_requested_resolution.abs())
+    _warn_if_resolution_mismatch(resolution, available_resolutions) 
     if len(series_all) == 0:
         return pd.Series()
     series_all = pd.concat(series_all).sort_index()
     return series_all
+
+def _warn_if_resolution_mismatch(requested_resolution, available_resolutions): 
+    present_resolutions = [k for k, v in available_resolutions.items() if v]
+    if len(present_resolutions) == 1 and requested_resolution == present_resolutions[0]:
+        return
+    else:
+        logger.warning(
+            "Warning: Resulting Pandas DataFrame may be empty or incomplete: \n"
+            "found data at resolutions %s, but request resolution is '%s'",
+            present_resolutions,
+            requested_resolution,
+        )
 
 
 

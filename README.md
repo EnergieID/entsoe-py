@@ -115,6 +115,7 @@ client.query_net_transfer_capacity_monthahead(country_code_from, country_code_to
 client.query_net_transfer_capacity_yearahead(country_code_from, country_code_to, start=start, end=end)
 client.query_intraday_offered_capacity(country_code_from, country_code_to, start=start, end=end, implicit=True)
 client.query_offered_capacity(country_code_from, country_code_to, contract_marketagreement_type, start=start, end=end, implicit=True)
+client.query_capacity_after_intraday(country_code_from, country_code_to, start=start, end=end)
 client.query_aggregate_water_reservoirs_and_hydro_storage(country_code, start=start, end=end)
 
 # methods that return Pandas DataFrames

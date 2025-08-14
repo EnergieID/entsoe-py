@@ -17,7 +17,7 @@ from .parsers import parse_prices, parse_loads, parse_generation, \
     parse_unavailabilities, parse_contracted_reserve, parse_imbalance_prices_zip, \
     parse_imbalance_volumes_zip, parse_netpositions, parse_procured_balancing_capacity, \
     parse_water_hydro,parse_aggregated_bids, parse_activated_balancing_energy_prices, \
-    parse_offshore_unavailability
+    parse_offshore_unavailability, parse_imbalance_volumes
 from .decorators import retry, paginated, year_limited, day_limited, documents_limited
 import warnings
 
@@ -821,6 +821,29 @@ class EntsoeRawClient:
             params.update({'psrType': psr_type})
         response = self._base_request(params=params, start=start, end=end)
         return response.content
+
+    def query_current_balancing_state(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp) -> str:
+        """
+        Parameters
+        ----------
+        country_code : Area|str
+        start : pd.Timestamp
+        end : pd.Timestamp
+
+        Returns
+        -------
+        str
+        """
+        area = lookup_area(country_code)
+        params = {
+            'documentType': 'A86',
+            'businessType': 'B33',
+            'area_Domain': area.code,
+        }
+        response = self._base_request(params=params, start=start, end=end)
+        return response.text
 
     def query_procured_balancing_capacity(
             self, country_code: Union[Area, str], start: pd.Timestamp,
@@ -1881,6 +1904,28 @@ class EntsoePandasClient(EntsoeRawClient):
         archive = super(EntsoePandasClient, self).query_imbalance_volumes(
             country_code=area, start=start, end=end, psr_type=psr_type)
         df = parse_imbalance_volumes_zip(zip_contents=archive, include_resolution=include_resolution)
+        df = df.tz_convert(area.tz)
+        df = df.truncate(before=start, after=end)
+        return df
+
+    @year_limited
+    def query_current_balancing_state(
+            self, country_code: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp) -> pd.DataFrame:
+        """
+        Parameters
+        ----------
+        country_code : Area|str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        Returns
+        -------
+        pd.DataFrame
+        """
+        area = lookup_area(country_code)
+        text = super(EntsoePandasClient, self).query_current_balancing_state(
+            country_code=area, start=start, end=end)
+        df = parse_imbalance_volumes(text)
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df

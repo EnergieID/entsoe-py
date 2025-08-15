@@ -312,27 +312,6 @@ def parse_imbalance_volumes(xml_text, include_resolution=False):
     return df
 
 
-def parse_balancing_state(xml_text, include_resolution=False):
-    """
-    Parameters
-    ----------
-    xml_text : str
-    include_resolution: bool
-    Returns
-    -------
-    pd.DataFrame
-    """
-    timeseries_blocks = _extract_timeseries(xml_text)
-    frames = (
-        _parse_balancing_state_timeseries(soup, include_resolution)
-        for soup in timeseries_blocks
-    )
-    df = pd.concat(frames, axis=1)
-    df = df.stack().unstack()  # ad-hoc fix to prevent column splitting by NaNs
-    df.sort_index(inplace=True)
-    return df
-
-
 def parse_procured_balancing_capacity(xml_text, tz):
     """
     Parameters
@@ -650,35 +629,12 @@ def parse_imbalance_volumes_zip(zip_contents: bytes, include_resolution:bool = F
     df.sort_index(inplace=True)
     return df
 
-def parse_balancing_state_zip(zip_contents: bytes, include_resolution:bool = False) -> pd.DataFrame:
-    """
-    Parameters
-    ----------
-    zip_contents : bytes
-    include_resolution : bool
-    Returns
-    -------
-    pd.DataFrame
-    """
-    def gen_frames(archive):
-        with zipfile.ZipFile(BytesIO(archive), 'r') as arc:
-            for f in arc.infolist():
-                if f.filename.endswith('xml'):
-                    frame = parse_balancing_state(xml_text=arc.read(f), include_resolution=include_resolution)
-                    yield frame
-
-    frames = gen_frames(zip_contents)
-    df = pd.concat(frames)
-    df.sort_index(inplace=True)
-    return df
-
-def _parse_flow_directed_timeseries(soup, include_resolution, series_name) -> pd.DataFrame:
+def _parse_imbalance_volumes_timeseries(soup, include_resolution) -> pd.DataFrame:
     """
     Parameters
     ----------
     soup : bs4.element.tag
     include_resolution: bool
-    series_name: str
     Returns
     -------
     pd.DataFrame
@@ -695,7 +651,7 @@ def _parse_flow_directed_timeseries(soup, include_resolution, series_name) -> pd
         # time series uses positive and negative values
         flow_direction_factor = 1
 
-    df = pd.DataFrame(columns=[series_name])
+    df = pd.DataFrame(columns=['Imbalance Volume'])
 
     for period in soup.find_all('period'):
         start = pd.to_datetime(period.find('timeinterval').find('start').text)
@@ -705,46 +661,14 @@ def _parse_flow_directed_timeseries(soup, include_resolution, series_name) -> pd
         points = period.find_all('point')
 
         for dt, point in zip(tx, points):
-            df.loc[dt, series_name] = \
+            df.loc[dt, 'Imbalance Volume'] = \
                 float(point.find('quantity').text) * flow_direction_factor
         if include_resolution:
             df["Resolution"] = resolution
+    df.set_index(['Imbalance Volume'])
 
     return df
 
-def _parse_imbalance_volumes_timeseries(soup, include_resolution) -> pd.DataFrame:
-    """
-    Parameters
-    ----------
-    soup : bs4.element.tag
-    include_resolution: bool
-    Returns
-    -------
-    pd.DataFrame
-    """
-
-    return _parse_flow_directed_timeseries(
-        soup,
-        include_resolution=include_resolution,
-        series_name='Imbalance Volume'
-    )
-
-def _parse_balancing_state_timeseries(soup, include_resolution) -> pd.DataFrame:
-    """
-    Parameters
-    ----------
-    soup : bs4.element.tag
-    include_resolution: bool
-    Returns
-    -------
-    pd.DataFrame
-    """
-
-    return _parse_flow_directed_timeseries(
-        soup,
-        include_resolution=include_resolution,
-        series_name='Open Loop Control Area Error'
-    )
 
 def _parse_netposition_timeseries(soup):
     """

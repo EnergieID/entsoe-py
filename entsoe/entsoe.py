@@ -16,8 +16,8 @@ from .parsers import parse_prices, parse_loads, parse_generation, \
     parse_installed_capacity_per_plant, parse_crossborder_flows, \
     parse_unavailabilities, parse_contracted_reserve, parse_imbalance_prices_zip, \
     parse_imbalance_volumes_zip, parse_netpositions, parse_procured_balancing_capacity, \
-    parse_water_hydro, parse_aggregated_bids, parse_activated_balancing_energy_prices, \
-    parse_offshore_unavailability, parse_balancing_state
+    parse_water_hydro,parse_aggregated_bids, parse_activated_balancing_energy_prices, \
+    parse_offshore_unavailability
 from .decorators import retry, paginated, year_limited, day_limited, documents_limited
 import warnings
 
@@ -816,35 +816,6 @@ class EntsoeRawClient:
         params = {
             'documentType': 'A86',
             'controlArea_Domain': area.code,
-        }
-        if psr_type:
-            params.update({'psrType': psr_type})
-        response = self._base_request(params=params, start=start, end=end)
-        return response.content
-
-    def query_balancing_state(
-            self, country_code: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp, psr_type: Optional[str] = None) -> bytes:
-        """
-        Queries the current balancing state of a country (12.3.A).
-
-        Parameters
-        ----------
-        country_code : Area|str
-        start : pd.Timestamp
-        end : pd.Timestamp
-        psr_type : str
-            filter query for a specific psr type
-
-        Returns
-        -------
-        bytes
-        """
-        area = lookup_area(country_code)
-        params = {
-            'documentType': 'A86',
-            'Area_Domain': area.code,
-            'businessType': 'B33',   # Area Control Error
         }
         if psr_type:
             params.update({'psrType': psr_type})
@@ -1909,36 +1880,7 @@ class EntsoePandasClient(EntsoeRawClient):
         area = lookup_area(country_code)
         archive = super(EntsoePandasClient, self).query_imbalance_volumes(
             country_code=area, start=start, end=end, psr_type=psr_type)
-        print(archive)
         df = parse_imbalance_volumes_zip(zip_contents=archive, include_resolution=include_resolution)
-        df = df.tz_convert(area.tz)
-        df = df.truncate(before=start, after=end)
-        return df
-
-    @day_limited
-    def query_balancing_state(
-            self, country_code: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp, psr_type: Optional[str] = None, include_resolution=False) -> pd.DataFrame:
-        """
-        Queries the current balancing state of a country (12.3.A).
-
-        Parameters
-        ----------
-        country_code : Area|str
-        start : pd.Timestamp
-        end : pd.Timestamp
-        psr_type : str
-            filter query for a specific psr type
-        include_resolution: bool
-            include resolution column in the result
-        Returns
-        -------
-        pd.DataFrame
-        """
-        area = lookup_area(country_code)
-        archive = super(EntsoePandasClient, self).query_balancing_state(
-            country_code=area, start=start, end=end, psr_type=psr_type)
-        df = parse_balancing_state(xml_text=archive, include_resolution=include_resolution)
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df

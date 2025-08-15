@@ -45,7 +45,7 @@ def parse_prices(xml_text):
     return series
 
 
-def parse_netpositions(xml_text, resolution):
+def parse_netpositions(xml_text):
     """
 
     Parameters
@@ -58,7 +58,7 @@ def parse_netpositions(xml_text, resolution):
     """
     series_all = []
     for soup in _extract_timeseries(xml_text):
-        series = _parse_timeseries_generic(soup)[resolution]
+        series = _parse_timeseries_generic(soup, merge_series=True)
         if series is None:
             continue
         if 'REGION' in soup.find('out_domain.mrid').text:

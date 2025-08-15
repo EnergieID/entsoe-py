@@ -32,6 +32,8 @@ __license__ = "MIT"
 
 URL = os.getenv("ENTSOE_ENDPOINT_URL") or "https://web-api.tp.entsoe.eu/api"
 
+QUARTER_MTU_SDAC_GOLIVE =  pd.Timestamp('2025-10-01', tz='europe/amsterdam')
+
 
 class EntsoeRawClient:
     # noinspection LongLine
@@ -1197,9 +1199,10 @@ class EntsoeRawClient:
 class EntsoePandasClient(EntsoeRawClient):
     @year_limited
     def query_net_position(self, country_code: Union[Area, str],
-                            start: pd.Timestamp, end: pd.Timestamp, dayahead: bool = True, resolution: Literal['60min', '30min', '15min'] = '60min') -> pd.Series:
+                            start: pd.Timestamp, end: pd.Timestamp, dayahead: bool = True,
+                           resolution = None) -> pd.Series:
         """
-
+        forced to correct resolution for day ahead values
         Parameters
         ----------
         country_code
@@ -1210,14 +1213,36 @@ class EntsoePandasClient(EntsoeRawClient):
         -------
 
         """
+        if resolution is not None:
+            warnings.warn('The resolution parameter is deprecated and will be removed. This function will force the right resolution', DeprecationWarning)
         area = lookup_area(country_code)
         text = super(EntsoePandasClient, self).query_net_position(
             country_code=area, start=start, end=end, dayahead=dayahead)
-        series = parse_netpositions(text, resolution=resolution)
+        series = parse_netpositions(text)
         if len(series) == 0:
             raise NoMatchingDataError
-        series = series.tz_convert(area.tz)
+        if dayahead:
+            # This function should only return SDAC net positions for day ahead, which have a fixed defined resolution
+            # before 2025-10-01 its 60min, after 15min
+            # this is aligned on businessday in timezone europe/amsterdam
+            # some zones already publish in different resolution.
+            # for secondary auctions published on entsoe, use the query_day_ahead_prices_local function
+            if series.index.max() < QUARTER_MTU_SDAC_GOLIVE:
+                series = series.resample('h').first()
+            else:
+                series_60min = series[series.index < QUARTER_MTU_SDAC_GOLIVE]
+                series_15min = series[series.index >= QUARTER_MTU_SDAC_GOLIVE]
+
+                series = pd.concat([
+                    series_60min.resample('h').first(),
+                    series_15min
+                ]).sort_index()
+
+        series = series.tz_convert(area.tz).sort_index()
         series = series.truncate(before=start, after=end)
+        # because of the above fix we need to check again if any valid data exists after truncating
+        if len(series) == 0:
+            raise NoMatchingDataError
         return series
 
     @year_limited
@@ -1300,20 +1325,27 @@ class EntsoePandasClient(EntsoeRawClient):
         # this is aligned on businessday in timezone europe/amsterdam
         # some zones already publish in different resolution.
         # for secondary auctions published on entsoe, use the query_day_ahead_prices_local function
-        quarter_mtu_golive =  pd.Timestamp('2025-10-01', tz='europe/amsterdam')
+
         series = pd.concat([x for x in series_all.values() if len(x) > 0]).sort_index().tz_convert('europe/amsterdam')
         if len(series) == 0:
             raise NoMatchingDataError
-        if series.index.max() < quarter_mtu_golive:
-            return series.resample('h').first()
+        if series.index.max() < QUARTER_MTU_SDAC_GOLIVE:
+            series = series.resample('h').first()
         else:
-            series_60min = series[series.index < quarter_mtu_golive]
-            series_15min = series[series.index >= quarter_mtu_golive]
+            series_60min = series[series.index < QUARTER_MTU_SDAC_GOLIVE]
+            series_15min = series[series.index >= QUARTER_MTU_SDAC_GOLIVE]
 
-            return pd.concat([
+            series = pd.concat([
                 series_60min.resample('h').first(),
                 series_15min
             ]).sort_index()
+
+        series = series.tz_convert(area.tz).sort_index()
+        series = series.truncate(before=start, after=end)
+        # because of the above fix we need to check again if any valid data exists after truncating
+        if len(series) == 0:
+            raise NoMatchingDataError
+        return series
 
     # we need to do offset, but we also want to pad the days so wrap it in an internal call
     def query_day_ahead_prices_local(

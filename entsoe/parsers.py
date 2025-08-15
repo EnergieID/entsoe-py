@@ -645,7 +645,8 @@ def _parse_imbalance_volumes_timeseries(soup, include_resolution) -> pd.DataFram
         # time series uses flow direction codes
         flow_direction_factor = {
             'A01': 1, # in
-            'A02': -1 # out
+            'A02': -1, # out
+            'A03': 1,  # symmetric / in-balance
         }[flow_direction.text]
     else:
         # time series uses positive and negative values

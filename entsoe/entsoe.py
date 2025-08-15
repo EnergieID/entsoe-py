@@ -1403,7 +1403,8 @@ class EntsoePandasClient(EntsoeRawClient):
         area = lookup_area(country_code)
         text = super(EntsoePandasClient, self).query_generation_forecast(
             country_code=area, start=start, end=end, process_type=process_type)
-        df = parse_generation(text, nett=nett)
+        df = parse_generation(text, nett=nett)\
+            .rename(columns=lambda c: c.replace('Actual', 'Scheduled'))
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df

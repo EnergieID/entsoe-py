@@ -207,8 +207,8 @@ class EntsoeRawClient:
         -------
         str
         """
-        if process_type not in ['A51', 'A47']:
-            raise ValueError('processType allowed values: A51, A47')
+        if process_type not in ['A51', 'A52', 'A47']:
+            raise ValueError('processType allowed values: A51, A52, A47')
         area = lookup_area(country_code)
         params = {
             'documentType': 'A24',
@@ -869,8 +869,8 @@ class EntsoeRawClient:
         -------
         bytes
         """
-        if process_type not in ['A51', 'A47']:
-            raise ValueError('processType allowed values: A51, A47')
+        if process_type not in ['A51', 'A52', 'A47']:
+            raise ValueError('processType allowed values: A51, A52, A47')
 
         area = lookup_area(country_code)
         params = {

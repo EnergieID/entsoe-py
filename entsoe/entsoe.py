@@ -1925,7 +1925,7 @@ class EntsoePandasClient(EntsoeRawClient):
         area = lookup_area(country_code)
         text = super(EntsoePandasClient, self).query_current_balancing_state(
             country_code=area, start=start, end=end)
-        df = parse_imbalance_volumes(text)
+        df = -1*parse_imbalance_volumes(text)
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df

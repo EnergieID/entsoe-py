@@ -26,7 +26,7 @@ warnings.filterwarnings('always')
 warnings.filterwarnings('ignore', category=XMLParsedAsHTMLWarning)
 
 __title__ = "entsoe-py"
-__version__ = "0.7.2"
+__version__ = "0.7.3"
 __author__ = "EnergieID.be, Frank Boerman"
 __license__ = "MIT"
 
@@ -1496,8 +1496,9 @@ class EntsoePandasClient(EntsoeRawClient):
         area = lookup_area(country_code)
         text = super(EntsoePandasClient, self).query_generation_forecast(
             country_code=area, start=start, end=end, process_type=process_type)
-        df = parse_generation(text, nett=nett)\
-            .rename(columns=lambda c: c.replace('Actual', 'Scheduled'))
+        df = parse_generation(text, nett=nett)
+        if isinstance(df, pd.DataFrame):
+            df = df.rename(columns=lambda c: c.replace('Actual', 'Scheduled'))
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df

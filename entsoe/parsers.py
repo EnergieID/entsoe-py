@@ -661,8 +661,9 @@ def _parse_imbalance_volumes_timeseries(soup, include_resolution) -> pd.DataFram
         tx = pd.date_range(start=start, end=end, freq=resolution, inclusive='left')
         points = period.find_all('point')
 
-        for dt, point in zip(tx, points):
-            df.loc[dt, 'Imbalance Volume'] = \
+        for point in points:
+            position = int(point.find('position').text)
+            df.loc[tx[position-1], 'Imbalance Volume'] = \
                 float(point.find('quantity').text) * flow_direction_factor
         if include_resolution:
             df["Resolution"] = resolution

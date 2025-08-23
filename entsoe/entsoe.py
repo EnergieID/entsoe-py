@@ -26,7 +26,7 @@ warnings.filterwarnings('always')
 warnings.filterwarnings('ignore', category=XMLParsedAsHTMLWarning)
 
 __title__ = "entsoe-py"
-__version__ = "0.7.3"
+__version__ = "0.7.4"
 __author__ = "EnergieID.be, Frank Boerman"
 __license__ = "MIT"
 

@@ -119,7 +119,7 @@ class EntsoeFileClient:
         stream.seek(0)
         zf = zipfile.ZipFile(stream)
         with zf.open(zf.filelist[0].filename) as file:
-            return pd.read_csv(file, sep='\t', encoding='unicode_escape')
+            return pd.read_csv(file, sep='\t', encoding='utf-8-sig')
 
     @check_expired
     def download_multiple_files_raw(self, file_ids: list) -> bytes:
@@ -148,6 +148,6 @@ class EntsoeFileClient:
         df = []
         for fz in zf.filelist:
             with zf.open(fz.filename) as file:
-                df.append(pd.read_csv(file, sep='\t', encoding='unicode_escape'))
+                df.append(pd.read_csv(file, sep='\t', encoding='utf-8-sig'))
 
         return pd.concat(df)

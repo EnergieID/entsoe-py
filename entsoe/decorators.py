@@ -106,7 +106,7 @@ def year_limited(func):
     def year_wrapper(*args, start=None, end=None, **kwargs):
         if start is None or end is None:
             raise Exception(
-                'Please specify the start and end date explicity with'
+                'Please specify the start and end date explicitly with '
                 'start=<date> when calling this function'
             )
         if (

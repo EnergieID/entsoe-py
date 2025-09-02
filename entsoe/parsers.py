@@ -1068,10 +1068,21 @@ def _parse_time_interval(period):
     return start_time, end_time
 
 
+def _get_flow_direction_factor(timeseries_metadata: dict):
+    flow_direction = timeseries_metadata.get("flow_direction", "")
+    return {
+        'A01': 1,  # Up, to convey the surplus
+        'A02': -1, # Down, to convey the deficit
+        'A03': 1,  # Up and Down, when system is balanced
+    }.get(flow_direction, 1)  # Default to 1 if unknown code
+
+
 def _flatten_points(points, start_time, timeseries_metadata, document_metadata):
     """Flatten point data into list of dictionaries."""
     if isinstance(points, dict):
         points = [points]
+
+    flow_direction_factor = _get_flow_direction_factor(timeseries_metadata)
 
     flattened_data = []
     for point in points:
@@ -1080,7 +1091,7 @@ def _flatten_points(points, start_time, timeseries_metadata, document_metadata):
         flattened_data.append(
             {
                 "timestamp": timestamp.isoformat(),
-                "quantity": float(point["quantity"]),
+                "quantity": float(point["quantity"]) * flow_direction_factor,
                 **timeseries_metadata,
                 **document_metadata,
             }

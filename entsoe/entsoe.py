@@ -17,7 +17,8 @@ from .parsers import parse_prices, parse_loads, parse_generation, \
     parse_unavailabilities, parse_contracted_reserve, parse_imbalance_prices_zip, \
     parse_imbalance_volumes_zip, parse_netpositions, parse_procured_balancing_capacity, \
     parse_water_hydro,parse_aggregated_bids, parse_activated_balancing_energy_prices, \
-    parse_offshore_unavailability, parse_imbalance_volumes
+    parse_offshore_unavailability, parse_imbalance_volumes, parse_balancing_state_xml, \
+    convert_balancing_state_data_to_dataframe
 from .decorators import retry, paginated, year_limited, day_limited, documents_limited
 import warnings
 
@@ -829,8 +830,9 @@ class EntsoeRawClient:
 
     def query_current_balancing_state(
             self, country_code: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp) -> str:
-        """
+            end: pd.Timestamp) -> bytes:
+        """Query Current balancing state [GL EB] [12.3.A] from ENTSO-E API.
+
         Parameters
         ----------
         country_code : Area|str
@@ -839,7 +841,7 @@ class EntsoeRawClient:
 
         Returns
         -------
-        str
+        bytes
         """
         area = lookup_area(country_code)
         params = {
@@ -848,7 +850,7 @@ class EntsoeRawClient:
             'area_Domain': area.code,
         }
         response = self._base_request(params=params, start=start, end=end)
-        return response.text
+        return response.content
 
     def query_procured_balancing_capacity(
             self, country_code: Union[Area, str], start: pd.Timestamp,
@@ -2003,26 +2005,48 @@ class EntsoePandasClient(EntsoeRawClient):
         df = df.truncate(before=start, after=end)
         return df
 
-    @year_limited
     def query_current_balancing_state(
             self, country_code: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp) -> pd.DataFrame:
         """
+        Query Current balancing state [GL EB] [12.3.A] and return as DataFrame.
+        
         Parameters
         ----------
         country_code : Area|str
+            Country code or Area object
         start : pd.Timestamp
+            Start timestamp for the query period
         end : pd.Timestamp
+            End timestamp for the query period
+            
         Returns
         -------
         pd.DataFrame
+            DataFrame with current balancing state data, indexed by timestamp
+            and converted to the appropriate timezone for the country
+            
+        Note
+        ----
+        The endpoint can return 90,000 records at once (62.5 days; just over 2 months).
+        The endpoint does not return any errors if you query a wider range.
+        This means the @year_limited decorator cannot be used.
         """
         area = lookup_area(country_code)
         text = super(EntsoePandasClient, self).query_current_balancing_state(
             country_code=area, start=start, end=end)
-        df = -1*parse_imbalance_volumes(text)
-        df = df.tz_convert(area.tz)
-        df = df.truncate(before=start, after=end)
+        
+        # Parse the XML response using the dedicated parser
+        data = parse_balancing_state_xml(text)
+        
+        # Convert to DataFrame with proper timezone handling
+        df = convert_balancing_state_data_to_dataframe(
+            data=data,
+            area=area,
+            start=start,
+            end=end,
+        )
+        
         return df
 
     @year_limited

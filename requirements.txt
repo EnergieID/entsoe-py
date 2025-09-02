@@ -2,3 +2,4 @@ requests
 pytz
 beautifulsoup4>=4.11.1
 pandas>=2.2.0
+xmltodict

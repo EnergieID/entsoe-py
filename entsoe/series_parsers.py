@@ -14,7 +14,7 @@ def _extract_timeseries(xml_text):
     """
     if not xml_text:
         return
-    soup = bs4.BeautifulSoup(xml_text, 'html.parser')
+    soup = bs4.BeautifulSoup(xml_text, 'xml')
     for timeseries in soup.find_all('timeseries'):
         yield timeseries
 

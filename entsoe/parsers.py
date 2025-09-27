@@ -990,7 +990,7 @@ def _available_period(timeseries: bs4.BeautifulSoup) -> list:
 def _outage_parser(xml_file: bytes, headers, ts_func) -> pd.DataFrame:
     xml_text = xml_file.decode()
 
-    soup = bs4.BeautifulSoup(xml_text, 'html.parser')
+    soup = bs4.BeautifulSoup(xml_text, 'xml')
     mrid = soup.find("mrid").text
     revision_number = int(soup.find("revisionnumber").text)
     try:

@@ -26,7 +26,7 @@ warnings.filterwarnings('always')
 warnings.filterwarnings('ignore', category=XMLParsedAsHTMLWarning)
 
 __title__ = "entsoe-py"
-__version__ = "0.7.4"
+__version__ = "0.7.5"
 __author__ = "EnergieID.be, Frank Boerman"
 __license__ = "MIT"
 
@@ -184,12 +184,43 @@ class EntsoeRawClient:
             'documentType': 'A44',
             'in_Domain': area.code,
             'out_Domain': area.code,
-            'offset': offset
+            'offset': offset,
+            'contract_MarketAgreement.type': 'A01'
         }
         if sequence is not None:
             params['classificationSequence_AttributeInstanceComponent.position'] = sequence
         response = self._base_request(params=params, start=start, end=end)
         return response.text
+
+
+
+    def query_intraday_prices(self, country_code: Union[Area, str],
+                               start: pd.Timestamp, end: pd.Timestamp,
+                               sequence: int, offset: int = 0) -> str:
+        """
+        Parameters
+        ----------
+        country_code : Area|str
+        start : pd.Timestamp
+        end : pd.Timestamp
+
+        Returns
+        -------
+        str
+        """
+        area = lookup_area(country_code)
+        params = {
+            'documentType': 'A44',
+            'in_Domain': area.code,
+            'out_Domain': area.code,
+            'offset': offset,
+            'contract_MarketAgreement.type': 'A07'
+        }
+        if sequence is not None:
+            params['classificationSequence_AttributeInstanceComponent.position'] = sequence
+        response = self._base_request(params=params, start=start, end=end)
+        return response.text
+
 
     def query_aggregated_bids(self, country_code: Union[Area, str],
                               process_type: str,
@@ -1340,6 +1371,64 @@ class EntsoePandasClient(EntsoeRawClient):
                 series_15min
             ]).sort_index()
 
+        series = series.tz_convert(area.tz).sort_index()
+        series = series.truncate(before=start, after=end)
+        # because of the above fix we need to check again if any valid data exists after truncating
+        if len(series) == 0:
+            raise NoMatchingDataError
+        return series
+
+    # we need to do offset, but we also want to pad the days so wrap it in an internal call
+    def query_intraday_prices(
+            self, country_code: Union[Area, str],
+            start: pd.Timestamp,
+            end: pd.Timestamp,
+            sequence: int) -> pd.Series:
+        """
+        Parameters
+        ----------
+        this will return the IDA prices, forced to the correct resolution
+        country_code : Area|str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        sequence: int, 1, 2 or 3 corresponding to IDA 1, 2, 3. only some zones publish this on entsoe
+
+        Returns
+        -------
+        pd.Series
+        """
+
+        area = lookup_area(country_code)
+        # we do here extra days at start and end to fix issue 187
+        series = self._query_intraday_prices(
+            area,
+            start=start-pd.Timedelta(days=1),
+            end=end+pd.Timedelta(days=1),
+            sequence=sequence
+        )
+        series = series.tz_convert(area.tz).sort_index()
+        series = series.truncate(before=start, after=end)
+        # because of the above fix we need to check again if any valid data exists after truncating
+        if len(series) == 0:
+            raise NoMatchingDataError
+        return series
+
+    @year_limited
+    @documents_limited(100)
+    def _query_intraday_prices(
+            self, area: Area,
+            start: pd.Timestamp,
+            end: pd.Timestamp,
+            sequence: int,
+            offset: int = 0) -> pd.Series:
+        text = super(EntsoePandasClient, self).query_intraday_prices(
+            area,
+            start=start,
+            end=end,
+            offset=offset,
+            sequence=sequence
+        )
+        series = parse_prices(text)['15min']
         series = series.tz_convert(area.tz).sort_index()
         series = series.truncate(before=start, after=end)
         # because of the above fix we need to check again if any valid data exists after truncating

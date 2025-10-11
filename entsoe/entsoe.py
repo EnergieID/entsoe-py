@@ -12,12 +12,25 @@ from bs4.builder import XMLParsedAsHTMLWarning
 from entsoe.exceptions import InvalidPSRTypeError, InvalidBusinessParameterError, InvalidParameterError
 from .exceptions import NoMatchingDataError, PaginationError
 from .mappings import Area, NEIGHBOURS, lookup_area
-from .parsers import parse_prices, parse_loads, parse_generation, \
-    parse_installed_capacity_per_plant, parse_crossborder_flows, \
-    parse_unavailabilities, parse_contracted_reserve, parse_imbalance_prices_zip, \
-    parse_imbalance_volumes_zip, parse_netpositions, parse_procured_balancing_capacity, \
-    parse_water_hydro,parse_aggregated_bids, parse_activated_balancing_energy_prices, \
-    parse_offshore_unavailability, parse_imbalance_volumes
+from .parsers import (
+    parse_activated_balancing_energy_prices,
+    parse_aggregated_bids,
+    parse_contracted_reserve,
+    parse_contracted_reserve_zip,
+    parse_crossborder_flows,
+    parse_generation,
+    parse_imbalance_prices_zip,
+    parse_imbalance_volumes,
+    parse_imbalance_volumes_zip,
+    parse_installed_capacity_per_plant,
+    parse_loads,
+    parse_netpositions,
+    parse_offshore_unavailability,
+    parse_prices,
+    parse_procured_balancing_capacity,
+    parse_unavailabilities,
+    parse_water_hydro,
+)
 from .decorators import retry, paginated, year_limited, day_limited, documents_limited
 import warnings
 
@@ -981,9 +994,9 @@ class EntsoeRawClient:
 
     def query_contracted_reserve_prices_procured_capacity(
             self, country_code: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp, process_type: str, 
+            end: pd.Timestamp, process_type: str,
             type_marketagreement_type: str, psr_type: Optional[str] = None,
-            offset: int = 0) -> str:
+            offset: int = 0) -> bytes:
         """
         Parameters
         ----------
@@ -1001,7 +1014,7 @@ class EntsoeRawClient:
 
         Returns
         -------
-        str
+        bytes
         """
         area = lookup_area(country_code)
         params = {
@@ -1015,7 +1028,7 @@ class EntsoeRawClient:
         if psr_type:
             params.update({'psrType': psr_type})
         response = self._base_request(params=params, start=start, end=end)
-        return response.text
+        return response.content
 
     def query_contracted_reserve_amount(
             self, country_code: Union[Area, str], start: pd.Timestamp,
@@ -2247,14 +2260,14 @@ class EntsoePandasClient(EntsoeRawClient):
         pd.DataFrame
         """
         area = lookup_area(country_code)
-        text = super(EntsoePandasClient, self).query_contracted_reserve_prices_procured_capacity(
+        archive = super(EntsoePandasClient, self).query_contracted_reserve_prices_procured_capacity(
             country_code=area, start=start, end=end,
             process_type=process_type, type_marketagreement_type=type_marketagreement_type,
             psr_type=psr_type, offset=offset)
-        df = parse_contracted_reserve(text, area.tz, "procurement_price.amount")
+        df = parse_contracted_reserve_zip(archive, area.tz, "procurement_price.amount")
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
-        return df    
+        return df
 
     @year_limited
     @paginated

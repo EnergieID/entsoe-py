@@ -48,7 +48,6 @@ client.query_net_transfer_capacity_yearahead(country_code_from, country_code_to,
 client.query_intraday_offered_capacity(country_code_from, country_code_to, start, end, implicit=True)
 client.query_offered_capacity(country_code_from, country_code_to, start, end, contract_marketagreement_type, implicit=True)
 client.query_contracted_reserve_prices(country_code, start, end, type_marketagreement_type, psr_type=None)
-client.query_contracted_reserve_prices_procured_capacity(country_code, start, end, process_type type_marketagreement_type, psr_type=None)
 client.query_contracted_reserve_amount(country_code, start, end, type_marketagreement_type, psr_type=None)
 client.query_procured_balancing_capacity(country_code, start, end, process_type, type_marketagreement_type=None)
 client.query_aggregate_water_reservoirs_and_hydro_storage(country_code, start, end)
@@ -63,6 +62,7 @@ client.query_unavailability_of_production_units(country_code, start, end, docsta
 client.query_unavailability_transmission(country_code_from, country_code_to, start, end, docstatus=None, periodstartupdate=None, periodendupdate=None)
 client.query_unavailability_of_offshore_grid(area_code, start, end)
 client.query_withdrawn_unavailability_of_generation_units(country_code, start, end)
+client.query_contracted_reserve_prices_procured_capacity(country_code, start, end, process_type type_marketagreement_type, psr_type=None)
 ```
 #### Dump result to file
 ```python

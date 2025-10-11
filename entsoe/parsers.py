@@ -1,3 +1,4 @@
+from collections.abc import Generator
 import sys
 import zipfile
 from io import BytesIO
@@ -429,6 +430,28 @@ def _parse_procured_balancing_capacity(soup, tz):
 
     return df
 
+def parse_contracted_reserve_zip(zip_contents: bytes, tz: str, label: str) -> pd.DataFrame:
+    """
+    Parameters
+    ----------
+    zip_contents: bytes
+    tz: str
+    label: str
+
+    Returns
+    -------
+    pd.DataFrame
+    """
+    def gen_frames(archive: bytes)-> Generator[pd.DataFrame]:
+        with zipfile.ZipFile(BytesIO(archive), 'r') as arc:
+            for f in arc.infolist():
+                if f.filename.endswith('xml'):
+                    frame = parse_contracted_reserve(xml_text=arc.read(f), tz=tz, label=label)
+                    yield frame
+
+    frames = gen_frames(zip_contents)
+    df = pd.concat(frames).sort_index()
+    return df
 
 def parse_contracted_reserve(xml_text, tz, label):
     """

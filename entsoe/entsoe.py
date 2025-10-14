@@ -138,7 +138,7 @@ class EntsoeRawClient:
             # this means we need to check the contents for this error even when status code 200 is returned
             # to prevent parsing the full response do a text matching instead of full parsing
             # also only do this when response type content is text and not for example a zip file
-            if response.headers.get('content-type', '') == 'application/xml':
+            if response.headers.get('content-type', '') in ['application/xml', 'text/xml']:
                 if 'No matching data found' in response.text:
                     raise NoMatchingDataError
             return response

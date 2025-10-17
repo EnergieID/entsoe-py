@@ -430,6 +430,37 @@ def _parse_procured_balancing_capacity(soup, tz):
     return df
 
 
+def parse_contracted_reserve_zip(zip_contents: bytes, tz: str, label: str) -> pd.DataFrame:
+    """
+    Parse contracted reserve data from a ZIP archive containing XML files.
+    
+    Parameters
+    ----------
+    zip_contents : bytes
+        ZIP archive containing XML files
+    tz : str
+        Timezone for datetime parsing
+    label : str
+        XML element name to extract (e.g., 'quantity' or 'procurement_price.amount')
+
+    Returns
+    -------
+    pd.DataFrame
+    """
+    def gen_frames(archive):
+        with zipfile.ZipFile(BytesIO(archive), 'r') as arc:
+            for f in arc.infolist():
+                if f.filename.endswith('xml'):
+                    frame = parse_contracted_reserve(xml_text=arc.read(f), 
+                                                    tz=tz, label=label)
+                    yield frame
+
+    frames = gen_frames(zip_contents)
+    df = pd.concat(frames)
+    df.sort_index(inplace=True)
+    return df
+
+
 def parse_contracted_reserve(xml_text, tz, label):
     """
     Parameters
@@ -447,7 +478,7 @@ def parse_contracted_reserve(xml_text, tz, label):
               for soup in timeseries_blocks)
     df = pd.concat(frames, axis=1)
     # Ad-hoc fix to prevent that columns are split by NaNs:
-    df = df.groupby(axis=1, level = [0,1]).mean()
+    df = df.T.groupby(level=[0, 1]).mean().T
     df.sort_index(inplace=True)
     return df
 
@@ -464,25 +495,42 @@ def _parse_contracted_reserve_series(soup, tz, label):
     -------
     pd.Series
     """
-    positions = []
-    prices = []
+    # Parse period info
+    period = soup.find('period')
+    start = pd.Timestamp(period.find('start').text)
+    end = pd.Timestamp(period.find('end').text)
+    delta_text = _resolution_to_timedelta(period.find('resolution').text)
+    delta = pd.Timedelta(delta_text)
+    
+    # Build dict mapping timestamp -> value using positions
+    data = {}
     for point in soup.find_all('point'):
-        positions.append(int(point.find('position').text))
-        prices.append(float(point.find(label).text))
-
-    df = pd.DataFrame(data={'position': positions,
-                            label: prices})
-    df = df.set_index(['position'])
-    df.sort_index(inplace=True)
-    index = _parse_datetimeindex(soup, tz)
-    if len(index) > len(df.index):
-        print("Shortening index", file=sys.stderr)
-        df.index = index[:len(df.index)]
-    else:
-        df.index = index
-
+        position = int(point.find('position').text)
+        value = float(point.find(label).text)
+        timestamp = start + (position - 1) * delta
+        data[timestamp] = value
+    
+    # Create Series and sort
+    S = pd.Series(data).sort_index()
+    
+    # Handle curveType A03: forward fill missing positions
+    # See: https://eepublicdownloads.entsoe.eu/clean-documents/EDI/Library/cim_based/Introduction_of_different_Timeseries_possibilities__curvetypes__with_ENTSO-E_electronic_document_v1.4.pdf
+    curvetype_elem = soup.find('curvetype')
+    if curvetype_elem and curvetype_elem.text == 'A03':
+        # Reindex on continuous range which creates gaps if positions are missing
+        # Then forward fill to repeat last valid value
+        S = S.reindex(pd.date_range(start, end - delta, freq=delta_text)).ffill()
+    
+    # Convert to DataFrame
+    df = pd.DataFrame(S, columns=[label])
+    
+    # Apply timezone conversion
+    if tz:
+        df.index = df.index.tz_convert(tz)
+    
     df.index.name = None
     df.columns.name = None
+    
     direction_dico = {'A01': 'Up',
                       'A02': 'Down',
                       'A03': 'Symmetric'}

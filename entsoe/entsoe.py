@@ -14,10 +14,10 @@ from .exceptions import NoMatchingDataError, PaginationError
 from .mappings import Area, NEIGHBOURS, lookup_area
 from .parsers import parse_prices, parse_loads, parse_generation, \
     parse_installed_capacity_per_plant, parse_crossborder_flows, \
-    parse_unavailabilities, parse_contracted_reserve, parse_imbalance_prices_zip, \
-    parse_imbalance_volumes_zip, parse_netpositions, parse_procured_balancing_capacity, \
-    parse_water_hydro,parse_aggregated_bids, parse_activated_balancing_energy_prices, \
-    parse_offshore_unavailability, parse_imbalance_volumes
+    parse_unavailabilities, parse_contracted_reserve, parse_contracted_reserve_zip, \
+    parse_imbalance_prices_zip, parse_imbalance_volumes_zip, parse_netpositions, \
+    parse_procured_balancing_capacity, parse_water_hydro, parse_aggregated_bids, \
+    parse_activated_balancing_energy_prices, parse_offshore_unavailability, parse_imbalance_volumes
 from .decorators import retry, paginated, year_limited, day_limited, documents_limited
 import warnings
 
@@ -983,7 +983,7 @@ class EntsoeRawClient:
             self, country_code: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp, process_type: str, 
             type_marketagreement_type: str, psr_type: Optional[str] = None,
-            offset: int = 0) -> str:
+            offset: int = 0) -> bytes:
         """
         Parameters
         ----------
@@ -1001,7 +1001,8 @@ class EntsoeRawClient:
 
         Returns
         -------
-        str
+        bytes
+            ZIP archive containing XML files
         """
         area = lookup_area(country_code)
         params = {
@@ -1015,19 +1016,21 @@ class EntsoeRawClient:
         if psr_type:
             params.update({'psrType': psr_type})
         response = self._base_request(params=params, start=start, end=end)
-        return response.text
+        return response.content
 
     def query_contracted_reserve_amount(
             self, country_code: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp, type_marketagreement_type: str,
-            psr_type: Optional[str] = None,
-            offset: int = 0) -> str:
+            end: pd.Timestamp, process_type: str,
+            type_marketagreement_type: str, psr_type: Optional[str] = None,
+            offset: int = 0) -> bytes:
         """
         Parameters
         ----------
         country_code : Area|str
         start : pd.Timestamp
         end : pd.Timestamp
+        process_type : str
+            type of process (see mappings.PROCESSTYPE)
         type_marketagreement_type : str
             type of contract (see mappings.MARKETAGREEMENTTYPE)
         psr_type : str
@@ -1037,11 +1040,14 @@ class EntsoeRawClient:
 
         Returns
         -------
-        str
+        bytes
+            ZIP archive containing XML files
         """
         area = lookup_area(country_code)
         params = {
-            'documentType': 'A81',
+            'documentType': 'A81',  # [M] A81 = Contracted reserves
+            'businessType': 'B95',  # [M] B95 = Procured capacity
+            'processType': process_type,  # [M*] A51 = Automatic frequency restoration reserve; etc
             'controlArea_Domain': area.code,
             'type_MarketAgreement.Type': type_marketagreement_type,
             'offset': offset
@@ -1049,7 +1055,7 @@ class EntsoeRawClient:
         if psr_type:
             params.update({'psrType': psr_type})
         response = self._base_request(params=params, start=start, end=end)
-        return response.text
+        return response.content
 
     def _query_unavailability(
             self, country_code: Union[Area, str], start: pd.Timestamp,
@@ -2247,11 +2253,11 @@ class EntsoePandasClient(EntsoeRawClient):
         pd.DataFrame
         """
         area = lookup_area(country_code)
-        text = super(EntsoePandasClient, self).query_contracted_reserve_prices_procured_capacity(
+        zip_contents = super(EntsoePandasClient, self).query_contracted_reserve_prices_procured_capacity(
             country_code=area, start=start, end=end,
             process_type=process_type, type_marketagreement_type=type_marketagreement_type,
             psr_type=psr_type, offset=offset)
-        df = parse_contracted_reserve(text, area.tz, "procurement_price.amount")
+        df = parse_contracted_reserve_zip(zip_contents, area.tz, "procurement_price.amount")
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df    
@@ -2262,6 +2268,7 @@ class EntsoePandasClient(EntsoeRawClient):
     def query_contracted_reserve_amount(
             self,
             country_code: Union[Area, str],
+            process_type: str,
             type_marketagreement_type: str,
             start: pd.Timestamp,
             end: pd.Timestamp,
@@ -2271,6 +2278,8 @@ class EntsoePandasClient(EntsoeRawClient):
         Parameters
         ----------
         country_code : Area|str
+        process_type : str
+            type of process (see mappings.PROCESSTYPE)
         type_marketagreement_type : str
             type of contract (see mappings.MARKETAGREEMENTTYPE)
         start : pd.Timestamp
@@ -2285,11 +2294,12 @@ class EntsoePandasClient(EntsoeRawClient):
         pd.DataFrame
         """
         area = lookup_area(country_code)
-        text = super(EntsoePandasClient, self).query_contracted_reserve_amount(
+        zip_contents = super(EntsoePandasClient, self).query_contracted_reserve_amount(
             country_code=area, start=start, end=end,
+            process_type=process_type,
             type_marketagreement_type=type_marketagreement_type,
             psr_type=psr_type, offset=offset)
-        df = parse_contracted_reserve(text, area.tz, "quantity")
+        df = parse_contracted_reserve_zip(zip_contents, area.tz, "quantity")
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df

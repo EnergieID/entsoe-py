@@ -676,22 +676,12 @@ def _parse_imbalance_volumes_timeseries(soup, include_resolution) -> pd.DataFram
         # time series uses positive and negative values
         flow_direction_factor = 1
 
-    df = pd.DataFrame(columns=['Imbalance Volume'])
+    df = pd.DataFrame({
+        'Imbalance Volume': _parse_timeseries_generic(soup, label='quantity', merge_series=True) * flow_direction_factor
+    })
 
-    for period in soup.find_all('period'):
-        start = pd.to_datetime(period.find('timeinterval').find('start').text)
-        end = pd.to_datetime(period.find('timeinterval').find('end').text)
-        resolution = _resolution_to_timedelta(period.find('resolution').text)
-        tx = pd.date_range(start=start, end=end, freq=resolution, inclusive='left')
-        points = period.find_all('point')
-
-        for point in points:
-            position = int(point.find('position').text)
-            df.loc[tx[position-1], 'Imbalance Volume'] = \
-                float(point.find('quantity').text) * flow_direction_factor
-        if include_resolution:
-            df["Resolution"] = resolution
-    df.set_index(['Imbalance Volume'])
+    if include_resolution:
+        df["Resolution"] = _resolution_to_timedelta(soup.find('resolution').text)
 
     return df
 

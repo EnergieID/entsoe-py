@@ -3,3 +3,4 @@ include LICENSE
 include requirements.txt
 include entsoe/geo/geojson/*.geojson
 include entsoe/*
+exclude tests/*

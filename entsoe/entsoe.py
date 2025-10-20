@@ -26,7 +26,7 @@ warnings.filterwarnings('always')
 warnings.filterwarnings('ignore', category=XMLParsedAsHTMLWarning)
 
 __title__ = "entsoe-py"
-__version__ = "0.7.6"
+__version__ = "0.7.7"
 __author__ = "EnergieID.be, Frank Boerman"
 __license__ = "MIT"
 
@@ -1972,7 +1972,7 @@ class EntsoePandasClient(EntsoeRawClient):
     @year_limited
     def query_imbalance_prices(
             self, country_code: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp, psr_type: Optional[str] = None, include_resolution: bool = False) -> pd.DataFrame:
+            end: pd.Timestamp, psr_type: Optional[str] = None) -> pd.DataFrame:
         """
         Parameters
         ----------
@@ -1990,13 +1990,10 @@ class EntsoePandasClient(EntsoeRawClient):
         area = lookup_area(country_code)
         archive = super(EntsoePandasClient, self).query_imbalance_prices(
             country_code=area, start=start, end=end, psr_type=psr_type)
-        df = parse_imbalance_prices_zip(zip_contents=archive, include_resolution=include_resolution)
+        df = parse_imbalance_prices_zip(zip_contents=archive)
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
-        # 
-        if include_resolution:
-            df = df.rename(columns={'Resolution Long': 'Resolution'})
-            df.drop(columns=['Resolution Short'], inplace=True)
+
         return df
 
     @year_limited

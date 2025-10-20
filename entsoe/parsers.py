@@ -274,7 +274,7 @@ def parse_activated_balancing_energy_prices(xml_text):
     df.sort_index(inplace=True)
     return df
 
-def parse_imbalance_prices(xml_text, include_resolution=False):
+def parse_imbalance_prices(xml_text):
     """
     Parameters
     ----------
@@ -285,7 +285,7 @@ def parse_imbalance_prices(xml_text, include_resolution=False):
     pd.DataFrame
     """
     timeseries_blocks = _extract_timeseries(xml_text)
-    frames = (_parse_imbalance_prices_timeseries(soup, include_resolution)
+    frames = (_parse_imbalance_prices_timeseries(soup)
               for soup in timeseries_blocks)
     df = pd.concat(frames, axis=1)
     df = df.stack().unstack()  # ad-hoc fix to prevent column splitting by NaNs
@@ -544,7 +544,7 @@ def _parse_contracted_reserve_series(soup, tz, label):
     df.columns = pd.MultiIndex.from_product([df.columns, [direction]])
     return df
 
-def parse_imbalance_prices_zip(zip_contents: bytes, include_resolution: bool =False) -> pd.DataFrame:
+def parse_imbalance_prices_zip(zip_contents: bytes) -> pd.DataFrame:
     """
     Parameters
     ----------
@@ -558,7 +558,7 @@ def parse_imbalance_prices_zip(zip_contents: bytes, include_resolution: bool =Fa
         with zipfile.ZipFile(BytesIO(archive), 'r') as arc:
             for f in arc.infolist():
                 if f.filename.endswith('xml'):
-                    frame = parse_imbalance_prices(xml_text=arc.read(f), include_resolution= include_resolution)
+                    frame = parse_imbalance_prices(xml_text=arc.read(f))
                     yield frame
 
     frames = gen_frames(zip_contents)
@@ -609,7 +609,7 @@ def _parse_activated_balancing_energy_prices_timeseries(soup) -> pd.DataFrame:
     df = df.infer_objects(copy=False).ffill()
     return df
 
-def _parse_imbalance_prices_timeseries(soup, include_resolution=False) -> pd.DataFrame:
+def _parse_imbalance_prices_timeseries(soup) -> pd.DataFrame:
     """
     Parameters
     ----------
@@ -619,40 +619,16 @@ def _parse_imbalance_prices_timeseries(soup, include_resolution=False) -> pd.Dat
     -------
     pd.DataFrame
     """
-    positions = []
-    amounts = []
-    categories = []
-    for point in soup.find_all('point'):
-        positions.append(int(point.find('position').text))
-        amounts.append(float(point.find('imbalance_price.amount').text))
-        if point.find('imbalance_price.category'):
-            categories.append(point.find('imbalance_price.category').text)
-        else:
-            categories.append('None')
 
-    df = pd.DataFrame(data={'position': positions,
-                            'amount': amounts, 'category': categories})
-    df = df.set_index(['position', 'category']).unstack()
-    df.sort_index(inplace=True)
-    df.index = _parse_datetimeindex(soup)
-    df = df.xs('amount', axis=1)
-    df.index.name = None
-    df.columns.name = None
+    df = pd.DataFrame({
+        'price': _parse_timeseries_generic(soup, label='imbalance_price.amount', merge_series=True),
+        'category': _parse_timeseries_generic(soup, label='imbalance_price.category', merge_series=True, to_float=False),
+    }).pivot(columns='category', values='price')
+
     df.rename(columns={'A04': 'Long', 'A05': 'Short',
                        'None': 'Price for Consumption'}, inplace=True)
-    if include_resolution:
-        period = soup.find('period')
-        resolution = None
-        if period is not None and period.find('resolution') is not None:
-            resolution = period.find('resolution').text
-        if 'Long' in df.columns:
-            df['Resolution Long'] = resolution
-        else:
-            df['Resolution Long'] = None
-        if 'Short' in df.columns:
-            df['Resolution Short'] = resolution
-        else:
-            df['Resolution Short'] = None
+    df.columns.name = None
+
     return df
 
 def parse_imbalance_volumes_zip(zip_contents: bytes, include_resolution:bool = False) -> pd.DataFrame:

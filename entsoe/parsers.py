@@ -495,20 +495,22 @@ def _parse_contracted_reserve_series(soup, tz, label):
     -------
     pd.Series
     """
-    # Parse period info
-    period = soup.find('period')
-    start = pd.Timestamp(period.find('start').text)
-    end = pd.Timestamp(period.find('end').text)
-    delta_text = _resolution_to_timedelta(period.find('resolution').text)
-    delta = pd.Timedelta(delta_text)
-    
-    # Build dict mapping timestamp -> value using positions
+    # Parse all periods (handle both France: 1 Period/24 Points and Belgium: 24 Periods/1 Point)
+    periods = soup.find_all('period')
     data = {}
-    for point in soup.find_all('point'):
-        position = int(point.find('position').text)
-        value = float(point.find(label).text)
-        timestamp = start + (position - 1) * delta
-        data[timestamp] = value
+    
+    for period in periods:
+        start = pd.Timestamp(period.find('start').text)
+        end = pd.Timestamp(period.find('end').text)
+        delta_text = _resolution_to_timedelta(period.find('resolution').text)
+        delta = pd.Timedelta(delta_text)
+        
+        # Build dict mapping timestamp -> value using positions for this period
+        for point in period.find_all('point'):
+            position = int(point.find('position').text)
+            value = float(point.find(label).text)
+            timestamp = start + (position - 1) * delta
+            data[timestamp] = value
     
     # Create Series and sort
     S = pd.Series(data).sort_index()
@@ -516,7 +518,14 @@ def _parse_contracted_reserve_series(soup, tz, label):
     # Handle curveType A03: forward fill missing positions
     # See: https://eepublicdownloads.entsoe.eu/clean-documents/EDI/Library/cim_based/Introduction_of_different_Timeseries_possibilities__curvetypes__with_ENTSO-E_electronic_document_v1.4.pdf
     curvetype_elem = soup.find('curvetype')
-    if curvetype_elem and curvetype_elem.text == 'A03':
+    if curvetype_elem and curvetype_elem.text == 'A03' and len(periods) == 1:
+        # Only apply forward fill for single period structures (like France)
+        # For multi-period structures (like Belgium), each period is independent
+        period = periods[0]
+        start = pd.Timestamp(period.find('start').text)
+        end = pd.Timestamp(period.find('end').text)
+        delta_text = _resolution_to_timedelta(period.find('resolution').text)
+        delta = pd.Timedelta(delta_text)
         # Reindex on continuous range which creates gaps if positions are missing
         # Then forward fill to repeat last valid value
         S = S.reindex(pd.date_range(start, end - delta, freq=delta_text)).ffill()

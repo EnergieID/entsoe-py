@@ -518,17 +518,23 @@ def _parse_contracted_reserve_series(soup, tz, label):
     # Handle curveType A03: forward fill missing positions
     # See: https://eepublicdownloads.entsoe.eu/clean-documents/EDI/Library/cim_based/Introduction_of_different_Timeseries_possibilities__curvetypes__with_ENTSO-E_electronic_document_v1.4.pdf
     curvetype_elem = soup.find('curvetype')
-    if curvetype_elem and curvetype_elem.text == 'A03' and len(periods) == 1:
-        # Only apply forward fill for single period structures (like France)
-        # For multi-period structures (like Belgium), each period is independent
-        period = periods[0]
-        start = pd.Timestamp(period.find('start').text)
-        end = pd.Timestamp(period.find('end').text)
-        delta_text = _resolution_to_timedelta(period.find('resolution').text)
-        delta = pd.Timedelta(delta_text)
-        # Reindex on continuous range which creates gaps if positions are missing
-        # Then forward fill to repeat last valid value
-        S = S.reindex(pd.date_range(start, end - delta, freq=delta_text)).ffill()
+    if curvetype_elem and curvetype_elem.text == 'A03':
+        if len(periods) == 1:
+            # Single period structure (like France): forward fill to 15min resolution
+            period = periods[0]
+            start = pd.Timestamp(period.find('start').text)
+            end = pd.Timestamp(period.find('end').text)
+            # Force 15-minute resolution for consistency
+            S = S.reindex(pd.date_range(start, end, freq='15min')).ffill()
+        else:
+            # Multi-period structure (like Belgium): forward fill to 15min resolution
+            # Get overall time range from first and last periods
+            first_period = periods[0]
+            last_period = periods[-1]
+            overall_start = pd.Timestamp(first_period.find('start').text)
+            overall_end = pd.Timestamp(last_period.find('end').text)
+            # Reindex to 15-minute intervals and forward fill
+            S = S.reindex(pd.date_range(overall_start, overall_end, freq='15min')).ffill()
     
     # Convert to DataFrame
     df = pd.DataFrame(S, columns=[label])

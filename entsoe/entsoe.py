@@ -983,7 +983,7 @@ class EntsoeRawClient:
             self, country_code: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp, process_type: str, 
             type_marketagreement_type: str, psr_type: Optional[str] = None,
-            standard_market_product: str = "A01", offset: int = 0) -> bytes:
+            offset: int = 0) -> bytes:
         """
         Parameters
         ----------
@@ -996,8 +996,6 @@ class EntsoeRawClient:
             type of contract (see mappings.MARKETAGREEMENTTYPE)
         psr_type : str
             filter query for a specific psr type
-        standard_market_product : str
-            standard market product type (default: "A01")
         offset : int
             offset for querying more than 100 documents
 
@@ -1013,7 +1011,6 @@ class EntsoeRawClient:
             'processType': process_type, # [M*] A51 = Automatic frequency restoration reserve; A52 =  Frequency containment reserve; A47 = Manual frequency restoration reserve; A46 = Replacement reserve
             'controlArea_Domain': area.code,
             'type_MarketAgreement.Type': type_marketagreement_type,
-            'standard_MarketProduct': standard_market_product,
             'offset': offset
         }
         if psr_type:
@@ -2235,7 +2232,6 @@ class EntsoePandasClient(EntsoeRawClient):
             start: pd.Timestamp,
             end: pd.Timestamp,
             psr_type: Optional[str] = None,
-            standard_market_product: str = "A01",
             offset: int = 0) -> pd.DataFrame:
         """
         Parameters
@@ -2249,8 +2245,6 @@ class EntsoePandasClient(EntsoeRawClient):
         end : pd.Timestamp
         psr_type : str
             filter query for a specific psr type
-        standard_market_product : str
-            standard market product type (default: "A01")
         offset : int
             offset for querying more than 100 documents
 
@@ -2262,7 +2256,7 @@ class EntsoePandasClient(EntsoeRawClient):
         zip_contents = super(EntsoePandasClient, self).query_contracted_reserve_prices_procured_capacity(
             country_code=area, start=start, end=end,
             process_type=process_type, type_marketagreement_type=type_marketagreement_type,
-            psr_type=psr_type, standard_market_product=standard_market_product, offset=offset)
+            psr_type=psr_type, offset=offset)
         df = parse_contracted_reserve_zip(zip_contents, area.tz, "procurement_price.amount")
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)

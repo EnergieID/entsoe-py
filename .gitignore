@@ -29,6 +29,8 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+scratch.py
+adhoc_test.py
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -99,8 +101,6 @@ ENV/
 # Rope project settings
 .ropeproject
 
-# mkdocs documentation
-/site
 
 # mypy
 .mypy_cache/
@@ -109,6 +109,3 @@ test.ipynb
 settings.py
 /.project
 /.pydevproject
-
-# user settings, for example to store api key
-secret.py

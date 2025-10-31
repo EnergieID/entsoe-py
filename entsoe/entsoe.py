@@ -14,10 +14,10 @@ from .exceptions import NoMatchingDataError, PaginationError
 from .mappings import Area, NEIGHBOURS, lookup_area
 from .parsers import parse_prices, parse_loads, parse_generation, \
     parse_installed_capacity_per_plant, parse_crossborder_flows, \
-    parse_unavailabilities, parse_contracted_reserve, parse_imbalance_prices_zip, \
-    parse_imbalance_volumes_zip, parse_netpositions, parse_procured_balancing_capacity, \
-    parse_water_hydro,parse_aggregated_bids, parse_activated_balancing_energy_prices, \
-    parse_offshore_unavailability, parse_imbalance_volumes
+    parse_unavailabilities, parse_contracted_reserve, parse_contracted_reserve_zip, \
+    parse_imbalance_prices_zip, parse_imbalance_volumes_zip, parse_netpositions, \
+    parse_procured_balancing_capacity, parse_water_hydro, parse_aggregated_bids, \
+    parse_activated_balancing_energy_prices, parse_offshore_unavailability, parse_imbalance_volumes
 from .decorators import retry, paginated, year_limited, day_limited, documents_limited
 import warnings
 
@@ -26,7 +26,7 @@ warnings.filterwarnings('always')
 warnings.filterwarnings('ignore', category=XMLParsedAsHTMLWarning)
 
 __title__ = "entsoe-py"
-__version__ = "0.7.4"
+__version__ = "0.7.8"
 __author__ = "EnergieID.be, Frank Boerman"
 __license__ = "MIT"
 
@@ -138,7 +138,7 @@ class EntsoeRawClient:
             # this means we need to check the contents for this error even when status code 200 is returned
             # to prevent parsing the full response do a text matching instead of full parsing
             # also only do this when response type content is text and not for example a zip file
-            if response.headers.get('content-type', '') == 'application/xml':
+            if response.headers.get('content-type', '') in ['application/xml', 'text/xml']:
                 if 'No matching data found' in response.text:
                     raise NoMatchingDataError
             return response
@@ -184,12 +184,43 @@ class EntsoeRawClient:
             'documentType': 'A44',
             'in_Domain': area.code,
             'out_Domain': area.code,
-            'offset': offset
+            'offset': offset,
+            'contract_MarketAgreement.type': 'A01'
         }
         if sequence is not None:
             params['classificationSequence_AttributeInstanceComponent.position'] = sequence
         response = self._base_request(params=params, start=start, end=end)
         return response.text
+
+
+
+    def query_intraday_prices(self, country_code: Union[Area, str],
+                               start: pd.Timestamp, end: pd.Timestamp,
+                               sequence: int, offset: int = 0) -> str:
+        """
+        Parameters
+        ----------
+        country_code : Area|str
+        start : pd.Timestamp
+        end : pd.Timestamp
+
+        Returns
+        -------
+        str
+        """
+        area = lookup_area(country_code)
+        params = {
+            'documentType': 'A44',
+            'in_Domain': area.code,
+            'out_Domain': area.code,
+            'offset': offset,
+            'contract_MarketAgreement.type': 'A07'
+        }
+        if sequence is not None:
+            params['classificationSequence_AttributeInstanceComponent.position'] = sequence
+        response = self._base_request(params=params, start=start, end=end)
+        return response.text
+
 
     def query_aggregated_bids(self, country_code: Union[Area, str],
                               process_type: str,
@@ -914,45 +945,11 @@ class EntsoeRawClient:
         response = self._base_request(params=params, start=start, end=end)
         return response.content
 
-    def query_contracted_reserve_prices(
-            self, country_code: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp, type_marketagreement_type: str,
-            psr_type: Optional[str] = None,
-            offset: int = 0) -> str:
-        """
-        Parameters
-        ----------
-        country_code : Area|str
-        start : pd.Timestamp
-        end : pd.Timestamp
-        type_marketagreement_type : str
-            type of contract (see mappings.MARKETAGREEMENTTYPE)
-        psr_type : str
-            filter query for a specific psr type
-        offset : int
-            offset for querying more than 100 documents
-
-        Returns
-        -------
-        str
-        """
-        area = lookup_area(country_code)
-        params = {
-            'documentType': 'A89',
-            'controlArea_Domain': area.code,
-            'type_MarketAgreement.Type': type_marketagreement_type,
-            'offset': offset
-        }
-        if psr_type:
-            params.update({'psrType': psr_type})
-        response = self._base_request(params=params, start=start, end=end)
-        return response.text
-
     def query_contracted_reserve_prices_procured_capacity(
             self, country_code: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp, process_type: str, 
             type_marketagreement_type: str, psr_type: Optional[str] = None,
-            offset: int = 0) -> str:
+            offset: int = 0) -> bytes:
         """
         Parameters
         ----------
@@ -970,7 +967,8 @@ class EntsoeRawClient:
 
         Returns
         -------
-        str
+        bytes
+            ZIP archive containing XML files
         """
         area = lookup_area(country_code)
         params = {
@@ -984,41 +982,7 @@ class EntsoeRawClient:
         if psr_type:
             params.update({'psrType': psr_type})
         response = self._base_request(params=params, start=start, end=end)
-        return response.text
-
-    def query_contracted_reserve_amount(
-            self, country_code: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp, type_marketagreement_type: str,
-            psr_type: Optional[str] = None,
-            offset: int = 0) -> str:
-        """
-        Parameters
-        ----------
-        country_code : Area|str
-        start : pd.Timestamp
-        end : pd.Timestamp
-        type_marketagreement_type : str
-            type of contract (see mappings.MARKETAGREEMENTTYPE)
-        psr_type : str
-            filter query for a specific psr type
-        offset : int
-            offset for querying more than 100 documents
-
-        Returns
-        -------
-        str
-        """
-        area = lookup_area(country_code)
-        params = {
-            'documentType': 'A81',
-            'controlArea_Domain': area.code,
-            'type_MarketAgreement.Type': type_marketagreement_type,
-            'offset': offset
-        }
-        if psr_type:
-            params.update({'psrType': psr_type})
-        response = self._base_request(params=params, start=start, end=end)
-        return response.text
+        return response.content
 
     def _query_unavailability(
             self, country_code: Union[Area, str], start: pd.Timestamp,
@@ -1340,6 +1304,64 @@ class EntsoePandasClient(EntsoeRawClient):
                 series_15min
             ]).sort_index()
 
+        series = series.tz_convert(area.tz).sort_index()
+        series = series.truncate(before=start, after=end)
+        # because of the above fix we need to check again if any valid data exists after truncating
+        if len(series) == 0:
+            raise NoMatchingDataError
+        return series
+
+    # we need to do offset, but we also want to pad the days so wrap it in an internal call
+    def query_intraday_prices(
+            self, country_code: Union[Area, str],
+            start: pd.Timestamp,
+            end: pd.Timestamp,
+            sequence: int) -> pd.Series:
+        """
+        Parameters
+        ----------
+        this will return the IDA prices, forced to the correct resolution
+        country_code : Area|str
+        start : pd.Timestamp
+        end : pd.Timestamp
+        sequence: int, 1, 2 or 3 corresponding to IDA 1, 2, 3. only some zones publish this on entsoe
+
+        Returns
+        -------
+        pd.Series
+        """
+
+        area = lookup_area(country_code)
+        # we do here extra days at start and end to fix issue 187
+        series = self._query_intraday_prices(
+            area,
+            start=start-pd.Timedelta(days=1),
+            end=end+pd.Timedelta(days=1),
+            sequence=sequence
+        )
+        series = series.tz_convert(area.tz).sort_index()
+        series = series.truncate(before=start, after=end)
+        # because of the above fix we need to check again if any valid data exists after truncating
+        if len(series) == 0:
+            raise NoMatchingDataError
+        return series
+
+    @year_limited
+    @documents_limited(100)
+    def _query_intraday_prices(
+            self, area: Area,
+            start: pd.Timestamp,
+            end: pd.Timestamp,
+            sequence: int,
+            offset: int = 0) -> pd.Series:
+        text = super(EntsoePandasClient, self).query_intraday_prices(
+            area,
+            start=start,
+            end=end,
+            offset=offset,
+            sequence=sequence
+        )
+        series = parse_prices(text)['15min']
         series = series.tz_convert(area.tz).sort_index()
         series = series.truncate(before=start, after=end)
         # because of the above fix we need to check again if any valid data exists after truncating
@@ -1950,7 +1972,7 @@ class EntsoePandasClient(EntsoeRawClient):
     @year_limited
     def query_imbalance_prices(
             self, country_code: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp, psr_type: Optional[str] = None, include_resolution: bool = False) -> pd.DataFrame:
+            end: pd.Timestamp, psr_type: Optional[str] = None) -> pd.DataFrame:
         """
         Parameters
         ----------
@@ -1968,13 +1990,10 @@ class EntsoePandasClient(EntsoeRawClient):
         area = lookup_area(country_code)
         archive = super(EntsoePandasClient, self).query_imbalance_prices(
             country_code=area, start=start, end=end, psr_type=psr_type)
-        df = parse_imbalance_prices_zip(zip_contents=archive, include_resolution=include_resolution)
+        df = parse_imbalance_prices_zip(zip_contents=archive)
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
-        # 
-        if include_resolution:
-            df = df.rename(columns={'Resolution Long': 'Resolution'})
-            df.drop(columns=['Resolution Short'], inplace=True)
+
         return df
 
     @year_limited
@@ -2094,6 +2113,7 @@ class EntsoePandasClient(EntsoeRawClient):
     def query_contracted_reserve_prices(
             self,
             country_code: Union[Area, str],
+            process_type: str,
             type_marketagreement_type: str,
             start: pd.Timestamp,
             end: pd.Timestamp,
@@ -2117,11 +2137,12 @@ class EntsoePandasClient(EntsoeRawClient):
         pd.DataFrame
         """
         area = lookup_area(country_code)
-        text = super(EntsoePandasClient, self).query_contracted_reserve_prices(
+        zip_contents = super(EntsoePandasClient, self).query_contracted_reserve_prices_procured_capacity(
             country_code=area, start=start, end=end,
-            type_marketagreement_type=type_marketagreement_type,
+            process_type=process_type, type_marketagreement_type=type_marketagreement_type,
             psr_type=psr_type, offset=offset)
-        df = parse_contracted_reserve(text, area.tz, "procurement_price.amount")
+        df = parse_contracted_reserve_zip(zip_contents, area.tz, "procurement_price.amount")
+        df.columns = df.columns.droplevel()
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df
@@ -2158,11 +2179,20 @@ class EntsoePandasClient(EntsoeRawClient):
         pd.DataFrame
         """
         area = lookup_area(country_code)
-        text = super(EntsoePandasClient, self).query_contracted_reserve_prices_procured_capacity(
+        zip_contents = super(EntsoePandasClient, self).query_contracted_reserve_prices_procured_capacity(
             country_code=area, start=start, end=end,
             process_type=process_type, type_marketagreement_type=type_marketagreement_type,
             psr_type=psr_type, offset=offset)
-        df = parse_contracted_reserve(text, area.tz, "procurement_price.amount")
+        df_quantity = parse_contracted_reserve_zip(zip_contents, area.tz, "quantity")
+        df_quantity.columns = df_quantity.columns.droplevel()
+        df_prices = parse_contracted_reserve_zip(zip_contents, area.tz, "procurement_price.amount")
+        df_prices.columns = df_prices.columns.droplevel()
+        df = pd.merge(
+            df_quantity,
+            df_prices,
+            left_index=True, right_index=True, suffixes=(' Quantity', ' Prices')
+        )
+
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df    
@@ -2173,6 +2203,7 @@ class EntsoePandasClient(EntsoeRawClient):
     def query_contracted_reserve_amount(
             self,
             country_code: Union[Area, str],
+            process_type: str,
             type_marketagreement_type: str,
             start: pd.Timestamp,
             end: pd.Timestamp,
@@ -2182,6 +2213,8 @@ class EntsoePandasClient(EntsoeRawClient):
         Parameters
         ----------
         country_code : Area|str
+        process_type : str
+            type of process (see mappings.PROCESSTYPE)
         type_marketagreement_type : str
             type of contract (see mappings.MARKETAGREEMENTTYPE)
         start : pd.Timestamp
@@ -2196,11 +2229,12 @@ class EntsoePandasClient(EntsoeRawClient):
         pd.DataFrame
         """
         area = lookup_area(country_code)
-        text = super(EntsoePandasClient, self).query_contracted_reserve_amount(
+        zip_contents = super(EntsoePandasClient, self).query_contracted_reserve_prices_procured_capacity(
             country_code=area, start=start, end=end,
-            type_marketagreement_type=type_marketagreement_type,
+            process_type=process_type, type_marketagreement_type=type_marketagreement_type,
             psr_type=psr_type, offset=offset)
-        df = parse_contracted_reserve(text, area.tz, "quantity")
+        df = parse_contracted_reserve_zip(zip_contents, area.tz, "quantity")
+        df.columns = df.columns.droplevel()
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df

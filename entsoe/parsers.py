@@ -136,7 +136,9 @@ def parse_generation(
     all_series = dict()
     for soup in _extract_timeseries(xml_text):
         ts = _parse_generation_timeseries(soup, per_plant=per_plant, include_eic=include_eic)
-
+        if ts is None or ts.empty:
+            continue
+        
         # check if we already have a series of this name
         series = all_series.get(ts.name)
         if series is None:

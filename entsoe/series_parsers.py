@@ -120,6 +120,16 @@ def _parse_timeseries_generic(soup, label='quantity', to_float=True, merge_serie
         else:
             series[freq] = None
 
+    # Filter out empty entries
+    series = {
+        k: v for k, v in series.items()
+        if v is not None and not v.empty
+    }
+
+    # Do not concatenate if no data
+    if not series:
+        return pd.Series(dtype=float)
+
     # for endpoints which never has duplicated timeseries the flag merge_series signals to just concat everything
     if merge_series:
         return pd.concat(series.values())

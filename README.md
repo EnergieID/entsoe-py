@@ -1,7 +1,7 @@
 # entsoe-py
 Python client for the ENTSO-E API (european network of transmission system operators for electricity)
 
-Documentation of the API found on https://transparency.entsoe.eu/content/static_content/Static%20content/web%20api/Guide.html
+Documentation of the API found on https://documenter.getpostman.com/view/7009892/2s93JtP3F6
 
 ## Installation
 `python3 -m pip install entsoe-py`

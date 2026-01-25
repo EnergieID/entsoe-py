@@ -22,7 +22,6 @@ from .decorators import retry, paginated, year_limited, day_limited, documents_l
 import warnings
 
 logger = logging.getLogger(__name__)
-warnings.filterwarnings('always')
 warnings.filterwarnings('ignore', category=XMLParsedAsHTMLWarning)
 
 __title__ = "entsoe-py"
@@ -1179,7 +1178,9 @@ class EntsoePandasClient(EntsoeRawClient):
 
         """
         if resolution is not None:
-            warnings.warn('The resolution parameter is deprecated and will be removed. This function will force the right resolution', DeprecationWarning)
+            with warnings.catch_warnings():
+                warnings.simplefilter("always")
+                warnings.warn('The resolution parameter is deprecated and will be removed. This function will force the right resolution', DeprecationWarning)
         area = lookup_area(country_code)
         text = super(EntsoePandasClient, self).query_net_position(
             country_code=area, start=start, end=end, dayahead=dayahead)
@@ -1254,7 +1255,9 @@ class EntsoePandasClient(EntsoeRawClient):
         pd.Series
         """
         if resolution is not None:
-            warnings.warn('The resolution parameter is deprecated and will be removed. This function will force the right SDAC resolution', DeprecationWarning)
+            with warnings.catch_warnings():
+                warnings.simplefilter("always")
+                warnings.warn('The resolution parameter is deprecated and will be removed. This function will force the right resolution', DeprecationWarning)
         area = lookup_area(country_code)
         # we do here extra days at start and end to fix issue 187
         series = self._query_day_ahead_prices(

@@ -97,10 +97,12 @@ def _parse_timeseries_generic(soup, label='quantity', to_float=True, merge_serie
         delta_text = _resolution_to_timedelta(res_text=period.find('resolution').text)
         delta = pd.Timedelta(delta_text)
         for point in period.find_all('point'):
+            position = point.find('position').text
             value = point.find(label).text
             if to_float:
+                position = position.replace(',', '')
                 value = value.replace(',', '')
-            position = int(point.find('position').text)
+            position = int(position)
             data[start + (position-1)*delta] = value
         S = pd.Series(data).sort_index()
         if soup.find('curvetype').text == 'A03':

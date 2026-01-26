@@ -55,7 +55,7 @@ class EntsoeFileClient:
         )
         r.raise_for_status()
         data = r.json()
-        self.expire = pd.Timestamp.now(tz='europe/amsterdam') + pd.Timedelta(seconds=data['expires_in'])
+        self.expire = pd.Timestamp.now(tz='Europe/Amsterdam') + pd.Timedelta(seconds=data['expires_in'])
         self.access_token = data['access_token']
 
     @check_expired

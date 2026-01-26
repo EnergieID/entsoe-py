@@ -7,7 +7,7 @@ def check_expired(func):
     def check_expired_wrapper(*args, **kwargs):
         self = args[0]
 
-        if pd.Timestamp.now(tz='europe/amsterdam') >= self.expire:
+        if pd.Timestamp.now(tz='Europe/Amsterdam') >= self.expire:
             self._update_token()
 
         return func(*args, **kwargs)

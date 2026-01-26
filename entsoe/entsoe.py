@@ -1190,7 +1190,7 @@ class EntsoePandasClient(EntsoeRawClient):
         if dayahead:
             # This function should only return SDAC net positions for day ahead, which have a fixed defined resolution
             # before 2025-10-01 its 60min, after 15min
-            # this is aligned on businessday in timezone europe/amsterdam
+            # this is aligned on businessday in timezone Europe/Amsterdam
             # some zones already publish in different resolution.
             # for secondary auctions published on entsoe, use the query_day_ahead_prices_local function
             if series.index.max() < QUARTER_MTU_SDAC_GOLIVE:
@@ -1290,11 +1290,11 @@ class EntsoePandasClient(EntsoeRawClient):
 
         # This function should only return SDAC prices, which have a fixed defined resolution
         # before 2025-10-01 its 60min, after 15min
-        # this is aligned on businessday in timezone europe/amsterdam
+        # this is aligned on businessday in timezone Europe/Amsterdam
         # some zones already publish in different resolution.
         # for secondary auctions published on entsoe, use the query_day_ahead_prices_local function
 
-        series = pd.concat([x for x in series_all.values() if len(x) > 0]).sort_index().tz_convert('europe/amsterdam')
+        series = pd.concat([x for x in series_all.values() if len(x) > 0]).sort_index().tz_convert('Europe/Amsterdam')
         if len(series) == 0:
             raise NoMatchingDataError
         if series.index.max() < QUARTER_MTU_SDAC_GOLIVE:

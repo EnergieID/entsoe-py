@@ -1,5 +1,6 @@
 import bs4
 import pandas as pd
+from pandas.tseries.frequencies import to_offset
 
 
 def _extract_timeseries(xml_text):
@@ -95,7 +96,7 @@ def _parse_timeseries_generic(soup, label='quantity', to_float=True, merge_serie
         start = pd.Timestamp(period.find('start').text)
         end = pd.Timestamp(period.find('end').text)
         delta_text = _resolution_to_timedelta(res_text=period.find('resolution').text)
-        delta = pd.Timedelta(delta_text)
+        delta = to_offset(delta_text)
         for point in period.find_all('point'):
             position = point.find('position').text
             value = point.find(label).text

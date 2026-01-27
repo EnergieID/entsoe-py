@@ -681,6 +681,28 @@ class EntsoeRawClient:
             doctype="A31", contract_marketagreement_type="A07",
             auction_type=("A01" if implicit==True else "A02"))
 
+    def query_capacity_after_intraday(
+        self, country_code_from: Union[Area, str],
+        country_code_to: Union[Area, str], start: pd.Timestamp,
+        end: pd.Timestamp) -> str:
+        """
+        Parameters
+        ----------
+        country_code_from : Area|str
+        country_code_to : Area|str
+        start : pd.Timestamp
+        end : pd.Timestamp
+
+        Returns
+        -------
+        str
+        """
+        return self._query_crossborder(
+            country_code_from=country_code_from,
+            country_code_to=country_code_to, start=start, end=end,
+            doctype="B33", contract_marketagreement_type="A07",
+            auction_type="A08")
+
     def query_offered_capacity(
         self, country_code_from: Union[Area, str],
             country_code_to: Union[Area, str], start: pd.Timestamp,
@@ -1881,6 +1903,37 @@ class EntsoePandasClient(EntsoeRawClient):
             start=start,
             end=end,
             implicit=implicit)
+        ts = parse_crossborder_flows(text)
+        ts = ts.tz_convert(area_from.tz)
+        ts = ts.truncate(before=start, after=end)
+        return ts
+
+    @year_limited
+    def query_capacity_after_intraday(
+        self, country_code_from: Union[Area, str],
+            country_code_to: Union[Area, str], start: pd.Timestamp,
+            end: pd.Timestamp, **kwargs) -> pd.Series:
+        """
+        Note: Result will be in the timezone of the origin country  --> to check
+
+        Parameters
+        ----------
+        country_code_from : Area|str
+        country_code_to : Area|str
+        start : pd.Timestamp
+        end : pd.Timestamp
+
+        Returns
+        -------
+        pd.Series
+        """
+        area_to = lookup_area(country_code_to)
+        area_from = lookup_area(country_code_from)
+        text = super(EntsoePandasClient, self).query_capacity_after_intraday(
+            country_code_from=area_from,
+            country_code_to=area_to,
+            start=start,
+            end=end)
         ts = parse_crossborder_flows(text)
         ts = ts.tz_convert(area_from.tz)
         ts = ts.truncate(before=start, after=end)

@@ -1,7 +1,7 @@
-from entsoe.files import EntsoeFileClient
-from dotenv import load_dotenv
 import pytest
+from dotenv import load_dotenv
 
+from entsoe.files import EntsoeFileClient
 
 load_dotenv()
 

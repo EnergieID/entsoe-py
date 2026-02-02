@@ -1,0 +1,50 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "entsoe-py"
+version = "0.7.10"
+description = "A python API wrapper for ENTSO-E"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [
+    {name = "Jan", email = "jan@energieid.be"},
+    {name = "Frank Boerman", email = "frank@fboerman.nl"}
+]
+keywords = ["ENTSO-E", "data", "api", "energy"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Topic :: Scientific/Engineering",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+dependencies = [
+    "requests",
+    "pytz",
+    "beautifulsoup4>=4.11.1",
+    "pandas>=2.2.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/EnergieID/entsoe-py"
+Repository = "https://github.com/EnergieID/entsoe-py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["entsoe"]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.0.0",
+  "pytest-cov>=6.0.0",
+  "coverage[toml]>=7.0.0",
+  "covdefaults>=2.3.0",
+  "pre-commit>=4.0.0",
+  "pre-commit-hooks>=5.0.0",
+  "ruff>=0.12.0",
+  "yamllint>=1.35.0",
+]

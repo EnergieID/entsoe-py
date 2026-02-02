@@ -1,0 +1,51 @@
+---
+name: Release
+
+# yamllint disable-line rule:truthy
+on:
+  release:
+    types:
+      - published
+
+env:
+  DEFAULT_PYTHON: "3.12"
+
+jobs:
+  release:
+    name: Releasing to PyPi
+    runs-on: ubuntu-latest
+    environment:
+      name: release
+      url: https://pypi.org/p/entsoe-py
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - name: ⤵️ Check out code from GitHub
+        uses: actions/checkout@v4.2.2
+      - name: 🏗 Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+          python-version: ${{ env.DEFAULT_PYTHON }}
+      - name: 🏗 Install dependencies
+        run: uv sync
+      - name: 🏗 Set package version
+        run: |
+          version="${{ github.event.release.tag_name }}"
+          version="${version,,}"
+          version="${version#v}"
+          # Update version in pyproject.toml using sed
+          sed -i "s/^version = .*/version = \"${version}\"/" pyproject.toml
+      - name: 🏗 Build package
+        run: uv build
+      - name: 🚀 Publish to PyPi
+        uses: pypa/gh-action-pypi-publish@v1.12.4
+        with:
+          verbose: true
+          print-hash: true
+      - name: ✍️ Sign published artifacts
+        uses: sigstore/gh-action-sigstore-python@v3.0.1
+        with:
+          inputs: ./dist/*.tar.gz ./dist/*.whl
+          release-signing-artifacts: true

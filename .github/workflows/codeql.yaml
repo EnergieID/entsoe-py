@@ -1,0 +1,28 @@
+---
+name: "CodeQL"
+
+# yamllint disable-line rule:truthy
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: "30 1 * * 0"
+
+jobs:
+  codeql:
+    name: Scanning
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - name: ⤵️ Check out code from GitHub
+        uses: actions/checkout@v4.2.2
+      - name: 🏗 Initialize CodeQL
+        uses: github/codeql-action/init@v3.29.5
+      - name: 🚀 Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3.29.5

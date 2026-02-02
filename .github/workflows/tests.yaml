@@ -1,0 +1,66 @@
+---
+name: Testing
+
+# yamllint disable-line rule:truthy
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+env:
+  DEFAULT_PYTHON: "3.12"
+
+jobs:
+  pytest:
+    name: Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version:
+          - "3.11"
+          - "3.12"
+          - "3.13"
+    steps:
+      - name: ⤵️ Check out code from GitHub
+        uses: actions/checkout@v4.2.2
+      - name: 🏗 Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+          python-version: ${{ matrix.python-version }}
+      - name: 🏗 Install dependencies
+        run: uv sync --group dev
+      - name: 🚀 Run pytest
+        run: uv run pytest --cov entsoe tests
+      - name: ⬆️ Upload coverage artifact
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: coverage-${{ matrix.python-version }}
+          include-hidden-files: true
+          path: .coverage
+
+  coverage:
+    runs-on: ubuntu-latest
+    needs: pytest
+    steps:
+      - name: ⤵️ Check out code from GitHub
+        uses: actions/checkout@v4.2.2
+        with:
+          fetch-depth: 0
+      - name: ⬇️ Download coverage data
+        uses: actions/download-artifact@v4.3.0
+      - name: 🏗 Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+          python-version: ${{ env.DEFAULT_PYTHON }}
+      - name: 🏗 Install dependencies
+        run: uv sync
+      - name: 🚀 Process coverage results
+        run: |
+          uv run coverage combine coverage*/.coverage*
+          uv run coverage xml -i
+      - name: 🚀 Upload coverage report
+        uses: codecov/codecov-action@v5.4.3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}

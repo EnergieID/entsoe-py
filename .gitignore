@@ -109,3 +109,4 @@ test.ipynb
 settings.py
 /.project
 /.pydevproject
+uv.lock

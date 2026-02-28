@@ -1284,7 +1284,7 @@ class EntsoePandasClient(EntsoeRawClient):
             start=start,
             end=end,
             offset=offset,
-            sequence=1 if area.name in ['DE_LU', 'AT'] else None
+            sequence=2 if area.name in ['DE_LU', 'AT'] else None
         )
         series_all = parse_prices(text)
 

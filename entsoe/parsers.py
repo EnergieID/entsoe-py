@@ -312,6 +312,35 @@ def parse_imbalance_volumes(xml_text, include_resolution=False):
     return df
 
 
+def parse_procured_balancing_capacity_zip(zip_contents: bytes, tz: str) -> pd.DataFrame:
+    """
+    Parameters
+    ----------
+    zip_contents : bytes
+        ZIP archive containing XML files
+    tz : str
+        Timezone for datetime parsing
+
+    Returns
+    -------
+    pd.DataFrame
+    """
+
+    def gen_frames(archive):
+        with zipfile.ZipFile(BytesIO(archive), 'r') as arc:
+            for f in arc.infolist():
+                if f.filename.endswith('xml'):
+                    frame = parse_procured_balancing_capacity(
+                        xml_text=arc.read(f), tz=tz
+                    )
+                    yield frame
+
+    frames = gen_frames(zip_contents)
+    df = pd.concat(frames)
+    df.sort_index(inplace=True)
+    return df
+
+
 def parse_procured_balancing_capacity(xml_text, tz):
     """
     Parameters
@@ -409,19 +438,19 @@ def _parse_procured_balancing_capacity(soup, tz):
     }
 
     flow_direction = direction[soup.find('flowdirection.direction').text]
-    period = soup.find('period')
-    start = pd.to_datetime(period.find('timeinterval').find('start').text)
-    end = pd.to_datetime(period.find('timeinterval').find('end').text)
-    resolution = _resolution_to_timedelta(period.find('resolution').text)
-    tx = pd.date_range(start=start, end=end, freq=resolution, inclusive='left')
-    points = period.find_all('point')
-    df = pd.DataFrame(index=tx, columns=['Price', 'Volume'])
-
-    for dt, point in zip(tx, points):
-        df.loc[dt, 'Price'] = float(point.find('procurement_price.amount').text)
-        df.loc[dt, 'Volume'] = float(point.find('quantity').text)
-
     mr_id = int(soup.find('mrid').text)
+
+    df = pd.DataFrame(
+        {
+            'Price': _parse_timeseries_generic(
+                soup, label='procurement_price.amount', merge_series=True
+            ),
+            'Volume': _parse_timeseries_generic(
+                soup, label='quantity', merge_series=True
+            )
+        }
+    )
+
     df.columns = pd.MultiIndex.from_product(
         [[flow_direction], [mr_id], df.columns],
         names=('direction', 'mrid', 'unit')

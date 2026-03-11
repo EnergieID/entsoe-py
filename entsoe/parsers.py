@@ -842,7 +842,7 @@ def _parse_installed_capacity_per_plant(soup):
                     'Bidding Zone': 'inbiddingzone_domain.mrid',
                     # 'Status': 'businesstype',
                     'Voltage Connection Level [kV]':
-                        'voltage_powersystemresources.highvoltagelimit'}
+                        'production_powersystemresources.highvoltagelimit'}
     series = pd.Series(extract_vals).apply(lambda v: soup.find(v).text)
 
     # extract only first point

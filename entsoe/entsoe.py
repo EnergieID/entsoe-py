@@ -16,7 +16,7 @@ from .parsers import parse_prices, parse_loads, parse_generation, \
     parse_installed_capacity_per_plant, parse_crossborder_flows, \
     parse_unavailabilities, parse_contracted_reserve, parse_contracted_reserve_zip, \
     parse_imbalance_prices_zip, parse_imbalance_volumes_zip, parse_netpositions, \
-    parse_procured_balancing_capacity, parse_water_hydro, parse_aggregated_bids, \
+    parse_procured_balancing_capacity_zip, parse_water_hydro, parse_aggregated_bids, \
     parse_activated_balancing_energy_prices, parse_offshore_unavailability, parse_imbalance_volumes
 from .decorators import retry, paginated, year_limited, day_limited, documents_limited
 import warnings
@@ -884,7 +884,7 @@ class EntsoeRawClient:
     def query_procured_balancing_capacity(
             self, country_code: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp, process_type: str,
-            type_marketagreement_type: Optional[str] = None) -> bytes:
+            type_marketagreement_type: Optional[str] = None, offset: int = 0) -> bytes:
         """
         Parameters
         ----------
@@ -895,6 +895,8 @@ class EntsoeRawClient:
             A51 ... aFRR; A47 ... mFRR
         type_marketagreement_type : str
             type of contract (see mappings.MARKETAGREEMENTTYPE)
+        offset: int
+            offset for querying more than 100 documents
 
         Returns
         -------
@@ -907,7 +909,8 @@ class EntsoeRawClient:
         params = {
             'documentType': 'A15',
             'area_Domain': area.code,
-            'processType': process_type
+            'processType': process_type,
+            "offset": offset,
         }
         if type_marketagreement_type:
             params.update({'type_MarketAgreement.Type': type_marketagreement_type})
@@ -2050,13 +2053,15 @@ class EntsoePandasClient(EntsoeRawClient):
 
     @year_limited
     @paginated
+    @documents_limited(100)
     def query_procured_balancing_capacity(
             self,
             country_code: Union[Area, str],
             process_type: str,
             start: pd.Timestamp,
             end: pd.Timestamp,
-            type_marketagreement_type: Optional[str] = None) -> bytes:
+            type_marketagreement_type: Optional[str] = None,
+            offset: int = 0) -> pd.DataFrame:
         """
         Parameters
         ----------
@@ -2067,16 +2072,20 @@ class EntsoePandasClient(EntsoeRawClient):
         end : pd.Timestamp
         type_marketagreement_type : str
             type of contract (see mappings.MARKETAGREEMENTTYPE)
+        offset: int
+            offset for querying more than 100 documents
 
         Returns
         -------
         pd.DataFrame
         """
         area = lookup_area(country_code)
-        text = super(EntsoePandasClient, self).query_procured_balancing_capacity(
+        zip_contents = super(EntsoePandasClient, self).query_procured_balancing_capacity(
             country_code=area, start=start, end=end,
-            process_type=process_type, type_marketagreement_type=type_marketagreement_type)
-        df = parse_procured_balancing_capacity(text, area.tz)
+            process_type=process_type, type_marketagreement_type=type_marketagreement_type,
+            offset=offset
+        )
+        df = parse_procured_balancing_capacity_zip(zip_contents, area.tz)
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df

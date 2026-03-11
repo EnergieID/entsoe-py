@@ -829,6 +829,8 @@ def _parse_generation_timeseries(soup, per_plant: bool = False, include_eic: boo
 
 def _parse_installed_capacity_per_plant(soup):
     """
+    Parses the installed capacities for a timeseries from _extract_timeseries 
+
     Parameters
     ----------
     soup : bs4.element.tag
@@ -845,9 +847,12 @@ def _parse_installed_capacity_per_plant(soup):
                         'production_powersystemresources.highvoltagelimit'}
     series = pd.Series(extract_vals).apply(lambda v: soup.find(v).text)
 
+    period = soup.find('period')
+    series["Start"] = pd.to_datetime(period.find('timeinterval.start').text)
+
     # extract only first point
     series['Installed Capacity [MW]'] = \
-        soup.find_all('point')[0].find('quantity').text
+        period.find_all('point')[0].find('quantity').text
 
     series.name = soup.find('registeredresource.mrid').text
 

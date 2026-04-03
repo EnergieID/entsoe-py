@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Synthetic fixture for _parse_timeseries_generic with curvetype A03.
+
+  Per the ENTSO-E curve-type spec, A03 documents may omit positions when
+  the value repeats. Positions 2 and 4 are absent here and must be
+  forward-filled from positions 1 and 3.
+-->
+<doc>
+  <timeseries>
+    <curvetype>A03</curvetype>
+    <period>
+      <timeinterval>
+        <start>2026-01-01T00:00Z</start>
+        <end>2026-01-01T04:00Z</end>
+      </timeinterval>
+      <resolution>PT60M</resolution>
+      <point><position>1</position><quantity>100.0</quantity></point>
+      <point><position>3</position><quantity>200.0</quantity></point>
+    </period>
+  </timeseries>
+</doc>

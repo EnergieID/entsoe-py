@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Synthetic fixture for parse_crossborder_flows.
+
+  Two periods within one timeseries at PT60M. The parser routes through
+  _parse_timeseries_generic_whole which concatenates everything into a
+  single flat series.
+-->
+<publication_marketdocument>
+  <timeseries>
+    <curvetype>A01</curvetype>
+    <period>
+      <timeinterval>
+        <start>2026-01-01T00:00Z</start>
+        <end>2026-01-01T02:00Z</end>
+      </timeinterval>
+      <resolution>PT60M</resolution>
+      <point><position>1</position><quantity>1200.0</quantity></point>
+      <point><position>2</position><quantity>1300.0</quantity></point>
+    </period>
+    <period>
+      <timeinterval>
+        <start>2026-01-01T02:00Z</start>
+        <end>2026-01-01T04:00Z</end>
+      </timeinterval>
+      <resolution>PT60M</resolution>
+      <point><position>1</position><quantity>1400.0</quantity></point>
+      <point><position>2</position><quantity>1500.0</quantity></point>
+    </period>
+  </timeseries>
+</publication_marketdocument>

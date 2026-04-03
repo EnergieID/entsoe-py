@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Synthetic fixture for parse_loads (process_type A01 / A16 path).
+
+  Single timeseries, PT60M, three points, quantity label.
+  A01 -> 'Forecasted Load' column, A16 -> 'Actual Load' column.
+-->
+<gl_marketdocument>
+  <timeseries>
+    <curvetype>A01</curvetype>
+    <period>
+      <timeinterval>
+        <start>2026-01-01T00:00Z</start>
+        <end>2026-01-01T03:00Z</end>
+      </timeinterval>
+      <resolution>PT60M</resolution>
+      <point><position>1</position><quantity>5000.0</quantity></point>
+      <point><position>2</position><quantity>5100.0</quantity></point>
+      <point><position>3</position><quantity>5200.0</quantity></point>
+    </period>
+  </timeseries>
+</gl_marketdocument>

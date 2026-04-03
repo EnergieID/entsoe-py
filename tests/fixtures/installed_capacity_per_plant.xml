@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Synthetic fixture for parse_installed_capacity_per_plant.
+
+  The tag `production_powersystemresources.highvoltagelimit` is the one
+  ENTSO-E silently renamed, triggering issue #513 / PR #514. If the
+  schema drifts again this test fails loudly instead of users hitting an
+  AttributeError at runtime.
+
+  psrtype codes (B14=Nuclear, B16=Solar, B19=Wind Onshore) are resolved
+  through PSRTYPE_MAPPINGS by the outer parser.
+-->
+<gl_marketdocument>
+  <timeseries>
+    <registeredresource.mrid>22WPLANT-NUKE-01</registeredresource.mrid>
+    <registeredresource.name>Test Nuclear Plant</registeredresource.name>
+    <psrtype>B14</psrtype>
+    <inbiddingzone_domain.mrid>10YBE----------2</inbiddingzone_domain.mrid>
+    <production_powersystemresources.highvoltagelimit>380</production_powersystemresources.highvoltagelimit>
+    <period>
+      <timeinterval.start>2026-01-01T00:00Z</timeinterval.start>
+      <point><position>1</position><quantity>1000.0</quantity></point>
+    </period>
+  </timeseries>
+  <timeseries>
+    <registeredresource.mrid>22WPLANT-SOLR-02</registeredresource.mrid>
+    <registeredresource.name>Test Solar Farm</registeredresource.name>
+    <psrtype>B16</psrtype>
+    <inbiddingzone_domain.mrid>10YBE----------2</inbiddingzone_domain.mrid>
+    <production_powersystemresources.highvoltagelimit>150</production_powersystemresources.highvoltagelimit>
+    <period>
+      <timeinterval.start>2026-01-01T00:00Z</timeinterval.start>
+      <point><position>1</position><quantity>250.0</quantity></point>
+    </period>
+  </timeseries>
+  <timeseries>
+    <registeredresource.mrid>22WPLANT-WIND-03</registeredresource.mrid>
+    <registeredresource.name>Test Wind Park</registeredresource.name>
+    <psrtype>B19</psrtype>
+    <inbiddingzone_domain.mrid>10YBE----------2</inbiddingzone_domain.mrid>
+    <production_powersystemresources.highvoltagelimit>220</production_powersystemresources.highvoltagelimit>
+    <period>
+      <timeinterval.start>2026-01-01T00:00Z</timeinterval.start>
+      <point><position>1</position><quantity>80.0</quantity></point>
+    </period>
+  </timeseries>
+</gl_marketdocument>

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Synthetic fixture for parse_generation (default: per_plant=False, nett=False).
+
+  Two timeseries, both with inbiddingzone_domain.mrid (-> 'Actual Aggregated'),
+  different psrtypes. Because both share the same last-level name the
+  redundant 'Actual Aggregated' level is dropped by
+  _calc_nett_and_drop_redundant_columns, leaving flat columns named by
+  production type.
+-->
+<gl_marketdocument>
+  <timeseries>
+    <inbiddingzone_domain.mrid>10YBE----------2</inbiddingzone_domain.mrid>
+    <mktpsrtype><psrtype>B14</psrtype></mktpsrtype>
+    <curvetype>A01</curvetype>
+    <period>
+      <timeinterval>
+        <start>2026-01-01T00:00Z</start>
+        <end>2026-01-01T03:00Z</end>
+      </timeinterval>
+      <resolution>PT60M</resolution>
+      <point><position>1</position><quantity>900.0</quantity></point>
+      <point><position>2</position><quantity>910.0</quantity></point>
+      <point><position>3</position><quantity>920.0</quantity></point>
+    </period>
+  </timeseries>
+  <timeseries>
+    <inbiddingzone_domain.mrid>10YBE----------2</inbiddingzone_domain.mrid>
+    <mktpsrtype><psrtype>B16</psrtype></mktpsrtype>
+    <curvetype>A01</curvetype>
+    <period>
+      <timeinterval>
+        <start>2026-01-01T00:00Z</start>
+        <end>2026-01-01T03:00Z</end>
+      </timeinterval>
+      <resolution>PT60M</resolution>
+      <point><position>1</position><quantity>150.0</quantity></point>
+      <point><position>2</position><quantity>200.0</quantity></point>
+      <point><position>3</position><quantity>180.0</quantity></point>
+    </period>
+  </timeseries>
+</gl_marketdocument>

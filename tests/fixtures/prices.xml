@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Synthetic fixture for parse_prices / _parse_timeseries_generic(label='price.amount').
+
+  Two timeseries at PT60M resolution across consecutive intervals, so the
+  parser must concatenate them into a single 4-point series under the
+  '60min' key. The '15min' and '30min' keys should come back empty.
+
+  curvetype A01 = sequential fixed block (no gap handling).
+-->
+<publication_marketdocument>
+  <timeseries>
+    <curvetype>A01</curvetype>
+    <period>
+      <timeinterval>
+        <start>2026-01-01T00:00Z</start>
+        <end>2026-01-01T02:00Z</end>
+      </timeinterval>
+      <resolution>PT60M</resolution>
+      <point><position>1</position><price.amount>50.25</price.amount></point>
+      <point><position>2</position><price.amount>48.75</price.amount></point>
+    </period>
+  </timeseries>
+  <timeseries>
+    <curvetype>A01</curvetype>
+    <period>
+      <timeinterval>
+        <start>2026-01-01T02:00Z</start>
+        <end>2026-01-01T04:00Z</end>
+      </timeinterval>
+      <resolution>PT60M</resolution>
+      <point><position>1</position><price.amount>52.00</price.amount></point>
+      <point><position>2</position><price.amount>55.10</price.amount></point>
+    </period>
+  </timeseries>
+</publication_marketdocument>

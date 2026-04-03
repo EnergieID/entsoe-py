@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Synthetic fixture for parse_generation with mixed in/out direction.
+
+  Hydro Pumped Storage (B10) reported once with inbiddingzone (generation,
+  'Actual Aggregated') and once with outbiddingzone (charging, 'Actual
+  Consumption'). This is the case where the MultiIndex is *not*
+  collapsed and where nett=True must compute Aggregated - Consumption.
+-->
+<gl_marketdocument>
+  <timeseries>
+    <inbiddingzone_domain.mrid>10YBE----------2</inbiddingzone_domain.mrid>
+    <mktpsrtype><psrtype>B10</psrtype></mktpsrtype>
+    <curvetype>A01</curvetype>
+    <period>
+      <timeinterval>
+        <start>2026-01-01T00:00Z</start>
+        <end>2026-01-01T02:00Z</end>
+      </timeinterval>
+      <resolution>PT60M</resolution>
+      <point><position>1</position><quantity>300.0</quantity></point>
+      <point><position>2</position><quantity>310.0</quantity></point>
+    </period>
+  </timeseries>
+  <timeseries>
+    <outbiddingzone_domain.mrid>10YBE----------2</outbiddingzone_domain.mrid>
+    <mktpsrtype><psrtype>B10</psrtype></mktpsrtype>
+    <curvetype>A01</curvetype>
+    <period>
+      <timeinterval>
+        <start>2026-01-01T00:00Z</start>
+        <end>2026-01-01T02:00Z</end>
+      </timeinterval>
+      <resolution>PT60M</resolution>
+      <point><position>1</position><quantity>50.0</quantity></point>
+      <point><position>2</position><quantity>60.0</quantity></point>
+    </period>
+  </timeseries>
+</gl_marketdocument>

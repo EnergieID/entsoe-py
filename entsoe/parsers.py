@@ -45,7 +45,7 @@ def parse_prices(xml_text):
     return series
 
 
-def parse_netpositions(xml_text, resolution):
+def parse_netpositions(xml_text):
     """
 
     Parameters
@@ -58,7 +58,7 @@ def parse_netpositions(xml_text, resolution):
     """
     series_all = []
     for soup in _extract_timeseries(xml_text):
-        series = _parse_timeseries_generic(soup)[resolution]
+        series = _parse_timeseries_generic(soup, merge_series=True)
         if series is None:
             continue
         if 'REGION' in soup.find('out_domain.mrid').text:
@@ -279,7 +279,7 @@ def parse_imbalance_prices(xml_text):
     Parameters
     ----------
     xml_text : str
-
+    include_resolution: bool
     Returns
     -------
     pd.DataFrame
@@ -293,21 +293,50 @@ def parse_imbalance_prices(xml_text):
     return df
 
 
-def parse_imbalance_volumes(xml_text):
+def parse_imbalance_volumes(xml_text, include_resolution=False):
     """
     Parameters
     ----------
     xml_text : str
-
+    include_resolution: bool
     Returns
     -------
     pd.DataFrame
     """
     timeseries_blocks = _extract_timeseries(xml_text)
-    frames = (_parse_imbalance_volumes_timeseries(soup)
+    frames = (_parse_imbalance_volumes_timeseries(soup, include_resolution)
               for soup in timeseries_blocks)
     df = pd.concat(frames, axis=1)
     df = df.stack().unstack()  # ad-hoc fix to prevent column splitting by NaNs
+    df.sort_index(inplace=True)
+    return df
+
+
+def parse_procured_balancing_capacity_zip(zip_contents: bytes, tz: str) -> pd.DataFrame:
+    """
+    Parameters
+    ----------
+    zip_contents : bytes
+        ZIP archive containing XML files
+    tz : str
+        Timezone for datetime parsing
+
+    Returns
+    -------
+    pd.DataFrame
+    """
+
+    def gen_frames(archive):
+        with zipfile.ZipFile(BytesIO(archive), 'r') as arc:
+            for f in arc.infolist():
+                if f.filename.endswith('xml'):
+                    frame = parse_procured_balancing_capacity(
+                        xml_text=arc.read(f), tz=tz
+                    )
+                    yield frame
+
+    frames = gen_frames(zip_contents)
+    df = pd.concat(frames)
     df.sort_index(inplace=True)
     return df
 
@@ -409,24 +438,55 @@ def _parse_procured_balancing_capacity(soup, tz):
     }
 
     flow_direction = direction[soup.find('flowdirection.direction').text]
-    period = soup.find('period')
-    start = pd.to_datetime(period.find('timeinterval').find('start').text)
-    end = pd.to_datetime(period.find('timeinterval').find('end').text)
-    resolution = _resolution_to_timedelta(period.find('resolution').text)
-    tx = pd.date_range(start=start, end=end, freq=resolution, inclusive='left')
-    points = period.find_all('point')
-    df = pd.DataFrame(index=tx, columns=['Price', 'Volume'])
-
-    for dt, point in zip(tx, points):
-        df.loc[dt, 'Price'] = float(point.find('procurement_price.amount').text)
-        df.loc[dt, 'Volume'] = float(point.find('quantity').text)
-
     mr_id = int(soup.find('mrid').text)
+
+    df = pd.DataFrame(
+        {
+            'Price': _parse_timeseries_generic(
+                soup, label='procurement_price.amount', merge_series=True
+            ),
+            'Volume': _parse_timeseries_generic(
+                soup, label='quantity', merge_series=True
+            )
+        }
+    )
+
     df.columns = pd.MultiIndex.from_product(
         [[flow_direction], [mr_id], df.columns],
         names=('direction', 'mrid', 'unit')
     )
 
+    return df
+
+
+def parse_contracted_reserve_zip(zip_contents: bytes, tz: str, label: str) -> pd.DataFrame:
+    """
+    Parse contracted reserve data from a ZIP archive containing XML files.
+    
+    Parameters
+    ----------
+    zip_contents : bytes
+        ZIP archive containing XML files
+    tz : str
+        Timezone for datetime parsing
+    label : str
+        XML element name to extract (e.g., 'quantity' or 'procurement_price.amount')
+
+    Returns
+    -------
+    pd.DataFrame
+    """
+    def gen_frames(archive):
+        with zipfile.ZipFile(BytesIO(archive), 'r') as arc:
+            for f in arc.infolist():
+                if f.filename.endswith('xml'):
+                    frame = parse_contracted_reserve(xml_text=arc.read(f), 
+                                                    tz=tz, label=label)
+                    yield frame
+
+    frames = gen_frames(zip_contents)
+    df = pd.concat(frames)
+    df.sort_index(inplace=True)
     return df
 
 
@@ -447,7 +507,7 @@ def parse_contracted_reserve(xml_text, tz, label):
               for soup in timeseries_blocks)
     df = pd.concat(frames, axis=1)
     # Ad-hoc fix to prevent that columns are split by NaNs:
-    df = df.groupby(axis=1, level = [0,1]).mean()
+    df = df.T.groupby(level=[0, 1]).mean().T
     df.sort_index(inplace=True)
     return df
 
@@ -464,25 +524,57 @@ def _parse_contracted_reserve_series(soup, tz, label):
     -------
     pd.Series
     """
-    positions = []
-    prices = []
-    for point in soup.find_all('point'):
-        positions.append(int(point.find('position').text))
-        prices.append(float(point.find(label).text))
-
-    df = pd.DataFrame(data={'position': positions,
-                            label: prices})
-    df = df.set_index(['position'])
-    df.sort_index(inplace=True)
-    index = _parse_datetimeindex(soup, tz)
-    if len(index) > len(df.index):
-        print("Shortening index", file=sys.stderr)
-        df.index = index[:len(df.index)]
-    else:
-        df.index = index
-
+    # Parse all periods (handle both France: 1 Period/24 Points and Belgium: 24 Periods/1 Point)
+    periods = soup.find_all('period')
+    data = {}
+    
+    for period in periods:
+        start = pd.Timestamp(period.find('start').text)
+        end = pd.Timestamp(period.find('end').text)
+        delta_text = _resolution_to_timedelta(period.find('resolution').text)
+        delta = pd.Timedelta(delta_text)
+        
+        # Build dict mapping timestamp -> value using positions for this period
+        for point in period.find_all('point'):
+            position = int(point.find('position').text)
+            value = float(point.find(label).text)
+            timestamp = start + (position - 1) * delta
+            data[timestamp] = value
+    
+    # Create Series and sort
+    S = pd.Series(data).sort_index()
+    
+    # Handle curveType A03: forward fill missing positions
+    # See: https://eepublicdownloads.entsoe.eu/clean-documents/EDI/Library/cim_based/Introduction_of_different_Timeseries_possibilities__curvetypes__with_ENTSO-E_electronic_document_v1.4.pdf
+    curvetype_elem = soup.find('curvetype')
+    if curvetype_elem and curvetype_elem.text == 'A03':
+        if len(periods) == 1:
+            # Single period structure (like France): forward fill to 15min resolution
+            period = periods[0]
+            start = pd.Timestamp(period.find('start').text)
+            end = pd.Timestamp(period.find('end').text)
+            # Force 15-minute resolution for consistency
+            S = S.reindex(pd.date_range(start, end, freq='15min')).ffill()
+        else:
+            # Multi-period structure (like Belgium): forward fill to 15min resolution
+            # Get overall time range from first and last periods
+            first_period = periods[0]
+            last_period = periods[-1]
+            overall_start = pd.Timestamp(first_period.find('start').text)
+            overall_end = pd.Timestamp(last_period.find('end').text)
+            # Reindex to 15-minute intervals and forward fill
+            S = S.reindex(pd.date_range(overall_start, overall_end, freq='15min')).ffill()
+    
+    # Convert to DataFrame
+    df = pd.DataFrame(S, columns=[label])
+    
+    # Apply timezone conversion
+    if tz:
+        df.index = df.index.tz_convert(tz)
+    
     df.index.name = None
     df.columns.name = None
+    
     direction_dico = {'A01': 'Up',
                       'A02': 'Down',
                       'A03': 'Symmetric'}
@@ -501,7 +593,7 @@ def parse_imbalance_prices_zip(zip_contents: bytes) -> pd.DataFrame:
     Parameters
     ----------
     zip_contents : bytes
-
+    include_resolution: bool
     Returns
     -------
     pd.DataFrame
@@ -566,41 +658,29 @@ def _parse_imbalance_prices_timeseries(soup) -> pd.DataFrame:
     Parameters
     ----------
     soup : bs4.element.tag
-
+    include_resolution: bool
     Returns
     -------
     pd.DataFrame
     """
-    positions = []
-    amounts = []
-    categories = []
-    for point in soup.find_all('point'):
-        positions.append(int(point.find('position').text))
-        amounts.append(float(point.find('imbalance_price.amount').text))
-        if point.find('imbalance_price.category'):
-            categories.append(point.find('imbalance_price.category').text)
-        else:
-            categories.append('None')
 
-    df = pd.DataFrame(data={'position': positions,
-                            'amount': amounts, 'category': categories})
-    df = df.set_index(['position', 'category']).unstack()
-    df.sort_index(inplace=True)
-    df.index = _parse_datetimeindex(soup)
-    df = df.xs('amount', axis=1)
-    df.index.name = None
-    df.columns.name = None
+    df = pd.DataFrame({
+        'price': _parse_timeseries_generic(soup, label='imbalance_price.amount', merge_series=True),
+        'category': _parse_timeseries_generic(soup, label='imbalance_price.category', merge_series=True, to_float=False),
+    }).pivot(columns='category', values='price')
+
     df.rename(columns={'A04': 'Long', 'A05': 'Short',
                        'None': 'Price for Consumption'}, inplace=True)
+    df.columns.name = None
 
     return df
 
-def parse_imbalance_volumes_zip(zip_contents: bytes) -> pd.DataFrame:
+def parse_imbalance_volumes_zip(zip_contents: bytes, include_resolution:bool = False) -> pd.DataFrame:
     """
     Parameters
     ----------
     zip_contents : bytes
-
+    include_resolution : bool
     Returns
     -------
     pd.DataFrame
@@ -609,7 +689,7 @@ def parse_imbalance_volumes_zip(zip_contents: bytes) -> pd.DataFrame:
         with zipfile.ZipFile(BytesIO(archive), 'r') as arc:
             for f in arc.infolist():
                 if f.filename.endswith('xml'):
-                    frame = parse_imbalance_volumes(xml_text=arc.read(f))
+                    frame = parse_imbalance_volumes(xml_text=arc.read(f), include_resolution=include_resolution)
                     yield frame
 
     frames = gen_frames(zip_contents)
@@ -617,12 +697,12 @@ def parse_imbalance_volumes_zip(zip_contents: bytes) -> pd.DataFrame:
     df.sort_index(inplace=True)
     return df
 
-def _parse_imbalance_volumes_timeseries(soup) -> pd.DataFrame:
+def _parse_imbalance_volumes_timeseries(soup, include_resolution) -> pd.DataFrame:
     """
     Parameters
     ----------
     soup : bs4.element.tag
-
+    include_resolution: bool
     Returns
     -------
     pd.DataFrame
@@ -633,26 +713,19 @@ def _parse_imbalance_volumes_timeseries(soup) -> pd.DataFrame:
         # time series uses flow direction codes
         flow_direction_factor = {
             'A01': 1, # in
-            'A02': -1 # out
+            'A02': -1, # out
+            'A03': 1,  # symmetric / in-balance
         }[flow_direction.text]
     else:
         # time series uses positive and negative values
         flow_direction_factor = 1
 
-    df = pd.DataFrame(columns=['Imbalance Volume'])
+    df = pd.DataFrame({
+        'Imbalance Volume': _parse_timeseries_generic(soup, label='quantity', merge_series=True) * flow_direction_factor
+    })
 
-    for period in soup.find_all('period'):
-        start = pd.to_datetime(period.find('timeinterval').find('start').text)
-        end = pd.to_datetime(period.find('timeinterval').find('end').text)
-        resolution = _resolution_to_timedelta(period.find('resolution').text)
-        tx = pd.date_range(start=start, end=end, freq=resolution, inclusive='left')
-        points = period.find_all('point')
-
-        for dt, point in zip(tx, points):
-            df.loc[dt, 'Imbalance Volume'] = \
-                float(point.find('quantity').text) * flow_direction_factor
-
-    df.set_index(['Imbalance Volume'])
+    if include_resolution:
+        df["Resolution"] = _resolution_to_timedelta(soup.find('resolution').text)
 
     return df
 
@@ -756,6 +829,8 @@ def _parse_generation_timeseries(soup, per_plant: bool = False, include_eic: boo
 
 def _parse_installed_capacity_per_plant(soup):
     """
+    Parses the installed capacities for a timeseries from _extract_timeseries 
+
     Parameters
     ----------
     soup : bs4.element.tag
@@ -769,12 +844,15 @@ def _parse_installed_capacity_per_plant(soup):
                     'Bidding Zone': 'inbiddingzone_domain.mrid',
                     # 'Status': 'businesstype',
                     'Voltage Connection Level [kV]':
-                        'voltage_powersystemresources.highvoltagelimit'}
+                        'production_powersystemresources.highvoltagelimit'}
     series = pd.Series(extract_vals).apply(lambda v: soup.find(v).text)
+
+    period = soup.find('period')
+    series["Start"] = pd.to_datetime(period.find('timeinterval.start').text)
 
     # extract only first point
     series['Installed Capacity [MW]'] = \
-        soup.find_all('point')[0].find('quantity').text
+        period.find_all('point')[0].find('quantity').text
 
     series.name = soup.find('registeredresource.mrid').text
 
@@ -957,11 +1035,19 @@ def _available_period(timeseries: bs4.BeautifulSoup) -> list:
     # if not timeseries:
     #    return
     for period in timeseries.find_all('available_period'):
-        start, end = pd.Timestamp(period.timeinterval.start.text), pd.Timestamp(
+        start_p, end_p = pd.Timestamp(period.timeinterval.start.text), pd.Timestamp(
             period.timeinterval.end.text)
         res = period.resolution.text
-        pstn, qty = period.point.position.text, period.point.quantity.text
-        yield [start, end, res, pstn, qty]
+        pts = period.find_all('point')
+        for idx, pt in enumerate(pts):
+            pstn, qty = pt.position.text, pt.quantity.text
+            start = start_p + (pd.Timedelta(res) * (int(pstn) - 1))
+            if idx < (len(pts) - 1):
+                pstn_next = pts[idx + 1].position.text
+                end = start_p + (pd.Timedelta(res) * (int(pstn_next) - 1))
+            else:
+                end = end_p
+            yield [start, end, res, pstn, qty]
 
 
 def _outage_parser(xml_file: bytes, headers, ts_func) -> pd.DataFrame:

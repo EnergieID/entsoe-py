@@ -2,7 +2,7 @@ import logging
 from functools import wraps
 from socket import gaierror
 from time import sleep
-
+from http.client import RemoteDisconnected
 import pandas as pd
 import requests
 
@@ -22,7 +22,10 @@ def retry(func):
         for _ in range(self.retry_count):
             try:
                 result = func(*args, **kwargs)
-            except (requests.ConnectionError, gaierror) as e:
+            # Apart from common (ConnectionError and gaierror) errors, in certain
+            # cases (e.g. with scheduled commercial exchanges), the connection with
+            # ENTSO-e's can break with a RemoteDisconnected exception
+            except (requests.ConnectionError, gaierror, RemoteDisconnected) as e:
                 error = e
                 logger.warning(
                     "Connection Error, "
@@ -76,7 +79,9 @@ def documents_limited(n):
                 # All the data returned are void
                 raise NoMatchingDataError
 
-            df = pd.concat(frames, sort=True)
+            df = pd.concat(
+                [frame for frame in frames if not frame.empty and not frame.isna().all().all()],
+                sort=True)
             if func.__name__ != '_query_unavailability':
                 # For same indices pick last valid value
                 if df.index.has_duplicates:
@@ -101,7 +106,7 @@ def year_limited(func):
     def year_wrapper(*args, start=None, end=None, **kwargs):
         if start is None or end is None:
             raise Exception(
-                'Please specify the start and end date explicity with'
+                'Please specify the start and end date explicitly with '
                 'start=<date> when calling this function'
             )
         if (

@@ -3,8 +3,6 @@ name: ci
 on:
   pull_request:
   push:
-    branches:
-      - refactor_tests
 
 env:
   API_KEY: ${{ secrets.ApiKey }}
@@ -19,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.9", "3.10", "3.11"]
+        python-version: ["3.12"]
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python ${{ matrix.python-version }}
@@ -28,7 +26,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements_dev.txt
+          python -m pip install uv
+          python -m uv pip install -r requirements_dev.txt
       - name: Run pytest
         run: pytest

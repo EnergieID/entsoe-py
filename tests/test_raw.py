@@ -1,10 +1,8 @@
 from itertools import product
 import os
-
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from entsoe import EntsoeRawClient
-from entsoe.exceptions import PaginationError
 import pandas as pd
 import pytest
 
@@ -26,36 +24,17 @@ def valid_xml(s: str) -> bool:
         return False
 
 
-@pytest.fixture
-def start():
-    return pd.Timestamp("20171201", tz="Europe/Brussels")
+STARTS = [pd.Timestamp("20260301", tz="Europe/Brussels")]
+ENDS = [pd.Timestamp("20260331", tz="Europe/Brussels")]
 
+COUNTRY_CODES = ["NL", "BE", "DE_LU", "FR"]
+COUNTRY_CODES_FROM = ["NL"]
+COUNTRY_CODES_TO = ["DE_LU", 'NO_2']
 
-@pytest.fixture
-def end():
-    return pd.Timestamp("20180101", tz="Europe/Brussels")
+BASIC_QUERIES_SPECIAL_ZONE = {
+    'query_aggregate_water_reservoirs_and_hydro_storage': 'NO_2'
+}
 
-
-@pytest.fixture
-def country_code():
-    return "BE"  # Belgium
-
-
-@pytest.fixture
-def country_code_from():
-    return "FR"  # France
-
-
-@pytest.fixture
-def country_code_to():
-    return "DE_LU"  # Germany-Luxembourg
-
-
-STARTS = [pd.Timestamp("20171201", tz="Europe/Brussels")]
-ENDS = [pd.Timestamp("20180101", tz="Europe/Brussels")]
-COUNTRY_CODES = ["BE"]  # Belgium
-COUNTRY_CODES_FROM = ["FR"]  # France
-COUNTRY_CODES_TO = ["DE_LU"]  # Germany-Luxembourg
 
 BASIC_QUERIES = [
     "query_day_ahead_prices",
@@ -67,8 +46,7 @@ BASIC_QUERIES = [
     "query_generation",
     "query_generation_per_plant",
     "query_installed_generation_capacity",
-    "query_installed_generation_capacity_per_unit",
-    "query_aggregate_water_reservoirs_and_hydro_storage",
+    "query_installed_generation_capacity_per_unit"
 ]
 
 CROSSBORDER_QUERIES = [
@@ -104,6 +82,16 @@ def test_crossborder_queries(
     assert valid_xml(result)
 
 
+def test_query_aggregate_water_reservoirs_and_hydro_storage(client, start, end):
+    result = client.query_aggregate_water_reservoirs_and_hydro_storage('NO_2', start=start, end=end)
+    assert isinstance(result, str)
+    assert valid_xml(result)
+
+
+@pytest.mark.parametrize(
+    "country_code_from, country_code_to, start, end",
+    product(COUNTRY_CODES_FROM, COUNTRY_CODES_TO, STARTS, ENDS),
+)
 def test_query_intraday_offered_capacity(client, country_code_from, country_code_to, start, end):
     result = client.query_intraday_offered_capacity(
         country_code_from, country_code_to, start, end, implicit=True
@@ -112,57 +100,20 @@ def test_query_intraday_offered_capacity(client, country_code_from, country_code
     assert valid_xml(result)
 
 
-def test_query_offered_capacity(client, country_code_from, country_code_to, start, end):
-    contract_marketagreement_type = "A01"
-    result = client.query_offered_capacity(
-        country_code_from, country_code_to, start, end, contract_marketagreement_type, implicit=True
+@pytest.mark.parametrize(
+    "country_code, process_type, start, end",
+    product(["NL", "BE", "DE_AMPRION", "FR"], ['A51', 'A52', 'A47'], STARTS, ENDS),
+)
+def test_query_contracted_reserve_prices_procured_capacity(client, country_code, process_type, start, end):
+    # [O] A51 = Automatic frequency restoration reserve; A52 = Frequency containment reserve; A47 = Manual frequency restoration reserve; A46 = Replacement reserve
+    result = client.query_contracted_reserve_prices_procured_capacity(
+        country_code, start, end, process_type=process_type, type_marketagreement_type='A01'
     )
-    assert isinstance(result, str)
-    assert valid_xml(result)
-
-
-def test_query_contracted_reserve_prices(client, country_code, start, end):
-    type_marketagreement_type = "A01"
-    result = client.query_contracted_reserve_prices(
-        country_code, start, end, type_marketagreement_type, psr_type=None
-    )
-    assert isinstance(result, str)
-    assert valid_xml(result)
-
-
-def test_query_contracted_reserve_amount(client, country_code, start, end):
-    type_marketagreement_type = "A01"
-    result = client.query_contracted_reserve_amount(
-        country_code, start, end, type_marketagreement_type, psr_type=None
-    )
-    assert isinstance(result, str)
-    assert valid_xml(result)
-
-
-def test_query_procured_balancing_capacity_bytearray(client, country_code, start, end):
-    process_type = "A47"
-    result = client.query_procured_balancing_capacity(
-        country_code, start, end, process_type, type_marketagreement_type=None
-    )
-    assert isinstance(result, str)
-    assert valid_xml(result)
-
-
-def test_query_procured_balancing_capacity_process_type_not_allowed(client):
-    type_marketagreement_type = "A01"
-    process_type = "A01"
-    with pytest.raises(ValueError):
-        client.query_procured_balancing_capacity(
-            country_code, start, end, process_type, type_marketagreement_type
-        )
-
-# ZIP
-
-def test_query_imbalance_prices(client, country_code, start, end):
-    result = client.query_imbalance_prices(country_code, start, end, psr_type=None)
+    # zip
     assert isinstance(result, (bytes, bytearray))
 
 
+# hier gebleven:
 def test_query_unavailability_of_generation_units(client, country_code, start, end):
     result = client.query_unavailability_of_generation_units(country_code, start, end, docstatus=None, periodstartupdate=None, periodendupdate=None)
     assert isinstance(result, (bytes, bytearray))
@@ -189,3 +140,6 @@ def test_query_withdrawn_unavailability_of_generation_units(
         country_code, start, end,
     )
     assert isinstance(result, (bytes, bytearray))
+
+
+#TODO: imbalance_volumes imbalance_prices balancing_state

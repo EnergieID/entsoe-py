@@ -29,12 +29,7 @@ ENDS = [pd.Timestamp("20260331", tz="Europe/Brussels")]
 
 COUNTRY_CODES = ["NL", "BE", "DE_LU", "FR"]
 COUNTRY_CODES_FROM = ["NL"]
-COUNTRY_CODES_TO = ["DE_LU", 'NO_2']
-
-BASIC_QUERIES_SPECIAL_ZONE = {
-    'query_aggregate_water_reservoirs_and_hydro_storage': 'NO_2'
-}
-
+COUNTRY_CODES_TO = ["DE_LU", 'NO_2', 'BE']
 
 BASIC_QUERIES = [
     "query_day_ahead_prices",
@@ -46,7 +41,14 @@ BASIC_QUERIES = [
     "query_generation",
     "query_generation_per_plant",
     "query_installed_generation_capacity",
-    "query_installed_generation_capacity_per_unit"
+    "query_installed_generation_capacity_per_unit",
+    "query_current_balancing_state"
+]
+
+BASIC_QUERIES_ZIP = [
+    "query_imbalance_prices",
+    "query_imbalance_volumes",
+
 ]
 
 CROSSBORDER_QUERIES = [
@@ -58,16 +60,27 @@ CROSSBORDER_QUERIES = [
     "query_net_transfer_capacity_yearahead",
 ]
 
-# XML
-
 @pytest.mark.parametrize(
     "country_code, start, end, query",
     product(COUNTRY_CODES, STARTS, ENDS, BASIC_QUERIES),
 )
 def test_basic_queries(client, query, country_code, start, end):
+    if query == 'query_current_balancing_state' and country_code == 'DE_LU':
+        country_code = 'DE_AMPRION'
+    if query == 'query_generation_per_plant' and country_code == 'DE_LU':
+        # this is bugged, ticket raised at entsoe
+        return
     result = getattr(client, query)(country_code, start, end)
     assert isinstance(result, str)
     assert valid_xml(result)
+
+@pytest.mark.parametrize(
+    "country_code, start, end, query",
+    product(['BE', 'FR'], STARTS, ENDS, BASIC_QUERIES_ZIP),
+)
+def test_basic_queries_zip(client, query, country_code, start, end):
+    result = getattr(client, query)(country_code, start, end)
+    assert isinstance(result, (bytes, bytearray))
 
 
 @pytest.mark.parametrize(
@@ -82,8 +95,9 @@ def test_crossborder_queries(
     assert valid_xml(result)
 
 
-def test_query_aggregate_water_reservoirs_and_hydro_storage(client, start, end):
-    result = client.query_aggregate_water_reservoirs_and_hydro_storage('NO_2', start=start, end=end)
+def test_query_aggregate_water_reservoirs_and_hydro_storage(client):
+    result = client.query_aggregate_water_reservoirs_and_hydro_storage('NO_2',
+                                                                       start=STARTS[0], end=ENDS[0])
     assert isinstance(result, str)
     assert valid_xml(result)
 
@@ -102,7 +116,7 @@ def test_query_intraday_offered_capacity(client, country_code_from, country_code
 
 @pytest.mark.parametrize(
     "country_code, process_type, start, end",
-    product(["NL", "BE", "DE_AMPRION", "FR"], ['A51', 'A52', 'A47'], STARTS, ENDS),
+    product([x if x != 'DE_LU' else 'DE_AMPRION' for x in COUNTRY_CODES], ['A51', 'A52', 'A47'], STARTS, ENDS),
 )
 def test_query_contracted_reserve_prices_procured_capacity(client, country_code, process_type, start, end):
     # [O] A51 = Automatic frequency restoration reserve; A52 = Frequency containment reserve; A47 = Manual frequency restoration reserve; A46 = Replacement reserve
@@ -113,17 +127,27 @@ def test_query_contracted_reserve_prices_procured_capacity(client, country_code,
     assert isinstance(result, (bytes, bytearray))
 
 
-# hier gebleven:
+@pytest.mark.parametrize(
+    "country_code, start, end",
+    product(COUNTRY_CODES, STARTS, ENDS),
+)
 def test_query_unavailability_of_generation_units(client, country_code, start, end):
     result = client.query_unavailability_of_generation_units(country_code, start, end, docstatus=None, periodstartupdate=None, periodendupdate=None)
     assert isinstance(result, (bytes, bytearray))
 
 
+@pytest.mark.parametrize(
+    "country_code, start, end",
+    product([x for x in COUNTRY_CODES if x != 'BE'], STARTS, ENDS),
+)
 def test_query_unavailability_of_production_units(client, country_code, start, end):
     result = client.query_unavailability_of_production_units(country_code, start, end, docstatus=None, periodstartupdate=None, periodendupdate=None)
     assert isinstance(result, (bytes, bytearray))
 
-
+@pytest.mark.parametrize(
+    "country_code_from, country_code_to, start, end",
+    product(COUNTRY_CODES_FROM, [x for x in COUNTRY_CODES_TO if x != 'DE_LU'], STARTS, ENDS),
+)
 def test_query_unavailability_transmission(
     client, country_code_from, country_code_to, start, end
 ):
@@ -132,7 +156,10 @@ def test_query_unavailability_transmission(
     )
     assert isinstance(result, (bytes, bytearray))
 
-
+@pytest.mark.parametrize(
+    "country_code, start, end",
+    product(COUNTRY_CODES, STARTS, ENDS),
+)
 def test_query_withdrawn_unavailability_of_generation_units(
     client, country_code, start, end
 ):
@@ -140,6 +167,3 @@ def test_query_withdrawn_unavailability_of_generation_units(
         country_code, start, end,
     )
     assert isinstance(result, (bytes, bytearray))
-
-
-#TODO: imbalance_volumes imbalance_prices balancing_state

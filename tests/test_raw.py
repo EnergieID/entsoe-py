@@ -24,8 +24,8 @@ def valid_xml(s: str) -> bool:
         return False
 
 
-STARTS = [pd.Timestamp("20260301", tz="Europe/Brussels")]
-ENDS = [pd.Timestamp("20260331", tz="Europe/Brussels")]
+STARTS = [pd.Timestamp("20260301", tz="Europe/Amsterdam")]
+ENDS = [pd.Timestamp("20260331", tz="Europe/Amsterdam")]
 
 COUNTRY_CODES = ["NL", "BE", "DE_LU", "FR"]
 COUNTRY_CODES_FROM = ["NL"]

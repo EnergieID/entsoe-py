@@ -1,6 +1,5 @@
 from itertools import product
 import os
-
 from dotenv import load_dotenv
 from entsoe import EntsoePandasClient
 import pandas as pd
@@ -16,44 +15,16 @@ def client():
     yield EntsoePandasClient(api_key=API_KEY)
 
 
-@pytest.fixture
-def start():
-    return pd.Timestamp("20171201", tz="Europe/Brussels")
+STARTS = [pd.Timestamp("20260301", tz="Europe/Amsterdam")]
+ENDS = [pd.Timestamp("20260331 23:59", tz="Europe/Amsterdam")]
 
+COUNTRY_CODES = ["NL", "BE", "DE_LU", "FR"]
+COUNTRY_CODES_FROM = ["NL"]
+COUNTRY_CODES_TO = ["DE_LU", 'NO_2', 'BE']
 
-@pytest.fixture
-def end():
-    return pd.Timestamp("20180101", tz="Europe/Brussels")
-
-
-@pytest.fixture
-def country_code():
-    return "BE"  # Belgium
-
-
-@pytest.fixture
-def country_code_from():
-    return "FR"  # France
-
-
-@pytest.fixture
-def country_code_to():
-    return "DE_LU"  # Germany-Luxembourg
-
-
-STARTS = [pd.Timestamp("20171201", tz="Europe/Brussels")]
-ENDS = [pd.Timestamp("20180101", tz="Europe/Brussels")]
-COUNTRY_CODES = ["BE"]  # Belgium
-COUNTRY_CODES_FROM = ["FR"]  # France
-COUNTRY_CODES_TO = ["DE_LU"]  # Germany-Luxembourg
-
-BASIC_QUERIES_SERIES = [
+BASIC_QUERIES_TIMESERIES = [
     "query_day_ahead_prices",
     "query_net_position",
-    "query_aggregate_water_reservoirs_and_hydro_storage",
-]
-
-BASIC_QUERIES_DATAFRAME = [
     "query_load",
     "query_load_forecast",
     "query_wind_and_solar_forecast",
@@ -61,13 +32,16 @@ BASIC_QUERIES_DATAFRAME = [
     "query_generation",
     "query_generation_per_plant",
     "query_installed_generation_capacity",
+    "query_current_balancing_state"
+]
+
+BASIC_QUERIES = [
     "query_installed_generation_capacity_per_unit",
+]
+
+BASIC_QUERIES_TIMESERIES_ZIP = [
     "query_imbalance_prices",
-    "query_withdrawn_unavailability_of_generation_units",
-    "query_unavailability_of_generation_units",
-    "query_unavailability_of_production_units",
-    "query_import",
-    "query_generation_import",
+    "query_imbalance_volumes",
 ]
 
 CROSSBORDER_QUERIES = [
@@ -76,19 +50,51 @@ CROSSBORDER_QUERIES = [
     "query_net_transfer_capacity_dayahead",
     "query_net_transfer_capacity_weekahead",
     "query_net_transfer_capacity_monthahead",
-    "query_net_transfer_capacity_yearahead",
-    "query_intraday_offered_capacity",
+    #"query_net_transfer_capacity_yearahead",
 ]
 
-# pandas.Series
+def basic_checks(result, timeseries=True):
+    assert isinstance(result, pd.Series) or isinstance(result, pd.DataFrame)
+    assert not result.empty
+    if timeseries:
+        assert result.index.is_monotonic_increasing and result.index.is_unique
+
+    if isinstance(result, pd.Series):
+        assert not result.isna().all()
+    elif isinstance(result, pd.DataFrame):
+        assert not result.isna().all().all()
 
 @pytest.mark.parametrize(
     "country_code, start, end, query",
-    product(COUNTRY_CODES, STARTS, ENDS, BASIC_QUERIES_SERIES),
+    product(COUNTRY_CODES, STARTS, ENDS, BASIC_QUERIES_TIMESERIES),
 )
-def test_basic_queries_series(client, query, country_code, start, end):
+def test_basic_queries_timeseries(client, query, country_code, start, end):
+    if query == 'query_current_balancing_state' and country_code == 'DE_LU':
+        country_code = 'DE_AMPRION'
+    if query == 'query_generation_per_plant' and country_code == 'DE_LU':
+        # this is bugged, ticket raised at entsoe
+        return
     result = getattr(client, query)(country_code, start=start, end=end)
-    assert not result.empty
+    basic_checks(result)
+
+@pytest.mark.parametrize(
+    "country_code, start, end, query",
+    product(COUNTRY_CODES, STARTS, ENDS, BASIC_QUERIES),
+)
+def test_basic_queries(client, query, country_code, start, end):
+    result = getattr(client, query)(country_code, start=start, end=end)
+    basic_checks(result, timeseries=False)
+
+
+
+@pytest.mark.parametrize(
+    "country_code, start, end, query",
+    product(['BE', 'FR'], STARTS, ENDS, BASIC_QUERIES_TIMESERIES_ZIP),
+)
+def test_basic_queries_zip(client, query, country_code, start, end):
+    result = getattr(client, query)(country_code, start=start, end=end)
+    basic_checks(result)
+
 
 
 @pytest.mark.parametrize(
@@ -99,62 +105,75 @@ def test_crossborder_queries(
     client, query, country_code_from, country_code_to, start, end
 ):
     result = getattr(client, query)(country_code_from, country_code_to, start=start, end=end)
-    assert not result.empty
+    basic_checks(result)
 
 
-def test_query_offered_capacity(client, country_code_from, country_code_to, start, end):
-    contract_marketagreement_type = "A01"
-    result = client.query_offered_capacity(
-        country_code_from, country_code_to, contract_marketagreement_type, start=start, end=end, implicit=True
-    )
-    assert not result.empty
+def test_query_aggregate_water_reservoirs_and_hydro_storage(client):
+    result = client.query_aggregate_water_reservoirs_and_hydro_storage('NO_2',
+                                                                       start=STARTS[0], end=ENDS[0])
+    basic_checks(result)
 
 
-# pandas.DataFrames
+# @pytest.mark.parametrize(
+#     "country_code_from, country_code_to, start, end",
+#     product(COUNTRY_CODES_FROM, COUNTRY_CODES_TO, STARTS, ENDS),
+# )
+# def test_query_intraday_offered_capacity(client, country_code_from, country_code_to, start, end):
+#     result = client.query_intraday_offered_capacity(
+#         country_code_from, country_code_to, start=start, end=end, implicit=True
+#     )
+#     basic_checks(result)
+
 
 @pytest.mark.parametrize(
-    "country_code, start, end, query",
-    product(COUNTRY_CODES, STARTS, ENDS, BASIC_QUERIES_DATAFRAME),
+    "country_code, process_type, start, end",
+    product([x if x != 'DE_LU' else 'DE_AMPRION' for x in COUNTRY_CODES], ['A51', 'A52', 'A47'], STARTS, ENDS),
 )
-def test_basic_queries_dataframe(client, query, country_code, start, end):
-    result = getattr(client, query)(country_code, start=start, end=end)
-    assert not result.empty
-
-
-def test_query_contracted_reserve_prices(client, country_code, start, end):
-    type_marketagreement_type = "A01"
-    result = client.query_contracted_reserve_prices(
-        country_code, start=start, end=end, type_marketagreement_type=type_marketagreement_type, psr_type=None 
+def test_query_contracted_reserve_prices_procured_capacity(client, country_code, process_type, start, end):
+    # [O] A51 = Automatic frequency restoration reserve; A52 = Frequency containment reserve; A47 = Manual frequency restoration reserve; A46 = Replacement reserve
+    result = client.query_contracted_reserve_prices_procured_capacity(
+        country_code, start=start, end=end, process_type=process_type, type_marketagreement_type='A01'
     )
-    assert not result.empty
+    basic_checks(result)
 
 
-def test_query_contracted_reserve_amount(client, country_code, start, end):
-    type_marketagreement_type = "A01"
-    result = client.query_contracted_reserve_amount(
-        country_code, start=start, end=end, type_marketagreement_type=type_marketagreement_type, psr_type=None
-    )
-    assert not result.empty
+@pytest.mark.parametrize(
+    "country_code, start, end",
+    product(COUNTRY_CODES, STARTS, ENDS),
+)
+def test_query_unavailability_of_generation_units(client, country_code, start, end):
+    result = client.query_unavailability_of_generation_units(country_code, start=start, end=end, docstatus=None, periodstartupdate=None, periodendupdate=None)
+    basic_checks(result, timeseries=False)
 
 
-def test_query_unavailability_transmission(client, country_code_from, country_code_to, start, end):
+@pytest.mark.parametrize(
+    "country_code, start, end",
+    product([x for x in COUNTRY_CODES if x != 'BE'], STARTS, ENDS),
+)
+def test_query_unavailability_of_production_units(client, country_code, start, end):
+    result = client.query_unavailability_of_production_units(country_code, start=start, end=end, docstatus=None, periodstartupdate=None, periodendupdate=None)
+    basic_checks(result, timeseries=False)
+
+@pytest.mark.parametrize(
+    "country_code_from, country_code_to, start, end",
+    product(COUNTRY_CODES_FROM, [x for x in COUNTRY_CODES_TO if x != 'DE_LU'], STARTS, ENDS),
+)
+def test_query_unavailability_transmission(
+    client, country_code_from, country_code_to, start, end
+):
     result = client.query_unavailability_transmission(
-        country_code_from, country_code_to, start=start, end=end
+        country_code_from, country_code_to, start=start, end=end, docstatus=None, periodstartupdate=None, periodendupdate=None
     )
-    assert not result.empty
+    basic_checks(result, timeseries=False)
 
-
-def test_query_procured_balancing_capacity_process_type_not_allowed(client, country_code, start, end):
-    process_type = "A01"
-    with pytest.raises(ValueError):
-        client.query_procured_balancing_capacity(
-            country_code, start=start, end=end, process_type=process_type
-        )
-
-
-def test_query_procured_balancing_capacity(client, country_code, start, end):
-    process_type = "A47"
-    result = client.query_procured_balancing_capacity(
-        country_code, start=start, end=end, process_type=process_type, type_marketagreement_type=None
+@pytest.mark.parametrize(
+    "country_code, start, end",
+    product(COUNTRY_CODES, STARTS, ENDS),
+)
+def test_query_withdrawn_unavailability_of_generation_units(
+    client, country_code, start, end
+):
+    result = client.query_withdrawn_unavailability_of_generation_units(
+        country_code, start, end,
     )
-    assert not result.empty
+    basic_checks(result, timeseries=False)

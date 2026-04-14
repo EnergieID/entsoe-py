@@ -3,6 +3,8 @@ name: tests
 on:
   pull_request:
   push:
+    branches:
+      - "**"
 
 env:
   ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}

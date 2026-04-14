@@ -114,15 +114,15 @@ def test_query_aggregate_water_reservoirs_and_hydro_storage(client):
     basic_checks(result)
 
 
-# @pytest.mark.parametrize(
-#     "country_code_from, country_code_to, start, end",
-#     product(COUNTRY_CODES_FROM, COUNTRY_CODES_TO, STARTS, ENDS),
-# )
-# def test_query_intraday_offered_capacity(client, country_code_from, country_code_to, start, end):
-#     result = client.query_intraday_offered_capacity(
-#         country_code_from, country_code_to, start=start, end=end, implicit=True
-#     )
-#     basic_checks(result)
+@pytest.mark.parametrize(
+    "country_code_from, country_code_to, start, end, id_type",
+    [x for x in product(["BE", "NL"], ["BE", "NL"], STARTS, ENDS, ['IDCT', 'IDA1', 'IDA2', 'IDA3']) if x[0] != x[1]],
+)
+def test_query_intraday_offered_capacity(client, country_code_from, country_code_to, start, end, id_type):
+    result = client.query_intraday_offered_capacity(
+        country_code_from, country_code_to, start=start, end=end, implicit=True, id_type=id_type
+    )
+    basic_checks(result)
 
 
 @pytest.mark.parametrize(

@@ -109,3 +109,6 @@ test.ipynb
 settings.py
 /.project
 /.pydevproject
+
+
+.DS_Store

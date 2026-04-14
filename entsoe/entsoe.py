@@ -661,7 +661,7 @@ class EntsoeRawClient:
     def query_intraday_offered_capacity(
         self, country_code_from: Union[Area, str],
             country_code_to: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp, implicit:bool = True,**kwargs) -> str:
+            end: pd.Timestamp, implicit:bool = True, id_type:str = 'IDCT', **kwargs) -> str:
         """
         Parameters
         ----------
@@ -670,16 +670,46 @@ class EntsoeRawClient:
         start : pd.Timestamp
         end : pd.Timestamp
         implicit: bool (True = implicit - default for most borders. False = explicit - for instance BE-GB)
+        id_type: intraday trade type, explained below, options are IDCT IDA1 IDA2 IDE3
+
+        explanation from #527 for all the different options for this data:
+
+    implicit = false --> auctionType=A02 --> only valid for borders with ID explicit
+
+    implicit = true + IDType=IDCT --> auctionType = A08 --> ID leftover after SIDC IDCT (or last ATC known by ETP for every MTU during the delivery day - update every 15')
+
+    implicit = true + IDType=IDA1 --> auctionType = A01 + classificationSequence = 1 --> correspond to DA letftover send to xbid at 14:45 for ida1 (core IDCC a)
+
+    implicit = true + IDType=IDA2 --> auctionType = A01 + classificationSequence = 2 --> correspond to iD atc recalculated send to xbid at 21:49 for iDA2 (core IDCC b)
+
+    implicit = true + IDType=IDA3 --> auctionType = A01 + classificationSequence = 3 --> correspond to id atc recalculated send to xbid at 9:40 for ida3 (core IDCC d)
 
         Returns
         -------
         str
         """
+        auction_type = None
+        classification_sequence = None
+        if not implicit:
+            auction_type = 'A02'
+        else:
+            if id_type == 'IDCT':
+                auction_type = 'A08'
+            elif id_type == 'IDA1':
+                auction_type = 'A01'
+                classification_sequence = 1
+            elif id_type == 'IDA2':
+                auction_type = 'A01'
+                classification_sequence = 2
+            elif id_type == 'IDA3':
+                auction_type = 'A01'
+                classification_sequence = 3
         return self._query_crossborder(
             country_code_from=country_code_from,
             country_code_to=country_code_to, start=start, end=end,
             doctype="A31", contract_marketagreement_type="A07",
-            auction_type=("A01" if implicit==True else "A02"))
+            auction_type=auction_type,
+            classification_sequence=classification_sequence)
 
     def query_offered_capacity(
         self, country_code_from: Union[Area, str],
@@ -720,7 +750,10 @@ class EntsoeRawClient:
             country_code_to: Union[Area, str], start: pd.Timestamp,
             end: pd.Timestamp, doctype: str,
             contract_marketagreement_type: Optional[str] = None,
-            auction_type: Optional[str] = None, business_type: Optional[str] = None) -> str:
+            auction_type: Optional[str] = None,
+            business_type: Optional[str] = None,
+            classification_sequence: Optional[int] = None
+            ) -> str:
         """
         Generic function called by query_crossborder_flows,
         query_scheduled_exchanges, query_net_transfer_capacity_DA/WA/MA/YA and query_.
@@ -748,14 +781,13 @@ class EntsoeRawClient:
             'out_Domain': area_out.code
         }
         if contract_marketagreement_type is not None:
-            params[
-                'contract_MarketAgreement.Type'] = contract_marketagreement_type
+            params['contract_MarketAgreement.Type'] = contract_marketagreement_type
         if auction_type is not None:
-            params[
-                'Auction.Type'] = auction_type
+            params['Auction.Type'] = auction_type
         if business_type is not None:
-            params[
-                'businessType'] = business_type
+            params['businessType'] = business_type
+        if classification_sequence is not None:
+            params['ClassificationSequence_AttributeInstanceComponent.Position'] = classification_sequence
 
         response = self._base_request(params=params, start=start, end=end)
         return response.text
@@ -1861,7 +1893,9 @@ class EntsoePandasClient(EntsoeRawClient):
     def query_intraday_offered_capacity(
         self, country_code_from: Union[Area, str],
             country_code_to: Union[Area, str], start: pd.Timestamp,
-            end: pd.Timestamp, implicit:bool = True, **kwargs) -> pd.Series:
+            end: pd.Timestamp, implicit:bool = True,
+            id_type:str = 'IDCT',
+            **kwargs) -> pd.Series:
         """
         Note: Result will be in the timezone of the origin country  --> to check
 
@@ -1872,7 +1906,20 @@ class EntsoePandasClient(EntsoeRawClient):
         start : pd.Timestamp
         end : pd.Timestamp
         implicit: bool (True = implicit - default for most borders. False = explicit - for instance BE-GB)
-        Returns
+        id_type: intraday trade type, explained below, options are IDCT IDA1 IDA2 IDE3
+
+        explanation from #527 for all the different options for this data:
+
+    implicit = false --> auctionType=A02 --> only valid for borders with ID explicit
+
+    implicit = true + IDType=IDCT --> auctionType = A08 --> ID leftover after SIDC IDCT (or last ATC known by ETP for every MTU during the delivery day - update every 15')
+
+    implicit = true + IDType=IDA1 --> auctionType = A01 + classificationSequence = 1 --> correspond to DA letftover send to xbid at 14:45 for ida1 (core IDCC a)
+
+    implicit = true + IDType=IDA2 --> auctionType = A01 + classificationSequence = 2 --> correspond to iD atc recalculated send to xbid at 21:49 for iDA2 (core IDCC b)
+
+    implicit = true + IDType=IDA3 --> auctionType = A01 + classificationSequence = 3 --> correspond to id atc recalculated send to xbid at 9:40 for ida3 (core IDCC d)
+
         -------
         pd.Series
         """
@@ -1883,7 +1930,8 @@ class EntsoePandasClient(EntsoeRawClient):
             country_code_to=area_to,
             start=start,
             end=end,
-            implicit=implicit)
+            implicit=implicit,
+            id_type=id_type)
         ts = parse_crossborder_flows(text)
         ts = ts.tz_convert(area_from.tz)
         ts = ts.truncate(before=start, after=end)

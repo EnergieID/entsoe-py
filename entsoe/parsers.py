@@ -307,7 +307,7 @@ def parse_imbalance_volumes(xml_text, include_resolution=False):
     frames = (_parse_imbalance_volumes_timeseries(soup, include_resolution)
               for soup in timeseries_blocks)
     df = pd.concat(frames, axis=1)
-    df = df.stack().unstack()  # ad-hoc fix to prevent column splitting by NaNs
+    df = df.bfill(axis=1).iloc[:,0] # prevent column splitting by NaNs
     df.sort_index(inplace=True)
     return df
 

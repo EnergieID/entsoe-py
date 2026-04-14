@@ -27,4 +27,4 @@ jobs:
           python -m pip install uv
           python -m uv pip install -r requirements_dev.txt
       - name: Run pytest
-        run: pytest -n auto ${{ matrix.test-file }}
+        run: pytest ${{ matrix.test-file }}

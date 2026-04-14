@@ -122,8 +122,7 @@ def year_limited(func):
             )
 
         blocks = year_blocks(start, end)
-        frames = []
-        is_first_frame = True  # Assumes blocks are sorted
+        frames = []  # Assumes blocks are sorted
         for _start, _end in blocks:
             try:
                 frame = func(*args, start=_start, end=_end, **kwargs)
@@ -136,23 +135,18 @@ def year_limited(func):
                     #
                     # If there are repeating records in a single frame (e.g. due
                     # to corrections) then the result will also have them.
-                    if is_first_frame:
-                        interval_mask = frame.index <= _end
+                    if not frames:
+                        interval_mask = frame.index
                     else:
-                        interval_mask = (
-                            (frame.index <= _end)
-                            & (frame.index > _start)
-                        )
+                        interval_mask = frame.index > max(frames[-1].index)
                     frame = frame.loc[interval_mask]
+                frames.append(frame)
             except NoMatchingDataError:
                 logger.debug(
                     f"NoMatchingDataError: between {_start} and {_end}"
                 )
-                frame = None
-            frames.append(frame)
-            is_first_frame = False
 
-        if sum([f is None for f in frames]) == len(frames):
+        if not frames:
             # All the data returned are void
             raise NoMatchingDataError
 

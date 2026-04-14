@@ -5,7 +5,9 @@ on:
   push:
 
 env:
-  API_KEY: ${{ secrets.ApiKey }}
+  ENTSOE_API_KEY: ${{ secrets.ApiKey }}
+  ENTSOE_USERNAME: ${{ secrets.entsoe_username }}
+  ENTSOE_PWD: ${{ secrets.entsoe_pwd }}
 
 concurrency:
   # Cancels pending runs when a PR gets updated.

@@ -170,7 +170,7 @@ PSRTYPE_MAPPINGS = {
     'B08': 'Fossil Peat',
     'B09': 'Geothermal',
     'B10': 'Hydro Pumped Storage',
-    'B11': 'Hydro Run-of-river and poundage',
+    'B11': 'Hydro Run-of-river and pondage',
     'B12': 'Hydro Water Reservoir',
     'B13': 'Marine',
     'B14': 'Nuclear',

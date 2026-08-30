@@ -2,6 +2,7 @@ from itertools import product
 import os
 from dotenv import load_dotenv
 from entsoe import EntsoePandasClient
+from entsoe.decorators import year_limited
 import pandas as pd
 import pytest
 
@@ -177,3 +178,36 @@ def test_query_withdrawn_unavailability_of_generation_units(
         country_code, start, end,
     )
     basic_checks(result, timeseries=False)
+
+
+# The query functions below stand in for the API layer so these run offline,
+# the decorator under test is the real one. Boundary handling per #531, #536.
+BOUNDARY_TZ = "Europe/Brussels"
+BOUNDARY_START = pd.Timestamp("2020-07-05 00:00", tz=BOUNDARY_TZ)
+BOUNDARY_END = pd.Timestamp("2026-07-05 00:00", tz=BOUNDARY_TZ)
+BOUNDARY_EXPECTED = pd.date_range(BOUNDARY_START, BOUNDARY_END, freq="h", inclusive="left")
+
+
+@year_limited
+def query_end_exclusive(*, start=None, end=None):
+    # what the API does: [start, end)
+    return pd.Series(1.0, index=pd.date_range(start, end, freq="h", inclusive="left"))
+
+
+@year_limited
+def query_end_inclusive(*, start=None, end=None):
+    # what the old mask guarded against: [start, end]
+    return pd.Series(1.0, index=pd.date_range(start, end, freq="h", inclusive="both"))
+
+
+def test_year_limited_keeps_chunk_boundaries():
+    result = query_end_exclusive(start=BOUNDARY_START, end=BOUNDARY_END)
+    basic_checks(result)
+    missing = BOUNDARY_EXPECTED.difference(result.index)
+    assert missing.empty, f"dropped at chunk boundaries: {list(missing)}"
+    assert result.index.equals(BOUNDARY_EXPECTED)
+
+
+def test_year_limited_does_not_duplicate_boundaries():
+    result = query_end_inclusive(start=BOUNDARY_START, end=BOUNDARY_END)
+    basic_checks(result)

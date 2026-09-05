@@ -121,28 +121,31 @@ def year_limited(func):
                 'Please use a timezoned pandas object for start and end'
             )
 
-        blocks = year_blocks(start, end)
+        blocks = list(year_blocks(start, end))
         frames = []
-        is_first_frame = True  # Assumes blocks are sorted
-        for _start, _end in blocks:
+        for block_number, (_start, _end) in enumerate(blocks):
             try:
                 frame = func(*args, start=_start, end=_end, **kwargs)
                 if func.__name__ != '_query_unavailability' and isinstance(frame.index, pd.DatetimeIndex):
                     # Due to partial matching func may return data indexed by
                     # timestamps outside _start and _end. In order to avoid
-                    # (unintentionally) repeating records, frames are truncated to
-                    # left-open intervals (or closed interval in the case of the
-                    # earliest block).
+                    # (unintentionally) repeating records, frames are truncated
+                    # to right-open intervals [_start, _end) (the last block
+                    # keeps _end, and the earliest block keeps pre-_start
+                    # records). The API treats the requested end as exclusive,
+                    # so the previous block never contains this block's _start
+                    # instant; a left-open mask would silently drop it (#531,
+                    # #536).
                     #
                     # If there are repeating records in a single frame (e.g. due
                     # to corrections) then the result will also have them.
-                    if is_first_frame:
+                    is_last_frame = block_number == len(blocks) - 1
+                    if is_last_frame:
                         interval_mask = frame.index <= _end
                     else:
-                        interval_mask = (
-                            (frame.index <= _end)
-                            & (frame.index > _start)
-                        )
+                        interval_mask = frame.index < _end
+                    if block_number > 0:
+                        interval_mask &= frame.index >= _start
                     frame = frame.loc[interval_mask]
             except NoMatchingDataError:
                 logger.debug(
@@ -150,7 +153,6 @@ def year_limited(func):
                 )
                 frame = None
             frames.append(frame)
-            is_first_frame = False
 
         if sum([f is None for f in frames]) == len(frames):
             # All the data returned are void

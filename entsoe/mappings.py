@@ -79,7 +79,7 @@ class Area(enum.Enum):
     DE =            '10Y1001A1001A83F', 'Germany',                                      'Europe/Berlin'
     GR =            '10YGR-HTSO-----Y', 'Greece, IPTO BZ / CA/ MBA',                    'Europe/Athens',
     HU =            '10YHU-MAVIR----U', 'Hungary, MAVIR CA / BZ / MBA',                 'Europe/Budapest',
-    IS =            'IS',               'Iceland',                                      'Atlantic/Reykjavik',
+    IS =            '10Y1001A1001A958', 'Iceland',                                      'Atlantic/Reykjavik',
     IE_SEM =        '10Y1001A1001A59C', 'Ireland (SEM) BZ / MBA',                       'Europe/Dublin',
     IE =            '10YIE-1001A00010', 'Ireland, EirGrid CA',                          'Europe/Dublin',
     NIE =           '10Y1001A1001A016', 'Northern Ireland, SONI CA',                    'Europe/London',

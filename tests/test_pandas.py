@@ -1,8 +1,12 @@
+from io import BytesIO
 from itertools import product
+from zipfile import ZipFile
 import os
 from dotenv import load_dotenv
 from entsoe import EntsoePandasClient
+from entsoe.exceptions import NoMatchingDataError
 import pandas as pd
+import requests
 import pytest
 
 load_dotenv()
@@ -178,3 +182,168 @@ def test_query_withdrawn_unavailability_of_generation_units(
         country_code, start, end,
     )
     basic_checks(result, timeseries=False)
+
+# Offline A78 regression coverage; all documents below are synthetic.
+_transmission_start = pd.Timestamp('2025-06-01', tz='UTC')
+_transmission_end = pd.Timestamp('2025-06-02', tz='UTC')
+_transmission_created = pd.Timestamp('2025-05-20T12:00:00Z')
+_transmission_columns = ['docstatus', 'mrid', 'revision', 'businesstype', 'in_domain',
+           'out_domain', 'qty_uom', 'curvetype', 'start', 'end',
+           'resolution', 'pstn', 'avail_qty']
+
+
+def _transmission_outage_zip(documents):
+    """Each (mRID, revision) contributes one independently identifiable document."""
+    result = BytesIO()
+    with ZipFile(result, 'w') as archive:
+        for document_id, revision in documents:
+            archive.writestr(f'{document_id}-{revision}.xml', f'''\
+<Unavailability_MarketDocument>
+  <mRID>{document_id}</mRID><revisionNumber>{revision}</revisionNumber>
+  <type>A78</type><createdDateTime>2025-05-20T12:00:00Z</createdDateTime>
+  <docStatus><value>A05</value></docStatus>
+  <TimeSeries><mRID>1</mRID><businessType>A53</businessType>
+    <in_Domain.mRID>10YBE----------2</in_Domain.mRID>
+    <out_Domain.mRID>10YNL----------L</out_Domain.mRID>
+    <quantity_Measure_Unit.name>MAW</quantity_Measure_Unit.name>
+    <curveType>A03</curveType><Available_Period>
+      <timeInterval><start>2025-06-01T00:00Z</start>
+        <end>2025-06-02T00:00Z</end></timeInterval>
+      <resolution>PT60M</resolution>
+      <Point><position>1</position><quantity>100</quantity></Point>
+    </Available_Period>
+  </TimeSeries>
+</Unavailability_MarketDocument>''')
+    return result.getvalue()
+
+
+def _transmission_response(content, status=200, content_type='application/zip'):
+    result = requests.Response()
+    result.status_code = status
+    result._content = content
+    result.headers['content-type'] = content_type
+    return result
+
+
+def _transmission_no_data():
+    return _transmission_response(b'<Acknowledgement_MarketDocument><Reason><code>999</code>'
+                    b'<text>No matching data found</text></Reason>'
+                    b'</Acknowledgement_MarketDocument>', content_type='application/xml')
+
+
+def _transmission_assert_projection(frame, expected):
+    assert isinstance(frame, pd.DataFrame)
+    assert list(frame.columns) == _transmission_columns
+    assert frame.index.name == 'created_doc_time'
+    assert str(frame.index.tz) == 'Europe/Amsterdam'
+    assert all(value == _transmission_created for value in frame.index)
+    assert sorted(zip(frame.mrid, frame.revision)) == sorted(expected)
+    assert all(value == _transmission_start for value in frame['start'])
+    assert all(value == _transmission_end for value in frame['end'])
+    assert all(str(value.tz) == 'Europe/Amsterdam' for value in frame['start'])
+    assert set(frame.qty_uom) == {'MAW'}
+    assert set(frame.avail_qty) == {'100'}
+
+
+class TestTransmissionUnavailabilityPagination:
+    """Keep offline fixtures isolated from the existing live API tests."""
+
+    @pytest.fixture(autouse=True)
+    def forbid_network(self, monkeypatch):
+        def fail(*args, **kwargs):
+            raise AssertionError('Unexpected network access in offline test')
+        monkeypatch.setattr(requests.Session, 'request', fail)
+
+    @pytest.fixture
+    def query(self, monkeypatch):
+        def run(pages):
+            calls = []
+            client = EntsoePandasClient(api_key='synthetic-offline-token', retry_count=1, retry_delay=0)
+
+            def get(url, params, **unused):
+                calls.append(dict(params))
+                offset = params['offset']
+                assert offset in pages, f'Unexpected offset {offset}'
+                value = pages[offset]
+                if isinstance(value, Exception):
+                    raise value
+                return value
+
+            monkeypatch.setattr(client.session, 'get', get)
+            return client, calls
+        return run
+
+    def test_one_page_preserves_existing_projection(self, query):
+        expected = [('outage-001', 3), ('outage-002', 1)]
+        client, calls = query({0: _transmission_response(_transmission_outage_zip(expected)), 200: _transmission_no_data()})
+        frame = client.query_unavailability_transmission('NL', 'BE', start=_transmission_start, end=_transmission_end)
+        _transmission_assert_projection(frame, expected)
+
+    def test_multiple_pages_preserve_distinct_documents_at_same_creation_time(self, query):
+        first = [(f'outage-{number:03}', number % 3 + 1) for number in range(200)]
+        last = [('outage-200', 7)]
+        client, calls = query({0: _transmission_response(_transmission_outage_zip(first)),
+                               200: _transmission_response(_transmission_outage_zip(last)), 400: _transmission_no_data()})
+        frame = client.query_unavailability_transmission('NL', 'BE', start=_transmission_start, end=_transmission_end)
+        _transmission_assert_projection(frame, first + last)
+        assert [call['offset'] for call in calls] == [0, 200, 400]
+        assert frame.index.has_duplicates  # Creation time is deliberately not a document key.
+
+    def test_nonzero_offset_and_update_window_are_preserved_on_every_page(self, query):
+        first = [(f'outage-{number:03}', 2) for number in range(200, 400)]
+        last = [('outage-400', 4)]
+        client, calls = query({200: _transmission_response(_transmission_outage_zip(first)),
+                               400: _transmission_response(_transmission_outage_zip(last)), 600: _transmission_no_data()})
+        frame = client.query_unavailability_transmission(
+            'NL', 'BE', start=_transmission_start, end=_transmission_end, offset=200, docstatus='A05',
+            periodstartupdate=pd.Timestamp('2025-05-20', tz='UTC'),
+            periodendupdate=pd.Timestamp('2025-05-21', tz='UTC'))
+        _transmission_assert_projection(frame, first + last)
+        assert [call['offset'] for call in calls] == [200, 400, 600]
+        for call in calls:
+            assert call['documentType'] == 'A78'
+            assert call['in_Domain'] == '10YBE----------2'
+            assert call['out_Domain'] == '10YNL----------L'
+            assert call['periodStart'] == '202506010000'
+            assert call['periodEnd'] == '202506020000'
+            assert call['periodStartUpdate'] == '202505200000'
+            assert call['periodEndUpdate'] == '202505210000'
+            assert call['docStatus'] == 'A05'
+
+    @pytest.mark.parametrize('failure', [requests.ConnectionError('synthetic transport failure'),
+                                        _transmission_response(b'synthetic upstream error', status=500)])
+    def test_later_page_failure_must_not_return_partial_success(self, query, failure):
+        first = [(f'outage-{number:03}', 1) for number in range(200)]
+        client, calls = query({0: _transmission_response(_transmission_outage_zip(first)), 200: failure})
+        with pytest.raises((requests.ConnectionError, requests.HTTPError)):
+            client.query_unavailability_transmission('NL', 'BE', start=_transmission_start, end=_transmission_end)
+        assert [call['offset'] for call in calls] == [0, 200]
+
+    def test_initial_no_data_keeps_existing_error(self, query):
+        client, calls = query({0: _transmission_no_data()})
+        with pytest.raises(NoMatchingDataError):
+            client.query_unavailability_transmission('NL', 'BE', start=_transmission_start, end=_transmission_end)
+        assert [call['offset'] for call in calls] == [0]
+
+    def test_success_at_existing_offset_ceiling_does_not_claim_completeness(self, query):
+        # 4800 is the existing library ceiling, not a verified provider-wide limit.
+        client, calls = query({4800: _transmission_response(_transmission_outage_zip([('outage-4800', 1)]))})
+        with pytest.raises(RuntimeError, match='(?i)incomplete'):
+            client.query_unavailability_transmission(
+                'NL', 'BE', start=_transmission_start, end=_transmission_end, offset=4800)
+        assert [call['offset'] for call in calls] == [4800]
+
+    def test_no_data_at_existing_offset_ceiling_keeps_existing_error(self, query):
+        client, calls = query({4800: _transmission_no_data()})
+        with pytest.raises(NoMatchingDataError):
+            client.query_unavailability_transmission(
+                'NL', 'BE', start=_transmission_start, end=_transmission_end, offset=4800)
+        assert [call['offset'] for call in calls] == [4800]
+
+    def test_provider_rejection_of_offset_outside_existing_ceiling_propagates(self, query):
+        client, calls = query({5000: _transmission_response(b'synthetic invalid offset', status=400)})
+        with pytest.raises(requests.HTTPError) as error:
+            client.query_unavailability_transmission(
+                'NL', 'BE', start=_transmission_start, end=_transmission_end, offset=5000)
+        assert error.value.response.status_code == 400
+        assert [call['offset'] for call in calls] == [5000]

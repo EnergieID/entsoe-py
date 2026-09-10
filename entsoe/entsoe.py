@@ -2420,18 +2420,42 @@ class EntsoePandasClient(EntsoeRawClient):
         periodstartupdate : pd.Timestamp, optional
         periodendupdate : pd.Timestamp, optional
         offset : int
+            Starting document offset; subsequent pages are requested in steps
+            of 200, up to offset 4800.
 
         Returns
         -------
         pd.DataFrame
+
+        Raises
+        ------
+        RuntimeError
+            If the client offset ceiling is reached before the API reports no more data,
+            because the result may be incomplete.
         """
         area_to = lookup_area(country_code_to)
         area_from = lookup_area(country_code_from)
-        content = super(EntsoePandasClient,
-                        self).query_unavailability_transmission(
-            area_from, area_to, start, end, docstatus, periodstartupdate,
-            periodendupdate, offset=offset)
-        df = parse_unavailabilities(content, "A78")
+        frames = []
+        while True:
+            try:
+                content = super(EntsoePandasClient,
+                                self).query_unavailability_transmission(
+                    area_from, area_to, start, end, docstatus, periodstartupdate,
+                    periodendupdate, offset=offset)
+            except NoMatchingDataError:
+                if not frames:
+                    raise
+                break
+            frames.append(parse_unavailabilities(content, "A78"))
+            offset += 200
+            if offset > 4800:
+                raise RuntimeError(
+                    "Transmission unavailability result may be incomplete: "
+                    "the client document offset ceiling was reached before end-of-data.")
+
+        # Creation timestamps are not unique document identifiers. Preserve all
+        # rows, including distinct documents and revisions sharing a timestamp.
+        df = pd.concat(frames, sort=False)
         df = df.tz_convert(area_from.tz)
         df['start'] = df['start'].apply(lambda x: x.tz_convert(area_from.tz))
         df['end'] = df['end'].apply(lambda x: x.tz_convert(area_from.tz))

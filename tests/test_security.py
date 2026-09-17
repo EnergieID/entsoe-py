@@ -34,12 +34,20 @@ def build_response(status_code: int, body: str) -> requests.Response:
 
 @pytest.fixture
 def client(monkeypatch):
-    """A client whose session returns a canned response instead of calling out."""
+    """A client whose session returns a canned response instead of calling out.
+
+    Outgoing calls are recorded in client.sent_params, so tests can check that
+    masking changes what is logged without changing what is sent.
+    """
     def make(status_code: int, body: str) -> EntsoeRawClient:
         client = EntsoeRawClient(api_key=API_KEY, retry_count=1)
-        monkeypatch.setattr(
-            client.session, "get",
-            lambda *args, **kwargs: build_response(status_code, body))
+        client.sent_params = []
+
+        def fake_get(*args, **kwargs):
+            client.sent_params.append(kwargs.get("params"))
+            return build_response(status_code, body)
+
+        monkeypatch.setattr(client.session, "get", fake_get)
         return client
     yield make
 
@@ -122,3 +130,7 @@ def test_debug_log_masks_api_key(client, caplog):
     assert messages, "expected the request to be logged at debug level"
     assert not any(API_KEY in message for message in messages)
     assert any("securityToken" in message for message in messages)
+
+    # The masking must not reach the request itself: the real token is still sent.
+    assert ok.sent_params, "expected the request to be sent"
+    assert ok.sent_params[-1]["securityToken"] == API_KEY

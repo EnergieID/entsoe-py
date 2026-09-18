@@ -1,10 +1,12 @@
 from itertools import product
 import os
+import traceback
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from entsoe import EntsoeRawClient
 import pandas as pd
 import pytest
+import requests
 
 load_dotenv()
 
@@ -167,3 +169,12 @@ def test_query_unavailability_transmission(
 #         country_code, start, end,
 #     )
 #     assert isinstance(result, (bytes, bytearray))
+
+
+def test_invalid_key_is_not_leaked():
+    key = "not-a-real-key"
+    bad_client = EntsoeRawClient(api_key=key, retry_count=1)
+    with pytest.raises(requests.HTTPError) as excinfo:
+        bad_client.query_day_ahead_prices("NL", start=STARTS[0], end=ENDS[0])
+    assert key not in str(excinfo.value)
+    assert key not in "".join(traceback.format_exception(excinfo.value))

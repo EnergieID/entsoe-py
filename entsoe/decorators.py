@@ -3,6 +3,7 @@ from functools import wraps
 from socket import gaierror
 from time import sleep
 from http.client import RemoteDisconnected
+import re
 import pandas as pd
 import requests
 
@@ -10,6 +11,8 @@ from .exceptions import NoMatchingDataError, PaginationError
 from .misc import day_blocks, year_blocks, month_blocks
 
 logger = logging.getLogger(__name__)
+
+SECURITY_TOKEN = re.compile(r'(securityToken=)[^&\s\'"]+')
 
 
 def retry(func):
@@ -36,6 +39,10 @@ def retry(func):
             else:
                 return result
         else:
+            if isinstance(error, requests.RequestException):
+                # requests puts the request URL, API key included, in the message
+                error = type(error)(SECURITY_TOKEN.sub(r'\1<hidden>', str(error)),
+                                    request=error.request, response=error.response)
             raise error
 
     return retry_wrapper

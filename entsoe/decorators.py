@@ -1,4 +1,5 @@
 import logging
+import warnings
 from functools import wraps
 from socket import gaierror
 from time import sleep
@@ -67,13 +68,23 @@ def documents_limited(n):
         @wraps(func)
         def documents_wrapper(*args, **kwargs):
             frames = []
-            for offset in range(0, 4800 + n, n):
+            last_offset = 4800
+            for offset in range(0, last_offset + n, n):
                 try:
                     frame = func(*args, offset=offset, **kwargs)
                     frames.append(frame)
                 except NoMatchingDataError:
                     logger.debug(f"NoMatchingDataError: for offset {offset}")
                     break
+            else:
+                # The loop ran out of offsets instead of running out of data,
+                # so the server may still hold documents beyond this point.
+                warnings.warn(
+                    f"Reached the offset limit of {last_offset} documents "
+                    f"without the API reporting that the data was exhausted. "
+                    f"The result may be incomplete; narrow the requested "
+                    f"period to be sure of getting everything.",
+                    UserWarning, stacklevel=2)
 
             if len(frames) == 0:
                 # All the data returned are void

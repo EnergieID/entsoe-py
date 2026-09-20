@@ -306,7 +306,13 @@ def parse_imbalance_volumes(xml_text, include_resolution=False):
     timeseries_blocks = _extract_timeseries(xml_text)
     frames = (_parse_imbalance_volumes_timeseries(soup, include_resolution)
               for soup in timeseries_blocks)
-    df = pd.concat(frames, axis=1)
+
+    # tolerate overlapping time series (#465)
+    df = next(frames)
+    for frame in frames:
+      df.merge(frame, 'outer', copy=False)
+    df = df.groupby(level=0).sum()
+
     df = df.bfill(axis=1).iloc[:,0] # prevent column splitting by NaNs
     df.sort_index(inplace=True)
     return df

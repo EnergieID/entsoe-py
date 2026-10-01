@@ -123,6 +123,7 @@ client.query_offered_capacity(country_code_from, country_code_to, contract_marke
 client.query_aggregate_water_reservoirs_and_hydro_storage(country_code, start=start, end=end)
 
 # methods that return Pandas DataFrames
+client.query_day_ahead_prices_with_currencies(country_code, start=start, end=end)
 client.query_load(country_code, start=start, end=end)
 client.query_load_forecast(country_code, start=start, end=end)
 client.query_load_and_forecast(country_code, start=start, end=end)
@@ -150,6 +151,20 @@ client.query_generation_import(country_code, start, end)
 client.query_procured_balancing_capacity(country_code, process_type, start=start, end=end, type_marketagreement_type=None)
 
 ```
+
+Day-ahead prices can also be returned with the currency reported by ENTSO-E:
+
+```python
+df = client.query_day_ahead_prices_with_currencies(
+    "UA_IPS",
+    start=start,
+    end=end,
+)
+print(df[["Price", "Currency"]])
+```
+
+The values are returned in the reported currency and are not converted.
+
 #### Dump result to file
 See a list of all IO-methods on https://pandas.pydata.org/pandas-docs/stable/io.html
 ```python

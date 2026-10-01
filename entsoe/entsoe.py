@@ -12,7 +12,7 @@ from bs4.builder import XMLParsedAsHTMLWarning
 from entsoe.exceptions import InvalidPSRTypeError, InvalidBusinessParameterError
 from .exceptions import NoMatchingDataError, PaginationError
 from .mappings import Area, NEIGHBOURS, lookup_area
-from .parsers import parse_prices, parse_loads, parse_generation, \
+from .parsers import parse_prices, parse_prices_with_currencies, parse_loads, parse_generation, \
     parse_installed_capacity_per_plant, parse_crossborder_flows, \
     parse_unavailabilities, parse_contracted_reserve, parse_contracted_reserve_zip, \
     parse_imbalance_prices_zip, parse_imbalance_volumes_zip, parse_netpositions, \
@@ -32,6 +32,35 @@ __license__ = "MIT"
 URL = os.getenv("ENTSOE_ENDPOINT_URL") or "https://web-api.tp.entsoe.eu/api"
 
 QUARTER_MTU_SDAC_GOLIVE = pd.Timestamp('2025-10-01', tz='Europe/Amsterdam')
+
+
+def _resample_price_currency_frame(frame: pd.DataFrame) -> pd.DataFrame:
+    """Resample prices without selecting currency independently from price."""
+    prices = frame['Price'].resample('h').first()
+    currencies = frame['Currency'].resample('h').agg(
+        lambda values: values.iloc[0] if len(values) else None
+    )
+    return pd.DataFrame({'Price': prices, 'Currency': currencies})
+
+
+def _force_day_ahead_resolution(data):
+    """Apply the SDAC resolution transition to a price Series or DataFrame."""
+    is_currency_frame = isinstance(data, pd.DataFrame)
+
+    def resample_hourly(value):
+        if is_currency_frame:
+            return _resample_price_currency_frame(value)
+        return value.resample('h').first()
+
+    if data.index.max() < QUARTER_MTU_SDAC_GOLIVE:
+        return resample_hourly(data)
+
+    data_60min = data[data.index < QUARTER_MTU_SDAC_GOLIVE]
+    data_15min = data[data.index >= QUARTER_MTU_SDAC_GOLIVE]
+    return pd.concat([
+        resample_hourly(data_60min),
+        data_15min
+    ]).sort_index()
 
 
 
@@ -1307,6 +1336,32 @@ class EntsoePandasClient(EntsoeRawClient):
             raise NoMatchingDataError
         return series
 
+    def query_day_ahead_prices_with_currencies(
+            self, country_code: Union[Area, str],
+            start: pd.Timestamp,
+            end: pd.Timestamp,
+            resolution=None) -> pd.DataFrame:
+        """Return SDAC prices with the currency reported by ENTSO-E.
+
+        Price values are not converted. A missing currency in the source XML
+        is returned as a missing value in the ``Currency`` column.
+        """
+        if resolution is not None:
+            with warnings.catch_warnings():
+                warnings.simplefilter("always")
+                warnings.warn('The resolution parameter is deprecated and will be removed. This function will force the right resolution', DeprecationWarning)
+        area = lookup_area(country_code)
+        frame = self._query_day_ahead_prices_with_currencies(
+            area,
+            start=start-pd.Timedelta(days=1),
+            end=end+pd.Timedelta(days=1)
+        )
+        frame = frame.tz_convert(area.tz).sort_index()
+        frame = frame.truncate(before=start, after=end)
+        if len(frame) == 0:
+            raise NoMatchingDataError
+        return frame
+
     @year_limited
     @documents_limited(100)
     def _query_day_ahead_prices(
@@ -1332,16 +1387,7 @@ class EntsoePandasClient(EntsoeRawClient):
         series = pd.concat([x for x in series_all.values() if len(x) > 0]).sort_index().tz_convert('Europe/Amsterdam')
         if len(series) == 0:
             raise NoMatchingDataError
-        if series.index.max() < QUARTER_MTU_SDAC_GOLIVE:
-            series = series.resample('h').first()
-        else:
-            series_60min = series[series.index < QUARTER_MTU_SDAC_GOLIVE]
-            series_15min = series[series.index >= QUARTER_MTU_SDAC_GOLIVE]
-
-            series = pd.concat([
-                series_60min.resample('h').first(),
-                series_15min
-            ]).sort_index()
+        series = _force_day_ahead_resolution(series)
 
         series = series.tz_convert(area.tz).sort_index()
         series = series.truncate(before=start, after=end)
@@ -1349,6 +1395,35 @@ class EntsoePandasClient(EntsoeRawClient):
         if len(series) == 0:
             raise NoMatchingDataError
         return series
+
+    @year_limited
+    @documents_limited(100, row_atomic=True)
+    def _query_day_ahead_prices_with_currencies(
+            self, area: Area,
+            start: pd.Timestamp,
+            end: pd.Timestamp,
+            offset: int = 0) -> pd.DataFrame:
+        text = super(EntsoePandasClient, self).query_day_ahead_prices(
+            area,
+            start=start,
+            end=end,
+            offset=offset,
+            sequence=1 if area.name in ['DE_LU', 'AT'] else None
+        )
+        frames_by_resolution = parse_prices_with_currencies(text)
+        frame = pd.concat([
+            value for value in frames_by_resolution.values() if len(value) > 0
+        ]).sort_index().tz_convert('Europe/Amsterdam')
+        if len(frame) == 0:
+            raise NoMatchingDataError
+
+        frame = _force_day_ahead_resolution(frame)
+
+        frame = frame.tz_convert(area.tz).sort_index()
+        frame = frame.truncate(before=start, after=end)
+        if len(frame) == 0:
+            raise NoMatchingDataError
+        return frame
 
     # we need to do offset, but we also want to pad the days so wrap it in an internal call
     def query_intraday_prices(

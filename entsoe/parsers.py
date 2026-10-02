@@ -4,6 +4,7 @@ from io import BytesIO
 from typing import Union
 import warnings
 import bs4
+import numpy as np
 from bs4.builder import XMLParsedAsHTMLWarning
 import pandas as pd
 
@@ -643,14 +644,18 @@ def _parse_activated_balancing_energy_prices_timeseries(soup) -> pd.DataFrame:
 
     df = pd.DataFrame(index=tx, columns=['Price', 'Direction', 'ReserveType'])
 
+    empty_idx = []
     for point in period.find_all('point'):
         idx = int(point.find('position').text)
-        df.loc[tx[idx-1], 'Price'] = float(point.find('activation_price.amount').text)
+        amount_el = point.find('activation_price.amount')
+        if amount_el is None:
+            empty_idx.append(tx[idx - 1])
+        df.loc[tx[idx - 1], 'Price'] = float(amount_el.text) if amount_el is not None else np.nan
         df.loc[tx[idx-1], 'Direction'] = flow_direction
         df.loc[tx[idx - 1], 'ReserveType'] = reserve_type
     
-    #df.fillna(method='ffill', inplace=True)
     df = df.infer_objects(copy=False).ffill()
+    df.loc[empty_idx, 'Price'] = np.nan  # keep points without a price as true nans, don't apply ffilling
     return df
 
 def _parse_imbalance_prices_timeseries(soup) -> pd.DataFrame:

@@ -88,7 +88,15 @@ def documents_limited(n, row_atomic=False):
                     if row_atomic:
                         # Keep all columns from the same source record. This is
                         # important for related values such as price/currency.
-                        df = df[~df.index.duplicated(keep='last')]
+                        groups = []
+                        for _, group in df.groupby(df.index):
+                            valid_rows = group
+                            if 'Price' in group:
+                                price_rows = group[group['Price'].notna()]
+                                if not price_rows.empty:
+                                    valid_rows = price_rows
+                            groups.append(valid_rows.iloc[[-1]])
+                        df = pd.concat(groups)
                     else:
                         df = df.groupby(df.index).agg(deduplicate_documents_limited)
             return df

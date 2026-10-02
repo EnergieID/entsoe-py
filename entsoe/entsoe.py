@@ -37,9 +37,10 @@ QUARTER_MTU_SDAC_GOLIVE = pd.Timestamp('2025-10-01', tz='Europe/Amsterdam')
 def _resample_price_currency_frame(frame: pd.DataFrame) -> pd.DataFrame:
     """Resample prices without selecting currency independently from price."""
     prices = frame['Price'].resample('h').first()
-    currencies = frame['Currency'].resample('h').agg(
+    valid_price_rows = frame[frame['Price'].notna()]
+    currencies = valid_price_rows['Currency'].resample('h').agg(
         lambda values: values.iloc[0] if len(values) else None
-    )
+    ).reindex(prices.index)
     return pd.DataFrame({'Price': prices, 'Currency': currencies})
 
 
@@ -1340,7 +1341,7 @@ class EntsoePandasClient(EntsoeRawClient):
             self, country_code: Union[Area, str],
             start: pd.Timestamp,
             end: pd.Timestamp,
-            resolution=None) -> pd.DataFrame:
+            resolution = None) -> pd.DataFrame:
         """Return SDAC prices with the currency reported by ENTSO-E.
 
         Price values are not converted. A missing currency in the source XML
@@ -1360,7 +1361,7 @@ class EntsoePandasClient(EntsoeRawClient):
         frame = frame.truncate(before=start, after=end)
         if len(frame) == 0:
             raise NoMatchingDataError
-        return frame
+        return frame[['Price', 'Currency']]
 
     @year_limited
     @documents_limited(100)

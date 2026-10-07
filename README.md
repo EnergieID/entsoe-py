@@ -152,19 +152,6 @@ client.query_procured_balancing_capacity(country_code, process_type, start=start
 
 ```
 
-Day-ahead prices can also be returned with the currency reported by ENTSO-E:
-
-```python
-df = client.query_day_ahead_prices_with_currencies(
-    "UA_IPS",
-    start=start,
-    end=end,
-)
-print(df[["Price", "Currency"]])
-```
-
-The values are returned in the reported currency and are not converted.
-
 #### Dump result to file
 See a list of all IO-methods on https://pandas.pydata.org/pandas-docs/stable/io.html
 ```python

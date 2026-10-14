@@ -32,7 +32,8 @@ def _resolution_to_timedelta(res_text: str) -> str:
         'P1D': '1D',
         'P7D': '7D',
         'P1M': '1MS',
-        'PT1M': '1min'
+        'PT1M': '1min',
+        'PT4S': '4s',
     }
     delta = resolutions.get(res_text)
     if delta is None:

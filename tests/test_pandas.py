@@ -1,5 +1,7 @@
 from itertools import product
 import os
+
+import numpy as np
 from dotenv import load_dotenv
 from entsoe import EntsoePandasClient
 import pandas as pd
@@ -15,13 +17,18 @@ def client():
     yield EntsoePandasClient(api_key=API_KEY)
 
 
-# this on purpose more then a month since entsoe has now a lot of "30 days" limits
+# this on purpose more than a month since entsoe has now a lot of "30 days" limits
 STARTS = [pd.Timestamp("20260301", tz="Europe/Amsterdam")]
 ENDS = [pd.Timestamp("20260402 23:59", tz="Europe/Amsterdam")]
+
+# much shorter interval for 4 seconds-resolution data, otherwise requests will take forever
+STARTS_4S = [pd.Timestamp("20260301", tz="Europe/Amsterdam")]
+ENDS_4S = [pd.Timestamp("20260301 23:59", tz="Europe/Amsterdam")]
 
 COUNTRY_CODES = ["NL", "BE", "DE_LU", "FR"]
 COUNTRY_CODES_FROM = ["NL"]
 COUNTRY_CODES_TO = ["DE_LU", 'NO_2', 'BE']
+AREA_CODES_AFRR = ["DE_TRANSNET"]
 
 BASIC_QUERIES_TIMESERIES = [
     "query_day_ahead_prices",
@@ -51,8 +58,9 @@ CROSSBORDER_QUERIES = [
     "query_net_transfer_capacity_dayahead",
     "query_net_transfer_capacity_weekahead",
     "query_net_transfer_capacity_monthahead",
-    #"query_net_transfer_capacity_yearahead",
+    # "query_net_transfer_capacity_yearahead",
 ]
+
 
 def basic_checks(result, timeseries=True):
     assert isinstance(result, pd.Series) or isinstance(result, pd.DataFrame)
@@ -64,6 +72,7 @@ def basic_checks(result, timeseries=True):
         assert not result.isna().all()
     elif isinstance(result, pd.DataFrame):
         assert not result.isna().all().all()
+
 
 @pytest.mark.parametrize(
     "country_code, start, end, query",
@@ -78,6 +87,7 @@ def test_basic_queries_timeseries(client, query, country_code, start, end):
     result = getattr(client, query)(country_code, start=start, end=end)
     basic_checks(result)
 
+
 @pytest.mark.parametrize(
     "country_code, start, end, query",
     product(COUNTRY_CODES, STARTS, ENDS, BASIC_QUERIES),
@@ -85,7 +95,6 @@ def test_basic_queries_timeseries(client, query, country_code, start, end):
 def test_basic_queries(client, query, country_code, start, end):
     result = getattr(client, query)(country_code, start=start, end=end)
     basic_checks(result, timeseries=False)
-
 
 
 @pytest.mark.parametrize(
@@ -97,13 +106,12 @@ def test_basic_queries_zip(client, query, country_code, start, end):
     basic_checks(result)
 
 
-
 @pytest.mark.parametrize(
     "country_code_from, country_code_to, start, end, query",
     product(COUNTRY_CODES_FROM, COUNTRY_CODES_TO, STARTS, ENDS, CROSSBORDER_QUERIES),
 )
 def test_crossborder_queries(
-    client, query, country_code_from, country_code_to, start, end
+        client, query, country_code_from, country_code_to, start, end
 ):
     result = getattr(client, query)(country_code_from, country_code_to, start=start, end=end)
     basic_checks(result)
@@ -155,26 +163,44 @@ def test_query_unavailability_of_production_units(client, country_code, start, e
     result = client.query_unavailability_of_production_units(country_code, start=start, end=end, docstatus=None, periodstartupdate=None, periodendupdate=None)
     basic_checks(result, timeseries=False)
 
+
 @pytest.mark.parametrize(
     "country_code_from, country_code_to, start, end",
     product(COUNTRY_CODES_FROM, [x for x in COUNTRY_CODES_TO if x != 'DE_LU'], STARTS, ENDS),
 )
 def test_query_unavailability_transmission(
-    client, country_code_from, country_code_to, start, end
+        client, country_code_from, country_code_to, start, end
 ):
     result = client.query_unavailability_transmission(
         country_code_from, country_code_to, start=start, end=end, docstatus=None, periodstartupdate=None, periodendupdate=None
     )
     basic_checks(result, timeseries=False)
 
+
 @pytest.mark.parametrize(
     "country_code, start, end",
     product(COUNTRY_CODES, STARTS, ENDS),
 )
 def test_query_withdrawn_unavailability_of_generation_units(
-    client, country_code, start, end
+        client, country_code, start, end
 ):
     result = client.query_withdrawn_unavailability_of_generation_units(
         country_code, start, end,
     )
     basic_checks(result, timeseries=False)
+
+
+def test_query_activated_balancing_energy_prices(client):
+    result = client.query_activated_balancing_energy_prices(
+        AREA_CODES_AFRR[0], start=STARTS_4S[0], end=ENDS_4S[0], business_type='A96', process_type='A67'  # aFRR CBMPs
+    )
+    basic_checks(result)
+
+    # some additional, more "advanced" checks on actual data
+    assert result.shape[0] == 21_586  # one day minus one minute in 4 seconds blocks
+    assert sorted(list(result.columns)) == ['Down', 'ReserveType', 'Up']
+    assert (result.index.diff()[1:] == pd.Timedelta(seconds=4)).all()
+    assert tuple(result.loc['2026-03-01 00:00:00+01:00', ['Down', 'Up']]) == (69.12, np.nan)
+    assert tuple(result.loc['2026-03-01 00:01:08+01:00', ['Down', 'Up']]) == (35.0, 35.0)
+    assert tuple(result.loc['2026-03-01 00:01:12+01:00', ['Down', 'Up']]) == (70.0, np.nan)
+    assert tuple(result.loc['2026-03-01 00:09:32+01:00', ['Down', 'Up']]) == (-28.37, np.nan)

@@ -269,11 +269,11 @@ def parse_activated_balancing_energy_prices(xml_text):
     pd.DataFrame
     """
     timeseries_blocks = _extract_timeseries(xml_text)
-    frames = (_parse_activated_balancing_energy_prices_timeseries(soup)
-              for soup in timeseries_blocks)
-    df = pd.concat(frames)
-    df.sort_index(inplace=True)
-    return df
+    frames = list((_parse_activated_balancing_energy_prices_timeseries(soup)
+              for soup in timeseries_blocks))
+    # merge the "Up" and "Down" blocks into one row per timestamp
+    df = pd.concat(frames).groupby(level=0).first()
+    return df[[c for c in ['Down', 'Up', 'ReserveType'] if c in df.columns]]
 
 def parse_imbalance_prices(xml_text):
     """
@@ -633,7 +633,6 @@ def _parse_activated_balancing_energy_prices_timeseries(soup) -> pd.DataFrame:
         'A98': 'RR'
     }
 
-
     flow_direction = direction_options[soup.find('flowdirection.direction').text]
     reserve_type = reserve_type_options[soup.find('businesstype').text]
     period = soup.find('period')
@@ -642,20 +641,16 @@ def _parse_activated_balancing_energy_prices_timeseries(soup) -> pd.DataFrame:
     resolution = _resolution_to_timedelta(period.find('resolution').text)
     tx = pd.date_range(start=start, end=end, freq=resolution, inclusive='left')
 
-    df = pd.DataFrame(index=tx, columns=['Price', 'Direction', 'ReserveType'])
-
-    empty_idx = []
+    # points without a price stay nan, positions that are absent repeat the previous point (nan included)
+    positions, prices = [], []
     for point in period.find_all('point'):
-        idx = int(point.find('position').text)
         amount_el = point.find('activation_price.amount')
-        if amount_el is None:
-            empty_idx.append(tx[idx - 1])
-        df.loc[tx[idx - 1], 'Price'] = float(amount_el.text) if amount_el is not None else np.nan
-        df.loc[tx[idx-1], 'Direction'] = flow_direction
-        df.loc[tx[idx - 1], 'ReserveType'] = reserve_type
-    
-    df = df.infer_objects(copy=False).ffill()
-    df.loc[empty_idx, 'Price'] = np.nan  # keep points without a price as true nans, don't apply ffilling
+        positions.append(int(point.find('position').text))
+        prices.append(float(amount_el.text) if amount_el is not None else np.nan)
+    points = pd.Series(prices, index=tx[np.array(positions) - 1], dtype=float).sort_index()
+
+    df = points.reindex(tx, method='ffill').rename(flow_direction).to_frame()
+    df['ReserveType'] = reserve_type
     return df
 
 def _parse_imbalance_prices_timeseries(soup) -> pd.DataFrame:

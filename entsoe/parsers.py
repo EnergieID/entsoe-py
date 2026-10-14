@@ -17,16 +17,19 @@ GENERATION_ELEMENT = "inBiddingZone_Domain.mRID"
 CONSUMPTION_ELEMENT = "outBiddingZone_Domain.mRID"
 
 
-def parse_prices(xml_text):
-    """
+def _parse_prices(xml_text, include_currency=False):
+    """Parse price series, optionally retaining each TimeSeries currency.
+
     Parameters
     ----------
     xml_text : str
 
     Returns
     -------
-    pd.Series
+    dict[str, pd.Series | pd.DataFrame]
     """
+    empty_value = (lambda: pd.DataFrame(columns=['Price', 'Currency'])) \
+        if include_currency else (lambda: pd.Series())
     series = {
         '15min': [],
         '30min': [],
@@ -34,15 +37,35 @@ def parse_prices(xml_text):
     }
     for soup in _extract_timeseries(xml_text):
         soup_series = _parse_timeseries_generic(soup, 'price.amount')
+        currency_element = soup.find('currency_unit.name')
+        currency = currency_element.text if currency_element is not None else None
         for key in series.keys():
-            series[key].append(soup_series[key])
+            parsed_series = soup_series[key]
+            if include_currency and parsed_series is not None:
+                parsed_series = parsed_series.to_frame(name='Price')
+                parsed_series['Currency'] = currency
+            series[key].append(parsed_series)
 
     for freq, freq_series in series.items():
         try:
             series[freq] = pd.concat(freq_series).sort_index()
         except ValueError:
-            series[freq] = pd.Series()
+            series[freq] = empty_value()
     return series
+
+
+def parse_prices(xml_text):
+    """Parse day-ahead prices grouped by resolution."""
+    return _parse_prices(xml_text, include_currency=False)
+
+
+def parse_prices_with_currencies(xml_text):
+    """Parse day-ahead prices and their TimeSeries currencies.
+
+    A missing ``currency_Unit.name`` is represented by ``None``; no currency
+    is inferred from the bidding zone.
+    """
+    return _parse_prices(xml_text, include_currency=True)
 
 
 def parse_netpositions(xml_text):

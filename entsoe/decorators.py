@@ -59,7 +59,7 @@ def paginated(func):
     return pagination_wrapper
 
 
-def documents_limited(n):
+def documents_limited(n, row_atomic=False):
     def decorator(func):
         """Deals with calls where you cannot query more than n documents at a
         time, by offsetting per n documents"""
@@ -85,7 +85,20 @@ def documents_limited(n):
             if func.__name__ != '_query_unavailability':
                 # For same indices pick last valid value
                 if df.index.has_duplicates:
-                    df = df.groupby(df.index).agg(deduplicate_documents_limited)
+                    if row_atomic:
+                        # Keep all columns from the same source record. This is
+                        # important for related values such as price/currency.
+                        groups = []
+                        for _, group in df.groupby(df.index):
+                            valid_rows = group
+                            if 'Price' in group:
+                                price_rows = group[group['Price'].notna()]
+                                if not price_rows.empty:
+                                    valid_rows = price_rows
+                            groups.append(valid_rows.iloc[[-1]])
+                        df = pd.concat(groups)
+                    else:
+                        df = df.groupby(df.index).agg(deduplicate_documents_limited)
             return df
         return documents_wrapper
     return decorator

@@ -18,7 +18,7 @@ from .parsers import parse_prices, parse_loads, parse_generation, \
     parse_imbalance_prices_zip, parse_imbalance_volumes_zip, parse_netpositions, \
     parse_procured_balancing_capacity_zip, parse_water_hydro, parse_aggregated_bids, \
     parse_activated_balancing_energy_prices, parse_offshore_unavailability, parse_imbalance_volumes
-from .decorators import retry, paginated, year_limited, day_limited, documents_limited, month_limited
+from .decorators import _mask_security_token, retry, paginated, year_limited, day_limited, documents_limited, month_limited
 import warnings
 
 logger = logging.getLogger(__name__)
@@ -33,6 +33,20 @@ URL = os.getenv("ENTSOE_ENDPOINT_URL") or "https://web-api.tp.entsoe.eu/api"
 
 QUARTER_MTU_SDAC_GOLIVE = pd.Timestamp('2025-10-01', tz='Europe/Amsterdam')
 
+
+
+def _masked_http_error(error: requests.HTTPError) -> requests.HTTPError:
+    """
+    Rebuild an HTTPError with the securityToken masked in its message.
+
+    The type, the response and the request are preserved, so that callers
+    catching requests.HTTPError and inspecting error.response keep working.
+    """
+    masked = requests.HTTPError(
+        _mask_security_token(str(error)), response=error.response)
+    if masked.request is None:
+        masked.request = error.request
+    return masked
 
 
 class EntsoeRawClient:
@@ -102,7 +116,8 @@ class EntsoeRawClient:
         }
         params.update(base_params)
 
-        logger.debug(f'Performing request to {URL} with params {params}')
+        logger.debug(f'Performing request to {URL} with params '
+                     f'{dict(params, securityToken="<hidden>")}')
         response = self.session.get(url=URL, params=params,
                                     proxies=self.proxies, timeout=self.timeout)
         try:
@@ -113,26 +128,26 @@ class EntsoeRawClient:
             if len(text):
                 error_text = soup.find('text').text
                 if 'No matching data found' in error_text:
-                    raise NoMatchingDataError
+                    raise NoMatchingDataError from None
                 elif "check you request against dependency tables" in error_text:
-                    raise InvalidBusinessParameterError
+                    raise InvalidBusinessParameterError from None
                 elif "is not valid for this area" in error_text:
-                    raise InvalidPSRTypeError
+                    raise InvalidPSRTypeError from None
                 elif 'amount of requested data exceeds allowed limit' in error_text:
                     requested = error_text.split(' ')[-2]
                     allowed = error_text.split(' ')[-5]
                     raise PaginationError(
                         f"The API is limited to {allowed} elements per "
                         f"request. This query requested for {requested} "
-                        f"documents and cannot be fulfilled as is.")
+                        f"documents and cannot be fulfilled as is.") from None
                 elif 'requested data to be gathered via the offset parameter exceeds the allowed limit' in error_text:
                     requested = error_text.split(' ')[-9]
                     allowed = error_text.split(' ')[-30][:-2]
                     raise PaginationError(
                         f"The API is limited to {allowed} elements per "
                         f"request. This query requested for {requested} "
-                        f"documents and cannot be fulfilled as is.")
-            raise e
+                        f"documents and cannot be fulfilled as is.") from None
+            raise _masked_http_error(e) from None
         else:
             # ENTSO-E has changed their server to also respond with 200 if there is no data but all parameters are valid
             # this means we need to check the contents for this error even when status code 200 is returned

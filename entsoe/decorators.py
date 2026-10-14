@@ -12,7 +12,15 @@ from .misc import day_blocks, year_blocks, month_blocks
 
 logger = logging.getLogger(__name__)
 
-SECURITY_TOKEN = re.compile(r'(securityToken=)[^&\s\'"]+')
+SECURITY_TOKEN_PATTERN = re.compile(r'(securityToken=)[^&\s\'"]+')
+
+
+def _mask_security_token(text: str) -> str:
+    """
+    Replace the value of any securityToken parameter in a string with a
+    placeholder, so that API keys do not end up in logs or error messages.
+    """
+    return SECURITY_TOKEN_PATTERN.sub(r'\1<hidden>', text)
 
 
 def retry(func):
@@ -41,7 +49,7 @@ def retry(func):
         else:
             if isinstance(error, requests.RequestException):
                 # requests puts the request URL, API key included, in the message
-                error = type(error)(SECURITY_TOKEN.sub(r'\1<hidden>', str(error)),
+                error = type(error)(_mask_security_token(str(error)),
                                     request=error.request, response=error.response)
             raise error
 

@@ -171,6 +171,15 @@ def test_query_unavailability_transmission(
 #     assert isinstance(result, (bytes, bytearray))
 
 
+def test_invalid_key_is_not_leaked():
+    key = "not-a-real-key"
+    bad_client = EntsoeRawClient(api_key=key, retry_count=1)
+    with pytest.raises(requests.HTTPError) as excinfo:
+        bad_client.query_day_ahead_prices("NL", start=STARTS[0], end=ENDS[0])
+    assert key not in str(excinfo.value)
+    assert key not in "".join(traceback.format_exception(excinfo.value))
+
+
 def test_connection_error_does_not_leak_key():
     key = "not-a-real-key"
     # a tiny timeout makes the real connection to the API fail

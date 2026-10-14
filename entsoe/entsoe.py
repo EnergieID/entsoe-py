@@ -1,6 +1,5 @@
 import logging
 import os
-import re
 from typing import Union, Optional, Dict, Literal
 
 import pandas as pd
@@ -19,7 +18,7 @@ from .parsers import parse_prices, parse_loads, parse_generation, \
     parse_imbalance_prices_zip, parse_imbalance_volumes_zip, parse_netpositions, \
     parse_procured_balancing_capacity_zip, parse_water_hydro, parse_aggregated_bids, \
     parse_activated_balancing_energy_prices, parse_offshore_unavailability, parse_imbalance_volumes
-from .decorators import retry, paginated, year_limited, day_limited, documents_limited, month_limited
+from .decorators import _mask_security_token, retry, paginated, year_limited, day_limited, documents_limited, month_limited
 import warnings
 
 logger = logging.getLogger(__name__)
@@ -34,17 +33,6 @@ URL = os.getenv("ENTSOE_ENDPOINT_URL") or "https://web-api.tp.entsoe.eu/api"
 
 QUARTER_MTU_SDAC_GOLIVE = pd.Timestamp('2025-10-01', tz='Europe/Amsterdam')
 
-
-
-SECURITY_TOKEN_PATTERN = re.compile(r'(securityToken=)[^&\s\'"]+')
-
-
-def _mask_security_token(text: str) -> str:
-    """
-    Replace the value of any securityToken parameter in a string with a
-    placeholder, so that API keys do not end up in logs or error messages.
-    """
-    return SECURITY_TOKEN_PATTERN.sub(r'\1<hidden>', text)
 
 
 def _masked_http_error(error: requests.HTTPError) -> requests.HTTPError:

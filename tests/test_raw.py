@@ -178,3 +178,12 @@ def test_invalid_key_is_not_leaked():
         bad_client.query_day_ahead_prices("NL", start=STARTS[0], end=ENDS[0])
     assert key not in str(excinfo.value)
     assert key not in "".join(traceback.format_exception(excinfo.value))
+
+
+def test_connection_error_does_not_leak_key():
+    key = "not-a-real-key"
+    # a tiny timeout makes the real connection to the API fail
+    bad_client = EntsoeRawClient(api_key=key, retry_count=1, retry_delay=0, timeout=0.001)
+    with pytest.raises(requests.ConnectionError) as excinfo:
+        bad_client.query_day_ahead_prices("NL", start=STARTS[0], end=ENDS[0])
+    assert key not in "".join(traceback.format_exception(excinfo.value))

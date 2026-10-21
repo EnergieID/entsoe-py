@@ -13,7 +13,7 @@ from bs4.builder import XMLParsedAsHTMLWarning
 from entsoe.exceptions import InvalidPSRTypeError, InvalidBusinessParameterError
 from .exceptions import NoMatchingDataError, PaginationError
 from .mappings import Area, NEIGHBOURS, lookup_area
-from .parsers import parse_prices, parse_loads, parse_generation, \
+from .parsers import parse_prices, parse_prices_with_currencies, parse_loads, parse_generation, \
     parse_installed_capacity_per_plant, parse_crossborder_flows, \
     parse_unavailabilities, parse_contracted_reserve, parse_contracted_reserve_zip, \
     parse_imbalance_prices_zip, parse_imbalance_volumes_zip, parse_netpositions, \
@@ -1334,13 +1334,41 @@ class EntsoePandasClient(EntsoeRawClient):
             raise NoMatchingDataError
         return series
 
+    def query_day_ahead_prices_with_currencies(
+            self, country_code: Union[Area, str],
+            start: pd.Timestamp,
+            end: pd.Timestamp,
+            resolution = None) -> pd.DataFrame:
+        """Return SDAC prices with the currency reported by ENTSO-E.
+
+        Price values are returned in the reported currency and are not
+        converted.
+        """
+        if resolution is not None:
+            with warnings.catch_warnings():
+                warnings.simplefilter("always")
+                warnings.warn('The resolution parameter is deprecated and will be removed. This function will force the right resolution', DeprecationWarning)
+        area = lookup_area(country_code)
+        frame = self._query_day_ahead_prices(
+            area,
+            start=start-pd.Timedelta(days=1),
+            end=end+pd.Timedelta(days=1),
+            include_currency=True
+        )
+        frame = frame.tz_convert(area.tz).sort_index()
+        frame = frame.truncate(before=start, after=end)
+        if len(frame) == 0:
+            raise NoMatchingDataError
+        return frame[['Price', 'Currency']]
+
     @year_limited
     @documents_limited(100)
     def _query_day_ahead_prices(
             self, area: Area,
             start: pd.Timestamp,
             end: pd.Timestamp,
-            offset: int = 0) -> pd.Series:
+            offset: int = 0,
+            include_currency: bool = False) -> Union[pd.Series, pd.DataFrame]:
         text = super(EntsoePandasClient, self).query_day_ahead_prices(
             area,
             start=start,
@@ -1348,7 +1376,9 @@ class EntsoePandasClient(EntsoeRawClient):
             offset=offset,
             sequence=1 if area.name in ['DE_LU', 'AT'] else None
         )
-        series_all = parse_prices(text)
+        parser = (parse_prices_with_currencies if include_currency
+                  else parse_prices)
+        series_all = parser(text)
 
         # This function should only return SDAC prices, which have a fixed defined resolution
         # before 2025-10-01 its 60min, after 15min

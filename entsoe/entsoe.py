@@ -2153,6 +2153,9 @@ class EntsoePandasClient(EntsoeRawClient):
         Returns
         -------
         pd.DataFrame
+            Columns are (direction, mrid, unit). The API numbers TimeSeries
+            mRIDs from 1 within each offset page, so mrid is the bid's
+            position in the result (page offset + mRID), not a stable bid id.
         """
         area = lookup_area(country_code)
         zip_contents = super(EntsoePandasClient, self).query_procured_balancing_capacity(
@@ -2161,6 +2164,9 @@ class EntsoePandasClient(EntsoeRawClient):
             offset=offset
         )
         df = parse_procured_balancing_capacity_zip(zip_contents, area.tz)
+        # The API numbers TimeSeries mRIDs from 1 within each offset page, so
+        # shift them by the offset to keep bids from different pages apart
+        df.columns = df.columns.set_levels(df.columns.levels[1] + offset, level='mrid')
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df

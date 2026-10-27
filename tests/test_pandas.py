@@ -138,6 +138,16 @@ def test_query_intraday_offered_capacity(client, country_code_from, country_code
 #     basic_checks(result)
 
 
+def test_query_procured_balancing_capacity_keeps_all_offset_pages(client):
+    # 126 bids on this day: 100 at offset 0 and 26 at offset 100, both pages numbering mRIDs from 1
+    result = client.query_procured_balancing_capacity(
+        'NL', start=pd.Timestamp("20260526", tz="Europe/Amsterdam"), end=pd.Timestamp("20260527", tz="Europe/Amsterdam"),
+        process_type='A47', type_marketagreement_type='A01'
+    )
+    basic_checks(result)
+    assert result.columns.droplevel('unit').nunique() == 126
+
+
 @pytest.mark.parametrize(
     "country_code, start, end",
     product(COUNTRY_CODES, STARTS, ENDS),

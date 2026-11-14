@@ -156,12 +156,13 @@ def parse_generation(
     df = pd.DataFrame.from_dict(all_series)
     df.sort_index(inplace=True)
 
-    df = _calc_nett_and_drop_redundant_columns(df, nett=nett)
+    df = _calc_nett_and_drop_redundant_columns(
+        df, nett=nett, drop_redundant=not include_eic)
     return df
 
 
 def _calc_nett_and_drop_redundant_columns(
-        df: pd.DataFrame, nett: bool) -> pd.DataFrame:
+        df: pd.DataFrame, nett: bool, drop_redundant: bool = True) -> pd.DataFrame:
     def _calc_nett(_df):
         try:
             if set(['Actual Aggregated']).issubset(_df):
@@ -178,8 +179,10 @@ def _calc_nett_and_drop_redundant_columns(
         return _new
 
     if hasattr(df.columns, 'levels'):
-        if len(df.columns.levels[-1]) == 1:
-            # Drop the extra header, if it is redundant
+        if drop_redundant and len(df.columns.levels[-1]) == 1:
+            # Drop the extra header, if it is redundant. Skipped when the innermost
+            # level is the include_eic level: a single-unit window has one eic, which
+            # would otherwise be discarded even though the eic is the join key.
             df = df.droplevel(axis=1, level=-1)
         elif nett:
             frames = []
